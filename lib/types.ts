@@ -1,0 +1,14 @@
+export type PatientStatus = "active" | "suspended" | "completed";
+export type Patient = { id:string; firstName:string; lastName:string; birthDate:string; contact:string; guardian:string; school:string; schoolClass:string; referralReason:string; notes:string; status:PatientStatus; createdAt:string };
+export type AppointmentType = "regular"|"assessment"|"checkup"|"cancelled";
+export type Appointment = { id:string; patientId:string; date:string; time:string; duration:number; type:AppointmentType; notes:string; createdAt:string };
+export type Session = { id:string; patientId:string; date:string; duration:number; goalIds:string[]; activities:string; response:string; helpLevel:string; result:string; nextPlan:string; homework:string; notes:string; materialIds:string[]; createdAt:string };
+export type Goal = { id:string; patientId:string; title:string; description:string; priority:number; status:string; progress:number; createdAt:string };
+export type Material = { id:string; title:string; description:string; category:string; tags:string[]; fileName:string; mimeType:string; size:number; favorite:boolean; patientIds:string[]; externalUrl?:string; storagePath?:string; createdAt:string };
+export type Profile = { firstName:string; lastName:string; profession:string; email:string; studio:string };
+export type AppData = { patients:Patient[]; appointments:Appointment[]; sessions:Session[]; goals:Goal[]; materials:Material[]; profile:Profile };
+export const fullName=(p:Patient)=>`${p.firstName} ${p.lastName}`;
+export const initials=(p:Patient)=>`${p.firstName[0]||""}${p.lastName[0]||""}`.toUpperCase();
+export const age=(birthDate:string)=>{if(!birthDate)return 0;const d=new Date(birthDate),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a};
+export const uid=()=>crypto.randomUUID();
+export const today=()=>new Date().toLocaleDateString("sv-SE");
