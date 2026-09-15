@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
@@ -9,17 +9,14 @@ function Form() {
   const q = useSearchParams(),
     router = useRouter(),
     { data, saveSession } = useData();
-  const p = data.patients.find((x) => x.id === q.get("p")) || data.patients[0];
-  const previous = p
-    ? data.sessions
-        .filter((s) => s.patientId === p.id)
-        .sort((a, b) => b.date.localeCompare(a.date))[0]
-    : undefined;
+  const requestedAppointment = data.appointments.find((x) => x.id === q.get("a"));
+  const requestedPatientId = requestedAppointment?.patientId || q.get("p") || "";
   const [v, setV] = useState<Session>({
     id: uid(),
-    patientId: p?.id || "",
-    date: today(),
-    duration: 45,
+    patientId: requestedPatientId,
+    appointmentId: requestedAppointment?.id,
+    date: requestedAppointment?.date || q.get("date") || today(),
+    duration: requestedAppointment?.duration || 45,
     goalIds: [],
     activities: "",
     response: "Buona",
@@ -31,6 +28,19 @@ function Form() {
     materialIds: [],
     createdAt: new Date().toISOString(),
   });
+  useEffect(() => {
+    if (!v.patientId && data.patients[0]) setV((old) => ({ ...old, patientId: data.patients[0].id }));
+  }, [data.patients, v.patientId]);
+  const p = data.patients.find((x) => x.id === v.patientId);
+  const previous = p
+    ? data.sessions
+        .filter((s) => s.patientId === p.id && s.date <= v.date)
+        .sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt))[0]
+    : undefined;
+  const appointmentsForDate = data.appointments.filter((a) => a.patientId === v.patientId && a.date === v.date && a.type !== "cancelled");
+  const duplicate = v.appointmentId ? data.sessions.find((s) => s.appointmentId === v.appointmentId) : undefined;
+  if (duplicate)
+    return <AppShell><div className="card mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Seduta già registrata</h1><p className="mt-2 text-slate-500">Per questo appuntamento esiste già una seduta. Aprila dalla timeline del paziente per modificarla.</p><button onClick={() => router.push(`/pazienti/${duplicate.patientId}`)} className="btn btn-primary mt-6">Apri timeline paziente</button></div></AppShell>;
   if (!p)
     return (
       <AppShell>
@@ -55,7 +65,7 @@ function Form() {
     <AppShell>
       <header className="mb-7">
         <p className="text-sm font-bold text-sage-700">
-          SEDUTA IN CORSO · OGGI
+          REGISTRA SEDUTA · {new Date(v.date + "T12:00").toLocaleDateString("it-IT")}
         </p>
         <h1 className="mt-2 text-3xl font-bold">Seduta con {fullName(p)}</h1>
         {previous?.nextPlan && (
@@ -68,11 +78,20 @@ function Form() {
         className="mx-auto max-w-3xl space-y-5"
         onSubmit={async (e) => {
           e.preventDefault();
-        const f=new FormData(e.currentTarget);
-        await saveSession({...v,activities:String(f.get('activities')||''),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')});
+          if (v.appointmentId && data.sessions.some((s) => s.appointmentId === v.appointmentId && s.id !== v.id)) { alert("Seduta già registrata per questo appuntamento."); return; }
+          const f=new FormData(e.currentTarget);
+          await saveSession({...v,activities:String(f.get('activities')||''),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')});
           router.push("/pazienti/" + p.id);
         }}
       >
+        <section className="card p-5">
+          <h2 className="text-sm font-bold">Data e paziente</h2>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-bold">Paziente<select value={v.patientId} onChange={(e) => setV((old) => ({...old,patientId:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal">{data.patients.map((patient) => <option value={patient.id} key={patient.id}>{fullName(patient)}</option>)}</select></label>
+            <label className="block text-sm font-bold">Data effettiva<input type="date" max={today()} required value={v.date} onChange={(e) => setV((old) => ({...old,date:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal" /></label>
+            <label className="block text-sm font-bold sm:col-span-2">Appuntamento collegato<select value={v.appointmentId || ""} onChange={(e) => { const id=e.target.value||undefined; const appointment=data.appointments.find((a)=>a.id===id); setV((old)=>({...old,appointmentId:id,duration:appointment?.duration||old.duration})); }} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessun appuntamento</option>{appointmentsForDate.map((a)=><option value={a.id} key={a.id}>{a.time} · {a.duration} min</option>)}</select></label>
+          </div>
+        </section>
         <section className="card p-5">
           <label className="text-sm font-bold">Attività svolte</label>
           <textarea

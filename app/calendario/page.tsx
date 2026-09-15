@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { AppointmentForm } from "@/components/appointment-form";
@@ -85,14 +86,17 @@ export default function Calendar() {
             Organizza appuntamenti e giornate di lavoro.
           </p>
         </div>
-        <button
-          onClick={() => setEditor({ date: today() })}
-          disabled={!data.patients.length}
-          title={!data.patients.length ? "Crea prima un paziente" : undefined}
-          className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          + Nuovo appuntamento
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/sedute/nuova" aria-disabled={!data.patients.length} title={!data.patients.length ? "Crea prima un paziente" : undefined} className={`btn btn-quiet ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}>Registra seduta</Link>
+          <button
+            onClick={() => setEditor({ date: today() })}
+            disabled={!data.patients.length}
+            title={!data.patients.length ? "Crea prima un paziente" : undefined}
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            + Nuovo appuntamento
+          </button>
+        </div>
       </header>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div
@@ -185,6 +189,12 @@ export default function Calendar() {
           />
           {editor.appointment && (
             <div className="mt-4 border-t border-sage-100 pt-4">
+              {data.sessions.some((session) => session.appointmentId === editor.appointment!.id) ? (
+                <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-sage-50 p-3 text-sm"><b>Seduta già registrata</b><Link href={`/pazienti/${editor.appointment.patientId}`} className="font-bold text-sage-700">Apri e modifica</Link></div>
+              ) : (
+                <Link href={`/sedute/nuova?a=${editor.appointment.id}`} className="btn btn-primary mb-3 inline-block">Registra seduta</Link>
+              )}
+              <div>
               <button
                 onClick={() => {
                   if (confirm("Eliminare questo appuntamento?")) {
@@ -196,6 +206,7 @@ export default function Calendar() {
               >
                 Elimina appuntamento
               </button>
+              </div>
             </div>
           )}
         </Modal>

@@ -33,7 +33,7 @@ export default function PatientPage() {
     );
   const sessions = data.sessions
     .filter((s) => s.patientId === id)
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
   const goals = data.goals.filter((g) => g.patientId === id);
   const next = data.appointments
     .filter((a) => a.patientId === id && a.type !== "cancelled")
@@ -76,7 +76,7 @@ export default function PatientPage() {
             Elimina
           </button>
           <Link href={"/sedute/nuova?p=" + p.id} className="btn btn-primary">
-            Inizia seduta
+            Registra seduta
           </Link>
         </div>
       </header>

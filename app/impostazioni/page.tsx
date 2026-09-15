@@ -5,12 +5,21 @@ import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
 import type { Profile } from "@/lib/types";
+import {clearGoogleCalendarLocalState,flushGoogleCalendarQueue,getGoogleCalendarPreferences,getGoogleSyncState,persistGoogleCalendarPreferences,queueAllGoogleAppointments,saveGoogleCalendarPreferences,subscribeGoogleSync,type GoogleCalendarPreferences,type GoogleSyncState} from "@/lib/google-calendar/client-sync";
+type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
+const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
 export default function Settings() {
   const router = useRouter();
   const { data, ready, connection, saveProfile, signOut } = useData();
   const [v, setV] = useState<Profile>(data.profile),
-    [saved, setSaved] = useState(false);
+    [saved, setSaved] = useState(false),
+    [google,setGoogle]=useState<GoogleStatus|null>(null),
+    [googlePrefs,setGooglePrefs]=useState<GoogleCalendarPreferences>({enabled:false,nameFormat:"first_initial",reminderMinutes:30}),
+    [syncState,setSyncState]=useState<GoogleSyncState>({pending:0,syncing:false});
   useEffect(() => { if (ready) setV(data.profile); }, [ready, data.profile]);
+  useEffect(()=>{setGooglePrefs(getGoogleCalendarPreferences());setSyncState(getGoogleSyncState());return subscribeGoogleSync(()=>setSyncState(getGoogleSyncState()))},[]);
+  useEffect(()=>{fetch("/api/google-calendar/status",{cache:"no-store"}).then(r=>r.json()).then((status:GoogleStatus)=>{setGoogle(status);if(status.connected){const current=getGoogleCalendarPreferences(),preferences={...current,enabled:status.syncEnabled??true,nameFormat:cloudDataMode&&status.nameFormat?status.nameFormat:current.nameFormat,reminderMinutes:cloudDataMode&&status.reminderMinutes!==undefined?status.reminderMinutes:current.reminderMinutes};saveGoogleCalendarPreferences(preferences);setGooglePrefs(preferences);if(new URLSearchParams(window.location.search).get("google")==="connected")queueAllGoogleAppointments(data.appointments,data.patients)}}).catch(error=>setGoogle({configured:true,connected:false,error:error instanceof Error?error.message:"Errore di collegamento"}))},[ready]);
+  const updateGooglePreferences=(patch:Partial<GoogleCalendarPreferences>)=>{const next={...googlePrefs,...patch};setGooglePrefs(next);void persistGoogleCalendarPreferences(next).then(()=>{if(google?.connected)queueAllGoogleAppointments(data.appointments,data.patients)}).catch(error=>setGoogle(old=>({...old!,error:error instanceof Error?error.message:"Salvataggio non riuscito"})))};
   const set =
     (k: keyof Profile) => (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
@@ -75,6 +84,23 @@ export default function Settings() {
           </span>
         )}
       </form>
+      <section className="card mt-5 max-w-2xl p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><h2 className="font-bold">Google Calendar</h2><p className="mt-1 text-sm text-slate-500">Sincronizzazione unidirezionale verso il calendario dedicato “Armonia”.</p></div>
+          <span className={`rounded-full px-3 py-1 text-sm font-bold ${google?.connected&&!syncState.error?"bg-blue-50 text-blue-700":google?.error||syncState.error?"bg-red-50 text-red-700":"bg-slate-100 text-slate-500"}`}>{google?.connected&&!syncState.error?"Collegato":google?.error||syncState.error?"Errore":"Non collegato"}</span>
+        </div>
+        {!google?.configured ? <div className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><b>Configurazione Google Cloud necessaria</b><p className="mt-1">Aggiungi le credenziali OAuth locali per attivare il collegamento.</p></div> : google.connected ? <>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-bold">Titolo degli eventi<select value={googlePrefs.nameFormat} onChange={e=>updateGooglePreferences({nameFormat:e.target.value as GoogleCalendarPreferences["nameFormat"]})} className="mt-2 w-full rounded-xl border border-sage-100 bg-white px-3 py-2.5 font-normal outline-none focus:border-sage-500"><option value="first_initial">Nome + iniziale cognome</option><option value="full">Nome e cognome completo</option><option value="initials">Solo iniziali</option></select></label>
+            <Field label="Promemoria (minuti prima)" type="number" min={0} max={40320} value={googlePrefs.reminderMinutes} onChange={e=>updateGooglePreferences({reminderMinutes:Math.max(0,Math.min(40320,Number(e.target.value)||0))})}/>
+          </div>
+          <div className="mt-4 rounded-xl bg-sage-50 p-4 text-sm"><b>Anteprima:</b> {googlePrefs.nameFormat==="full"?"Logopedia · Mario Rossi":googlePrefs.nameFormat==="initials"?"Logopedia · M. R.":"Logopedia · Mario R."}<p className="mt-1 text-slate-500">Descrizione vuota, evento privato, stato occupato e nessun invitato.</p></div>
+          {syncState.error&&<p className="mt-3 text-sm font-bold text-red-600">{syncState.error}</p>}
+          <p className="mt-3 text-sm text-slate-500">{syncState.syncing?"Sincronizzazione in corso…":syncState.pending?`${syncState.pending} modifiche in attesa`:syncState.lastSyncedAt?`Ultima sincronizzazione: ${new Date(syncState.lastSyncedAt).toLocaleString("it-IT")}`:"Pronto per la prima sincronizzazione"}</p>
+          <div className="mt-4 flex flex-wrap gap-2"><button type="button" className="btn btn-primary" disabled={syncState.syncing} onClick={()=>{queueAllGoogleAppointments(data.appointments,data.patients);void flushGoogleCalendarQueue()}}>Sincronizza ora</button><button type="button" className="btn btn-quiet" onClick={async()=>{if(!confirm("Scollegare Google Calendar da Armonia? Gli eventi già presenti nel calendario non saranno eliminati."))return;await fetch("/api/google-calendar/disconnect",{method:"POST"});clearGoogleCalendarLocalState();setGoogle({configured:true,connected:false});setGooglePrefs(getGoogleCalendarPreferences())}}>Scollega</button></div>
+        </> : <div className="mt-5"><a href="/api/google-calendar/connect" className="btn btn-primary inline-block">Collega Google Calendar</a>{google?.error&&<p className="mt-3 text-sm font-bold text-red-600">{google.error}</p>}</div>}
+        <p className="mt-5 border-t border-sage-100 pt-4 text-xs text-slate-500">Prototipo locale: il token OAuth è cifrato sul dispositivo. Per la produzione sarà usato uno store backend persistente e cifrato.</p>
+      </section>
       <section className="card mt-5 max-w-2xl p-6">
         <h2 className="font-bold">Account</h2>
         <button
