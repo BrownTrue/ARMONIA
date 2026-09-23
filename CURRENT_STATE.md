@@ -12,6 +12,7 @@ Fotografia ricavata dal repository al 23 settembre 2026.
 ## Funzionalità implementate
 
 - Autenticazione Supabase con email/password, sessione persistente e logout in modalità cloud.
+- Pagine pubbliche `/about` e `/privacy`, accessibili senza sessione anche in modalità cloud.
 - Profilo modificabile e persistente.
 - CRUD pazienti e scheda con appuntamenti, obiettivi, materiali e timeline.
 - Calendario interattivo con viste Mese, Settimana e Agenda, navigazione e CRUD appuntamenti.
@@ -32,6 +33,7 @@ Fotografia ricavata dal repository al 23 settembre 2026.
 ## Architettura rilevante
 
 - `components/data-provider.tsx` mantiene lo stato condiviso e instrada le operazioni al provider locale o Supabase.
+- `components/auth-gate.tsx` protegge le route operative e consente esplicitamente `/login`, `/about` e `/privacy` senza sessione.
 - `lib/supabase/repository.ts` traduce fra tipi applicativi e righe Supabase, incluse le relazioni.
 - `Session.appointmentId` corrisponde a `sessions.appointment_id` ed è la fonte dello stato completato di un appuntamento.
 - `Appointment.recurrenceSeriesId` corrisponde a `appointments.recurrence_series_id`; è nullable per gli appuntamenti storici e raggruppa occorrenze che mantengono ID autonomi.

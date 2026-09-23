@@ -15,7 +15,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 
 ## Struttura principale
 
-- `app/`: pagine, layout e route API; include Oggi, Pazienti, Calendario, Sedute, Materiali, Statistiche, Impostazioni e Login.
+- `app/`: pagine, layout e route API; include Oggi, Pazienti, Calendario, Sedute, Materiali, Statistiche, Impostazioni, Login e le pagine pubbliche Informazioni e Privacy.
 - `components/data-provider.tsx`: API dati condivisa dalla UI e selezione fra provider locale e Supabase.
 - `components/`: shell applicativa e moduli riutilizzabili per form, modali, autenticazione e appuntamenti.
 - `lib/supabase/`: client browser/server e repository Supabase.
@@ -34,7 +34,7 @@ Il `DataProvider` espone alla UI le stesse operazioni in entrambe le modalità. 
 
 ## Autenticazione e profilo
 
-In modalità cloud l'accesso usa email e password Supabase, con sessione persistente e logout. Le route applicative sono protette da `AuthGate`. Il profilo comprende nome, cognome, professione, email e studio/centro ed è persistente nel provider attivo.
+In modalità cloud l'accesso usa email e password Supabase, con sessione persistente e logout. Le route operative sono protette da `AuthGate`; `/about`, `/privacy` e `/login` sono pubbliche. Il profilo comprende nome, cognome, professione, email e studio/centro ed è persistente nel provider attivo.
 
 ## Funzionalità
 
