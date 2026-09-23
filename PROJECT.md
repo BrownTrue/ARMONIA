@@ -44,7 +44,7 @@ Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente 
 
 ### Appuntamenti e calendario
 
-Gli appuntamenti supportano creazione, consultazione, modifica ed eliminazione. La pagina Calendario offre viste Mese, Settimana e Agenda usando la stessa sorgente dati. La vista scelta è memorizzata localmente. Gli appuntamenti alimentano anche la Dashboard Oggi.
+Gli appuntamenti supportano creazione, consultazione, modifica ed eliminazione. È possibile creare serie settimanali fino a una data inclusiva: ogni occorrenza è un normale appuntamento con ID proprio e un riferimento nullable comune alla serie. Modifica ed eliminazione agiscono sulla singola occorrenza. La pagina Calendario offre viste Mese, Settimana e Agenda usando la stessa sorgente dati. La vista scelta è memorizzata localmente. Gli appuntamenti alimentano anche la Dashboard Oggi.
 
 ### Sedute
 
@@ -66,7 +66,7 @@ La libreria supporta upload, apertura, modifica dei metadati, eliminazione, rice
 
 ### Google Calendar
 
-La sincronizzazione è unidirezionale da Armonia a Google Calendar per creazione, modifica ed eliminazione degli appuntamenti. Armonia rimane la fonte principale; le modifiche manuali su Google non vengono importate.
+La sincronizzazione è unidirezionale da Armonia a Google Calendar per creazione, modifica ed eliminazione degli appuntamenti. Ogni occorrenza di una serie viene sincronizzata come evento Google separato tramite il proprio appointment ID, non come evento ricorrente Google. Armonia rimane la fonte principale; le modifiche manuali su Google non vengono importate.
 
 OAuth richiede accesso offline e un refresh token. Viene usato un calendario secondario dedicato chiamato “Armonia” con scope `calendar.app.created`. Gli eventi sono privati e occupati, senza invitati o descrizione clinica; titolo e reminder sono configurabili nelle Impostazioni.
 
@@ -90,4 +90,3 @@ Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo s
 - Operazioni cloud protette da autenticazione, RLS e isolamento per utente.
 - File privati aperti tramite URL temporanei, non tramite link pubblici permanenti.
 - Modifiche al database additive e retrocompatibili, applicate manualmente.
-

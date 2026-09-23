@@ -5,13 +5,13 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 ## Priorità alta
 
 - Verificare, prima di attivare Google Calendar in un ambiente cloud, se `004_google_calendar_production.sql` è stata applicata in quell'ambiente e se le variabili server necessarie sono configurate. La verifica e l'eventuale esecuzione devono essere manuali e autorizzate.
-- Aggiornare il README affinché includa la migration `004` e la configurazione server-side richiesta da Google Calendar su Vercel.
+- Prima di usare gli appuntamenti ricorrenti in modalità cloud, applicare manualmente e con autorizzazione `005_weekly_recurring_appointments.sql` nell'ambiente interessato.
+- Aggiornare il README affinché includa le migration `004` e `005` e la configurazione server-side richiesta da Google Calendar su Vercel.
 
 ## Miglioramenti
 
-- Introdurre test automatici per i flussi critici oggi non coperti da una suite nel repository: CRUD principali, collegamento appuntamento/seduta, registrazione retroattiva e partizione “Da fare oggi”/“Completati oggi”.
+- Estendere i test automatici oltre la copertura attuale di ricorrenze, operazioni individuali e partizione Dashboard: CRUD principali, registrazione retroattiva e flussi UI completi.
 
 ## Idee future
 
-- Progettare e implementare gli appuntamenti ricorrenti senza alterare gli appuntamenti e le sedute esistenti.
-
+- Aggiungere, dopo una progettazione completa e sicura, le operazioni sulle serie “questo e successivi” e “intera serie”.

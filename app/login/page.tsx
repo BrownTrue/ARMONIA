@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
@@ -14,9 +15,8 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
       <section className="card w-full max-w-md p-7 sm:p-9">
-        <div className="mb-8 flex items-center gap-3 text-xl font-bold">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sage-700 text-white">a</span>
-          Armonia
+        <div className="mb-8 flex justify-center">
+          <Image src="/branding/logo.svg" alt="Armonia" width={160} height={147} priority className="h-auto w-36 sm:w-40" />
         </div>
         <h1 className="text-3xl font-bold">Bentornata</h1>
         <p className="mt-2 text-sm text-slate-500">Accedi per ritrovare i dati sincronizzati del tuo studio.</p>
