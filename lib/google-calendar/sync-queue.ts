@@ -1,5 +1,19 @@
 export type QueueItem = { id: string };
 
+export function createSingleFlightRunner(pass:()=>Promise<void>){
+ let running=false,rerunRequested=false;
+ return {
+  get running(){return running},
+  async request(){
+   if(running){rerunRequested=true;return}
+   running=true;
+   try{
+    do{rerunRequested=false;await pass()}while(rerunRequested);
+   }finally{running=false}
+  },
+ };
+}
+
 export function reconcileStaleUpserts<T extends { action: string }>(
   queue: readonly T[],
   currentAppointmentIds: ReadonlySet<string>,
