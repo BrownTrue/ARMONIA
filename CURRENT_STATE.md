@@ -39,6 +39,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Navigazione interna della scheda paziente con Panoramica, Percorso clinico e Timeline.
 - Percorso clinico locale opzionale con stato vuoto, creazione, chiusura non distruttiva e consultazione dei percorsi storici.
 - Wizard locale in sei passaggi per la prima valutazione Linguaggio e comunicazione, con autosave debounced, ripresa delle bozze, test multipli e completamento in sola lettura.
+- Gli autosave delle valutazioni cliniche sono serializzati per istanza del wizard: una scrittura successiva attende la precedente, gli errori non bloccano definitivamente la coda e “Salva e chiudi”/completamento attendono il salvataggio dell'ultimo draft corrente.
 - I campi elenco del wizard clinico (lingue, professionisti, punti di forza e difficoltà) supportano realmente una voce per riga e mantengono il contenuto attraverso autosave, cambio passaggio e refresh.
 - Le valutazioni completate espongono una stampa A4 professionale con branding, dati del professionista e del paziente, titolo del percorso, sezioni numerate, test multipli, footer e contenuto clinico separato dai controlli del wizard; le bozze non sono stampabili. Codici, array e multilinea vengono trasformati in etichette e liste leggibili, mentre le sezioni vuote sono omesse.
 - I percorsi attivi possono essere corretti nel titolo e nella data iniziale; un percorso può essere eliminato soltanto quando non contiene valutazioni.

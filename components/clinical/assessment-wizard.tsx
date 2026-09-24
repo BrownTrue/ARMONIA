@@ -9,6 +9,7 @@ import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import type { AssessmentTestEntryV1, ClinicalChoice, ClinicalValue, LanguageCommunicationAssessmentV1 } from "@/lib/clinical/assessment-v1";
+import { ClinicalAutosaveQueue } from "@/lib/clinical/autosave-queue";
 import { formatMultilineList, parseMultilineList } from "@/lib/clinical/multiline-list";
 import { waitForPrintableLogo } from "@/lib/branding/image";
 import type { ClinicalAssessment } from "@/lib/clinical/types";
@@ -28,6 +29,8 @@ export function AssessmentWizard() {
   const [draft, setDraft] = useState<ClinicalAssessment | null>(null);
   const draftRef = useRef<ClinicalAssessment | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveQueueRef = useRef<ClinicalAutosaveQueue | null>(null);
+  if (!autosaveQueueRef.current) autosaveQueueRef.current = new ClinicalAutosaveQueue();
   const revisionRef = useRef(0);
   const [step, setStep] = useState(0);
   const [dirty, setDirty] = useState(false);
@@ -64,7 +67,7 @@ export function AssessmentWizard() {
     setSaveState("saving");
     setMessage("");
     try {
-      await autosaveClinicalAssessmentDraft(candidate);
+      await autosaveQueueRef.current!.enqueue(() => autosaveClinicalAssessmentDraft(candidate));
       if (revision === revisionRef.current) {
         setDirty(false);
         setSaveState("saved");
