@@ -44,6 +44,17 @@ export type VoiceContext = "conversation" | "sustained_phonation" | "reading" | 
 export type VoiceAspect = "vocal_quality" | "pitch" | "loudness" | "endurance" | "phonatory_onset" | "respiratory_phonatory_coordination" | "functional_voice_use";
 export type VoiceFeature = "roughness" | "breathiness" | "strain" | "weak_voice" | "reduced_projection" | "pitch_alteration" | "vocal_fatigue" | "intermittent_voice" | "aphonia_episodes" | "coordination_difficulty";
 export type VoiceModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: VoiceContext[]; exploredAspects?: VoiceAspect[]; observedFeatures?: VoiceFeature[]; notes?: string } };
+export type MotorSpeechContext = "spontaneous_speech" | "conversation" | "repetition" | "automatic_sequences" | "reading" | "structured_speech_task";
+export type MotorSpeechAspect = "speech_initiation" | "motor_planning" | "movement_sequencing" | "articulatory_precision" | "speech_rate" | "prosody" | "respiratory_phonatory_coordination" | "speech_motor_consistency";
+export type MotorSpeechFeature = "initiation_difficulty" | "articulatory_imprecision" | "inconsistent_productions" | "sequencing_difficulty" | "articulatory_groping" | "reduced_rate" | "increased_rate" | "altered_prosody" | "reduced_coordination" | "reduced_intelligibility";
+export type MotorSpeechModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: MotorSpeechContext[]; exploredAspects?: MotorSpeechAspect[]; observedFeatures?: MotorSpeechFeature[]; notes?: string } };
+export type FeedingSwallowingContext = "patient_report" | "caregiver_report" | "meal_observation" | "structured_trial" | "clinical_observation";
+export type FeedingSwallowingArea = "food_acceptance" | "oral_intake" | "chewing" | "oral_bolus_management" | "swallowing" | "liquids" | "solids" | "mealtime_efficiency" | "secretion_management";
+export type FeedingSwallowingFeature = "restricted_food_repertoire" | "texture_difficulty" | "chewing_difficulty" | "prolonged_oral_phase" | "oral_residue" | "anterior_loss" | "multiple_swallows" | "coughing_throat_clearing" | "wet_voice_after_intake" | "prolonged_mealtime" | "fatigue_during_meal" | "reduced_intake";
+export type FeedingSwallowingModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: FeedingSwallowingContext[]; exploredAreas?: FeedingSwallowingArea[]; observedFeatures?: FeedingSwallowingFeature[]; notes?: string } };
+export type OrofacialArea = "resting_posture" | "lips" | "tongue" | "jaw" | "oral_mobility" | "breathing_pattern" | "chewing_function" | "swallowing_pattern" | "oral_habits";
+export type OrofacialFeature = "open_mouth_posture" | "reduced_lip_seal" | "altered_tongue_rest_posture" | "reduced_oral_mobility" | "asymmetry" | "oral_breathing_pattern" | "mixed_breathing_pattern" | "atypical_chewing_pattern" | "altered_swallowing_pattern" | "oral_habit_present";
+export type OrofacialFunctionsModuleV1 = { profile?: { status: ClinicalObservationStatus; exploredAreas?: OrofacialArea[]; observedFeatures?: OrofacialFeature[]; notes?: string } };
 
 export type LanguageOralModuleV1 = {
   earlyCommunication?: {
