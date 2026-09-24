@@ -17,7 +17,7 @@ const goalStatusLabel = (status: string) => ({ not_started: "Da iniziare", in_pr
 
 export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { patientId: string; goals: Goal[]; onOpenGoals: () => void }) {
   const router = useRouter();
-  const { data, connection, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
+  const { data, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
   const [startOpen, setStartOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -42,10 +42,6 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
     setError("");
     setDeleteTarget(pathway);
   };
-
-  if (connection.kind !== "local") {
-    return <section className="card p-6"><h2 className="text-xl font-bold">Percorso clinico</h2><p className="mt-3 max-w-2xl text-sm text-slate-500">Il Percorso clinico è disponibile soltanto nella modalità locale di sviluppo in questa fase.</p></section>;
-  }
 
   const startAssessment = async (pathway: ClinicalPathway) => {
     setError("");

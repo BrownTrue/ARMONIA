@@ -20,7 +20,7 @@ type Option = { code: string; label: string };
 export function AssessmentWizard() {
   const { id, assessmentId } = useParams<{ id: string; assessmentId: string }>();
   const router = useRouter();
-  const { data, ready, connection, autosaveClinicalAssessmentDraft, completeClinicalAssessment, correctClinicalAssessment, deleteClinicalAssessment } = useData();
+  const { data, ready, autosaveClinicalAssessmentDraft, completeClinicalAssessment, correctClinicalAssessment, deleteClinicalAssessment } = useData();
   const source = data.clinicalAssessments.find((item) => item.id === assessmentId);
   const [draft, setDraft] = useState<ClinicalAssessment | null>(null);
   const draftRef = useRef<ClinicalAssessment | null>(null);
@@ -103,7 +103,6 @@ export function AssessmentWizard() {
   const patient = data.patients.find((item) => item.id === id);
   const pathway = data.clinicalPathways.find((item) => item.id === draft.clinicalPathwayId);
   if (!patient || !pathway || draft.patientId !== patient.id) return <AppShell><p>Valutazione non trovata o non coerente con il paziente.</p><Link href={`/pazienti/${id}?tab=clinical`} className="mt-4 inline-block font-bold text-sage-700">Torna al paziente</Link></AppShell>;
-  if (connection.kind !== "local") return <AppShell><p>La valutazione clinica è disponibile soltanto in modalità locale in questa fase.</p></AppShell>;
   const readOnly = draft.status === "completed" && !correcting;
 
   const saveAndClose = async () => {
