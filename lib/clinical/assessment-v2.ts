@@ -223,7 +223,3 @@ export function removeClinicalModule(assessment: ClinicalAssessmentV2, code: str
   if (assessment.status === "completed" && assessment.data.modules.length <= 1) throw new Error("Una valutazione completata deve contenere almeno un’area clinica.");
   return { ...assessment, data: { ...assessment.data, modules: assessment.data.modules.filter((module) => module.code !== code || module.version !== version) } };
 }
-
-export function assertClinicalAssessmentWriteMode(assessment: ClinicalAssessmentV2, mode: "local" | "cloud") {
-  if (mode === "cloud") throw new Error("Le nuove valutazioni modulari sono disponibili soltanto in modalità locale durante questa fase.");
-}

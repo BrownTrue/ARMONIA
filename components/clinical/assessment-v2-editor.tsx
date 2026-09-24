@@ -26,7 +26,7 @@ const steps = CLINICAL_ASSESSMENT_V2_STEPS;
 export function AssessmentV2Editor({ source }: { source: ClinicalAssessmentV2 }) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { data, connection, autosaveClinicalAssessmentDraft, completeClinicalAssessment, correctClinicalAssessment, deleteClinicalAssessment } = useData();
+  const { data, autosaveClinicalAssessmentDraft, completeClinicalAssessment, correctClinicalAssessment, deleteClinicalAssessment } = useData();
   const { logoSrc, ready: brandingReady } = useBranding();
   const [draft, setDraft] = useState(source);
   const draftRef = useRef(source);
@@ -72,7 +72,6 @@ export function AssessmentV2Editor({ source }: { source: ClinicalAssessmentV2 })
   const forceSave = async () => { if (timerRef.current) clearTimeout(timerRef.current); await persist(draftRef.current, revisionRef.current); };
   const patient = data.patients.find((item) => item.id === id);
   if (!patient || draft.patientId !== patient.id) return <AppShell><p>Valutazione non trovata o non coerente con il paziente.</p></AppShell>;
-  if (connection.kind !== "local") return <AppShell><p>Questa valutazione modulare è disponibile soltanto in modalità locale durante questa fase.</p><Link href={`/pazienti/${id}?tab=clinical`} className="mt-4 inline-block font-bold text-sage-700">Torna al paziente</Link></AppShell>;
   const pathway = data.clinicalPathways.find((item) => item.id === draft.clinicalPathwayId);
   const pathwayGoals = data.goals.filter((goal) => goal.clinicalPathwayId === draft.clinicalPathwayId);
   const readOnly = isClinicalAssessmentV2ReadOnly(draft, correcting);

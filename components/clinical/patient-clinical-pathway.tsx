@@ -6,7 +6,6 @@ import { useState } from "react";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
 import { Modal } from "@/components/modal";
-import { createLanguageCommunicationAssessmentV1 } from "@/lib/clinical/assessment-v1";
 import { createConfiguredClinicalAssessmentV2 } from "@/lib/clinical/assessment-v2";
 import { clinicalModuleRegistry } from "@/lib/clinical/module-registry";
 import type { ClinicalAssessmentTypeV2, ClinicalPathway } from "@/lib/clinical/types";
@@ -19,7 +18,7 @@ const goalStatusLabel = (status: string) => ({ not_started: "Da iniziare", in_pr
 
 export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { patientId: string; goals: Goal[]; onOpenGoals: () => void }) {
   const router = useRouter();
-  const { data, connection, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
+  const { data, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
   const [startOpen, setStartOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -46,18 +45,7 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
     setDeleteTarget(pathway);
   };
 
-  const startAssessment = async (pathway: ClinicalPathway) => {
-    setError("");
-    try {
-      const assessment = createLanguageCommunicationAssessmentV1(patientId, pathway.id);
-      await createClinicalAssessmentDraft(assessment);
-      router.push(`/pazienti/${patientId}/percorso/${assessment.id}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Impossibile creare la valutazione.");
-    }
-  };
   const startV2Assessment = async (pathway: ClinicalPathway, input: { assessmentType: ClinicalAssessmentTypeV2; clinicalDate: string; modules: { code: string; version: number }[] }) => {
-    if (connection.kind !== "local") throw new Error("Le nuove valutazioni modulari sono disponibili soltanto in modalità locale.");
     const assessment = createConfiguredClinicalAssessmentV2({ patientId, clinicalPathwayId: pathway.id, ...input });
     await createClinicalAssessmentDraft(assessment);
     router.push(`/pazienti/${patientId}/percorso/${assessment.id}`);
@@ -83,7 +71,7 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
       </div>
       {error && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}
       <div className="mt-7 grid gap-5 lg:grid-cols-2">
-        <AssessmentPanel pathway={active} assessments={data.clinicalAssessments.filter((item) => item.clinicalPathwayId === active.id)} onStart={connection.kind === "local" ? () => setNewAssessmentOpen(true) : () => startAssessment(active)} patientId={patientId} />
+        <AssessmentPanel pathway={active} assessments={data.clinicalAssessments.filter((item) => item.clinicalPathwayId === active.id)} onStart={() => setNewAssessmentOpen(true)} patientId={patientId} />
         <PathwayGoalsPanel pathway={active} goals={goals} onOpenGoals={onOpenGoals} onLink={linkGoalToClinicalPathway} onUnlink={unlinkGoalFromClinicalPathway} />
       </div>
     </section>}

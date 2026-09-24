@@ -68,7 +68,7 @@ Gli obiettivi sono gestiti nella scheda paziente con stato, progresso e collegam
 
 ### Percorso clinico
 
-La scheda paziente consente di avviare e chiudere percorsi clinici opzionali, consultare i percorsi storici, associare gli obiettivi esistenti e compilare una prima valutazione guidata `language_communication`. Il wizard usa sei passaggi, autosave debounced, ripresa delle bozze e completamento esplicito con successiva sola lettura. Include tipi applicativi, payload strutturato V1, validazione runtime e protezione da percorsi attivi duplicati. La persistenza cloud è predisposta nel repository, ma richiede che le migration additive `006`–`008` siano revisionate ed eseguite manualmente prima di pubblicare il relativo codice.
+La scheda paziente consente di avviare e chiudere percorsi clinici opzionali, consultare i percorsi storici, associare gli obiettivi esistenti e compilare valutazioni guidate. Il wizard V2 usa sei passaggi, payload multi-modulo, autosave debounced serializzato, ripresa delle bozze e completamento esplicito con successiva sola lettura. Le valutazioni V1 `language_communication` restano supportate senza conversione e il dispatch usa `schemaVersion`. Il repository Supabase supporta liste e operazioni miste V1/V2; per V2 `module_type` resta un discriminante V1 ed è `NULL`, mentre i moduli risiedono in `data.modules`.
 
 ### Materiali
 
@@ -88,7 +88,7 @@ In locale i token sono conservati nel token store di sviluppo. In cloud sono pre
 
 ## Supabase e deployment
 
-Lo schema applicato include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration non eseguite `006`–`008` preparano percorsi clinici, valutazioni cliniche e il collegamento opzionale degli obiettivi. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato.
+Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato.
 
 Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo stato effettivo del deployment e delle migration applicate nei singoli ambienti non è deducibile dal solo repository e deve essere verificato prima di interventi cloud.
 

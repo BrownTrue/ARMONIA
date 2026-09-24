@@ -19,7 +19,7 @@ import {
   linkGoalToClinicalPathway,
   unlinkGoalFromClinicalPathway,
 } from "../clinical/goals.ts";
-import type { ClinicalAssessment, ClinicalPathway } from "../clinical/types.ts";
+import type { ClinicalAssessment, ClinicalAssessmentTypeV2, ClinicalPathway } from "../clinical/types.ts";
 import { isClinicalAssessment } from "../clinical/validation.ts";
 import type { AppData } from "../types.ts";
 
@@ -34,19 +34,21 @@ export type ClinicalPathwayRow = {
   updated_at: string;
 };
 
-export type ClinicalAssessmentRow = {
+type ClinicalAssessmentRowBase = {
   id: string;
   patient_id: string;
   clinical_pathway_id: string;
-  module_type: "language_communication";
-  assessment_type: "initial";
   status: "draft" | "completed";
-  schema_version: number;
   clinical_date: string | null;
   data: unknown;
   created_at: string;
   updated_at: string;
 };
+
+export type ClinicalAssessmentRow = ClinicalAssessmentRowBase & (
+  | { schema_version: 1; module_type: "language_communication"; assessment_type: "initial" }
+  | { schema_version: 2; module_type: null; assessment_type: ClinicalAssessmentTypeV2 }
+);
 
 const persistenceError = (operation: string) =>
   new Error(`Non è stato possibile ${operation}. Riprova tra poco.`);
@@ -83,35 +85,39 @@ export function clinicalPathwayRow(pathway: ClinicalPathway, userId: string) {
 }
 
 export function clinicalAssessmentFromRow(row: ClinicalAssessmentRow): ClinicalAssessment {
-  const assessment = {
+  const base = {
     id: row.id,
     patientId: row.patient_id,
     clinicalPathwayId: row.clinical_pathway_id,
-    moduleType: row.module_type,
-    assessmentType: row.assessment_type,
     status: row.status,
-    schemaVersion: row.schema_version,
     clinicalDate: row.clinical_date || undefined,
     data: row.data,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+  let assessment: unknown;
+  if (row.schema_version === 1) {
+    if (row.module_type !== "language_communication" || row.assessment_type !== "initial") throw new Error("I discriminanti della valutazione clinica V1 cloud non sono coerenti.");
+    assessment = { ...base, moduleType: row.module_type, assessmentType: row.assessment_type, schemaVersion: 1 };
+  } else if (row.schema_version === 2) {
+    if (row.module_type !== null || !(["initial", "reassessment", "interim", "other"] as const).includes(row.assessment_type as ClinicalAssessmentTypeV2)) throw new Error("I discriminanti della valutazione clinica V2 cloud non sono coerenti.");
+    assessment = { ...base, assessmentType: row.assessment_type, schemaVersion: 2 };
+  } else {
+    throw new Error(`Versione della valutazione clinica cloud non supportata: ${String((row as { schema_version: unknown }).schema_version)}.`);
+  }
   if (!isClinicalAssessment(assessment)) {
     throw new Error("Una valutazione clinica cloud non è compatibile con la versione supportata.");
   }
   return assessment;
 }
 
-export function clinicalAssessmentRow(assessment: ClinicalAssessment, userId: string) {
-  if (assessment.schemaVersion !== 1) {
-    throw new Error("La persistenza cloud delle valutazioni V2 non è ancora abilitata.");
-  }
+export function clinicalAssessmentRow(assessment: ClinicalAssessment, userId: string): ClinicalAssessmentRow & { user_id: string } {
   return {
     id: assessment.id,
     user_id: userId,
     patient_id: assessment.patientId,
     clinical_pathway_id: assessment.clinicalPathwayId,
-    module_type: assessment.moduleType,
+    module_type: assessment.schemaVersion === 1 ? assessment.moduleType : null,
     assessment_type: assessment.assessmentType,
     status: assessment.status,
     schema_version: assessment.schemaVersion,
@@ -119,7 +125,7 @@ export function clinicalAssessmentRow(assessment: ClinicalAssessment, userId: st
     data: assessment.data,
     created_at: assessment.createdAt,
     updated_at: assessment.updatedAt,
-  };
+  } as ClinicalAssessmentRow & { user_id: string };
 }
 
 export async function loadCloudClinicalData(client: SupabaseClient, userId: string) {
@@ -151,7 +157,7 @@ async function updatePathway(client: SupabaseClient, userId: string, pathway: Cl
 }
 
 async function insertAssessment(client: SupabaseClient, userId: string, assessment: ClinicalAssessment) {
-  assertSuccess(await client.from("clinical_assessments").insert(clinicalAssessmentRow(assessment, userId)).select("id").single(), "creare la valutazione clinica");
+  assertSuccess(await client.from("clinical_assessments").insert(clinicalAssessmentRow(assessment, userId) as never).select("id").single(), "creare la valutazione clinica");
 }
 
 async function updateAssessment(client: SupabaseClient, userId: string, assessment: ClinicalAssessment, operation: string) {

@@ -1,11 +1,11 @@
 # Stato corrente di Armonia
 
-Fotografia ricavata dal repository al 24 settembre 2026.
+Fotografia ricavata dal repository al 25 settembre 2026.
 
 ## Stato Git rilevato prima dell'intervento corrente
 
-- Branch: `main`, allineato a `origin/main` sul commit `f211883` — “Aggiunge pagine pubbliche privacy e informazioni”.
-- Il repository era pulito prima dell'implementazione locale dell'infrastruttura del Percorso clinico.
+- Branch: `main`, 7 commit locali avanti rispetto a `origin/main`; HEAD iniziale `ccc5db3` — “improve clinical anamnesis experience”.
+- Il repository era pulito prima dell'intervento V2 cloud corrente.
 
 ## Funzionalità implementate
 
@@ -40,7 +40,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Percorso clinico locale opzionale con stato vuoto, creazione, chiusura non distruttiva e consultazione dei percorsi storici.
 - Wizard locale in sei passaggi per la prima valutazione Linguaggio e comunicazione, con autosave debounced, ripresa delle bozze, test multipli e completamento in sola lettura.
 - Gli autosave delle valutazioni cliniche sono serializzati per istanza del wizard: una scrittura successiva attende la precedente, gli errori non bloccano definitivamente la coda e “Salva e chiudi”/completamento attendono il salvataggio dell'ultimo draft corrente.
-- Sono presenti le fondamenta applicative della Clinical Assessment V2: union discriminata tramite `schemaVersion`, payload modulare, registry dei moduli e dispatch interno V1/V2. In modalità locale “Nuova valutazione” richiede soltanto tipo e data clinica, crea una bozza senza moduli e apre il wizard dal primo passaggio “Motivo dell’accesso”; la professionista non deve quindi conoscere già il problema clinico. Tutti i sei passaggi sono compilabili e salvabili anche con `modules: []`. Nei primi cinque passaggi la CTA primaria è “Avanti”, mentre “Completa valutazione” compare soltanto nel sesto passaggio. La scelta progressiva avviene nello step “Aree cliniche”, tramite un selettore raggruppato in cinque macro-aree puramente UI e ricercabile per nome del modulo: Comunicazione/linguaggio/parlato, Voce, Alimentazione/funzioni orali, Udito/comunicazione e Apprendimenti/funzioni cognitive; i gruppi non entrano nel payload né nella stampa. Il registry clinico comprende dodici moduli v1 realmente selezionabili e gestibili: Linguaggio orale; Fonetica, fonologia e articolazione; Disturbi motori del parlato; Fluenza; Voce; Alimentazione e deglutizione; Sistema orofacciale e funzioni orali; CAA e comunicazione multimodale; Abilitazione/riabilitazione uditivo-comunicativa; Apprendimenti scolastici; Funzioni cognitivo-comunicative; Comunicazione sociale e pragmatica. Gli undici moduli osservazionali adottano una panoramica rapida centrata sull’“Osservazione generale” e un accordion chiuso di “Dettagli facoltativi”, oltre a reset, validazione runtime e adapter di stampa; non producono diagnosi, scoring o interpretazioni automatiche e non sostituiscono test standardizzati. Il modulo uditivo-comunicativo documenta esclusivamente il funzionamento comunicativo e un eventuale contesto descrittivo sulle tecnologie, senza valutazione audiologica o interpretazione tecnica. Una bozza può tornare a zero moduli, mentre il completamento continua a richiedere almeno un’area clinica. Autosave debounced, coda FIFO, completamento, sola lettura e correzione esplicita operano sull’intero draft multi-modulo. La stampa A4 V2 usa automaticamente gli adapter del registry nell’ordine dei moduli documentati e omette quelli vuoti. La V1 storica continua a usare il proprio wizard e renderer. La V2 è intenzionalmente disponibile e scrivibile soltanto in modalità locale: in cloud resta attivo il precedente flusso V1 e tutte le scritture V2 sono bloccate applicativamente. Nessuna migration V2 è stata creata o applicata e la persistenza Supabase V2 resta disabilitata in attesa della decisione su `module_type`.
+- Sono presenti le fondamenta applicative della Clinical Assessment V2: union discriminata tramite `schemaVersion`, payload modulare, registry dei moduli e dispatch interno V1/V2. “Nuova valutazione” richiede soltanto tipo e data clinica, crea una bozza V2 senza moduli e apre il wizard dal primo passaggio “Motivo dell’accesso” sia in locale sia in cloud. Tutti i sei passaggi sono compilabili e salvabili anche con `modules: []`; il completamento richiede almeno un’area clinica. Il registry comprende dodici moduli v1 selezionabili, con validazione runtime e adapter di stampa. Autosave debounced, coda FIFO, completamento, sola lettura, correzione esplicita e stampa operano sull’intero draft multi-modulo. Le valutazioni V1 storiche restano invariate e continuano ad aprirsi con wizard e renderer V1 tramite dispatch su `schemaVersion`; non esiste conversione V1→V2. Il codice locale supporta ora create, load, autosave, completamento e correzione V2 tramite Supabase, ma questa versione non è ancora presente su Vercel perché non è stato eseguito push o deploy.
 - L’anamnesi V2 usa un registry di sezioni attivabili e salva esclusivamente i testi documentati in `anamnesis.sections`. La data di nascita, confrontata con la data clinica, determina soltanto l’ordine dei suggerimenti UI per fascia d’età: nessuna sezione viene attivata, nascosta o compilata automaticamente e l’intero registry resta sempre disponibile. Il precedente formato locale a sei campi rimane valido in lettura ed è normalizzato conservativamente nel nuovo formato alla modifica successiva; stampa e ordine canonico usano lo stesso registry.
 - I campi elenco del wizard clinico (lingue, professionisti, punti di forza e difficoltà) supportano realmente una voce per riga e mantengono il contenuto attraverso autosave, cambio passaggio e refresh.
 - Le valutazioni completate espongono una stampa A4 professionale con branding, dati del professionista e del paziente, titolo del percorso, sezioni numerate, test multipli, footer e contenuto clinico separato dai controlli del wizard; le bozze non sono stampabili. Codici, array e multilinea vengono trasformati in etichette e liste leggibili, mentre le sezioni vuote sono omesse.
@@ -76,10 +76,11 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - `003_authenticated_grants.sql`: privilegi per il ruolo `authenticated` sulle tabelle applicative esistenti al momento della migration.
 - `004_google_calendar_production.sql`: tabelle additive per connessione Google cifrata e link appuntamento/evento, indici, RLS e revoca dell'accesso diretto ai ruoli browser.
 - `005_weekly_recurring_appointments.sql`: colonna nullable `appointments.recurrence_series_id` e indice parziale per utente/serie; conserva RLS e grant esistenti.
-- `006_clinical_pathways.sql`: **creata ma non eseguita**; tabella dei percorsi, vincoli di appartenenza, massimo un percorso attivo, RLS e grant `authenticated`.
-- `007_clinical_assessments.sql`: **creata ma non eseguita**; valutazioni V1 collegate al percorso, JSONB validato a runtime, RLS e grant `authenticated`.
-- `008_goals_clinical_pathway.sql`: **creata ma non eseguita**; collegamento nullable e coerente per proprietario/paziente tra Goal e percorso, senza backfill.
+- `006_clinical_pathways.sql`: tabella dei percorsi, vincoli di appartenenza, massimo un percorso attivo, RLS e grant `authenticated`; la tabella è presente nell'ambiente di produzione verificato.
+- `007_clinical_assessments.sql`: valutazioni V1 collegate al percorso, JSONB validato a runtime, RLS e grant `authenticated`; la tabella contiene le 5 V1 verificate prima/dopo la migration `010`.
+- `008_goals_clinical_pathway.sql`: collegamento nullable e coerente per proprietario/paziente tra Goal e percorso, senza backfill; lo stato di applicazione non è stato verificato in questo intervento.
 - `009_professional_branding_storage.sql`: **creata ma non eseguita**; bucket privato per il logo professionale e policy Storage limitate al solo `{auth.uid()}/logo.webp`.
+- `010_clinical_assessments_v2.sql`: registrazione esatta della modifica applicata manualmente al database reale il 25/09/2026; rende `module_type` nullable e vincola in modo discriminato V1 (`language_communication`/`initial`) e V2 (`module_type = null`, quattro tipi di valutazione). Dopo l'applicazione risultavano 5 righe V1, 0 V2, nessun dato modificato e constraint validato.
 
 La presenza delle migration nel repository non dimostra che siano state applicate a uno specifico ambiente Supabase. Prima di interventi cloud occorre verificare separatamente lo stato dell'ambiente interessato.
 
@@ -89,8 +90,8 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - La coda Google locale usa ancora una chiave legacy non associata allo user ID. Il namespace per utente è rimandato perché le operazioni già presenti non possono essere attribuite retroattivamente con certezza senza una strategia di migrazione esplicita.
 - Per le serie ricorrenti sono disponibili solo creazione settimanale e modifica/eliminazione della singola occorrenza; non sono ancora presenti operazioni “questo e successivi” o “intera serie”.
 - La copertura automatica è limitata ai casi della ricorrenza, alle operazioni individuali e alla relazione appuntamento/seduta nella Dashboard; non è presente una suite completa dei flussi applicativi.
-- Il supporto cloud del Percorso clinico è soltanto predisposto e non è pubblicabile finché le migration `006`–`008` non vengono revisionate ed eseguite manualmente nell'ambiente corretto.
-- Il repository cloud presuppone la presenza contemporanea delle tre migration: pubblicarlo prima renderebbe incompleto il caricamento cloud e le scritture cliniche.
+- Il supporto V2 cloud è implementato soltanto nel codice locale e richiede ancora un collaudo manuale con dati sintetici; la produzione Vercel continua a eseguire il codice precedente finché non avverrà un push/deploy esplicitamente autorizzato.
+- Lo stato della migration `008` deve essere verificato separatamente prima di collaudare in cloud l'associazione Goal/percorso.
 - Il logo cloud resta sul fallback Armonia finché la migration `009` non viene applicata manualmente; il codice branding non deve essere pubblicato prima della migration.
 - Nell’MVP una correzione salvata sovrascrive la versione precedente della valutazione completata; non esistono ancora storico revisioni, audit log, autore o confronto tra versioni.
 - Il README elenca le migration fino alla `003`, mentre nel repository sono presenti anche la `004` e la `005`; inoltre non documenta l'intera configurazione server-side Google per Vercel.
@@ -98,7 +99,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 
 ## Ultime modifiche importanti
 
-- Sono state preparate, senza eseguirle, le migration additive `006`–`008` e l'integrazione Supabase del Percorso clinico, mantenendo invariata la modalità locale e la UI.
+- È stata registrata nel repository la migration `010`, già applicata manualmente in produzione il 25/09/2026. Il repository Supabase locale ora mappa e valida liste miste V1/V2; le nuove valutazioni cloud sono V2 e le V1 esistenti restano invariate, senza conversione.
 - La stampa delle valutazioni completate è stata ridisegnata come documento A4 e predisposta per ricevere in futuro un `logoSrc` professionale opzionale, senza modificare profilo o persistenza.
 
 - La Dashboard Oggi non lascia più tra gli appuntamenti da fare quelli che hanno già una seduta collegata e mostra separatamente i completati.
