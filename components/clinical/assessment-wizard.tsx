@@ -106,7 +106,7 @@ export function AssessmentWizard() {
   };
 
   if (!ready) return <AppShell><p>Caricamento…</p></AppShell>;
-  if (sourceCandidate?.schemaVersion === 2) return <AppShell><p>La valutazione V2 non dispone ancora di un editor in questa fase infrastrutturale.</p><Link href={`/pazienti/${id}?tab=clinical`} className="mt-4 inline-block font-bold text-sage-700">Torna al paziente</Link></AppShell>;
+  if (sourceCandidate?.schemaVersion === 2) return <AppShell><p>Questa valutazione deve essere aperta con l’editor modulare.</p><Link href={`/pazienti/${id}?tab=clinical`} className="mt-4 inline-block font-bold text-sage-700">Torna al paziente</Link></AppShell>;
   if (!draft) return <AppShell><p>Caricamento…</p></AppShell>;
   const patient = data.patients.find((item) => item.id === id);
   const pathway = data.clinicalPathways.find((item) => item.id === draft.clinicalPathwayId);
@@ -159,7 +159,7 @@ export function AssessmentWizard() {
     setMessage("");
     try {
       const corrected = await correctClinicalAssessment(candidate);
-      if (corrected.schemaVersion !== 1) throw new Error("La correzione restituita non è compatibile con il wizard V1.");
+      if (corrected.schemaVersion !== 1) throw new Error("La correzione restituita non è compatibile con questa valutazione.");
       draftRef.current = corrected;
       setDraft(corrected);
       setDirty(false);

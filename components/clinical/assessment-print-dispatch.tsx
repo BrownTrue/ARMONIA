@@ -1,6 +1,7 @@
 import { AssessmentSummary } from "./assessment-summary";
+import { AssessmentSummaryV2 } from "./assessment-summary-v2";
 import type { ClinicalAssessment } from "@/lib/clinical/types";
-import type { Profile } from "@/lib/types";
+import type { Goal, Profile } from "@/lib/types";
 
 type Props = {
   patientName: string;
@@ -8,6 +9,7 @@ type Props = {
   pathwayTitle?: string;
   professional?: Profile;
   logoSrc?: string;
+  goals?: Goal[];
 };
 
 export function ClinicalAssessmentPrint(props: Props) {
@@ -15,6 +17,5 @@ export function ClinicalAssessmentPrint(props: Props) {
     return <AssessmentSummary {...props} assessment={props.assessment} />;
   }
 
-  // Il documento V2 verrà introdotto quando saranno definiti i contenuti clinici.
-  return null;
+  return <AssessmentSummaryV2 {...props} assessment={props.assessment} />;
 }

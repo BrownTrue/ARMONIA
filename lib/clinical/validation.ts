@@ -12,6 +12,7 @@ const AVAILABILITY = new Set(["available", "not_available", "not_applicable"]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+const hasOnlyKeys = (value: Record<string, unknown>, keys: string[]) => Object.keys(value).every((key) => keys.includes(key));
 const isOptionalString = (value: unknown) => value === undefined || typeof value === "string";
 const isOptionalBoolean = (value: unknown) => value === undefined || typeof value === "boolean";
 const isOptionalScore = (value: unknown) =>
@@ -117,8 +118,6 @@ function hasAssessmentBase(value: Record<string, unknown>) {
     && typeof value.updatedAt === "string";
 }
 
-const isEmptyRecord = (value: unknown) => isRecord(value) && Object.keys(value).length === 0;
-
 export function isClinicalAssessmentV2Payload(value: unknown) {
   if (!isRecord(value) || !Array.isArray(value.modules)) return false;
   if (!value.modules.every((module) => isRecord(module)
@@ -127,10 +126,29 @@ export function isClinicalAssessmentV2Payload(value: unknown) {
     && (module.version as number) > 0
     && "data" in module
     && isRegisteredClinicalModule(module as { code: string; version: number; data: unknown }))) return false;
-  return (value.common === undefined || isEmptyRecord(value.common))
-    && (value.tests === undefined || isEmptyRecord(value.tests))
-    && (value.summary === undefined || isEmptyRecord(value.summary))
-    && (value.planning === undefined || isEmptyRecord(value.planning));
+  if (value.accessReason !== undefined && (!isRecord(value.accessReason)
+    || !hasOnlyKeys(value.accessReason, ["reason", "referralSource", "reportedBy", "relevantContext"])
+    || !Object.values(value.accessReason).every((item) => typeof item === "string"))) return false;
+  if (value.anamnesis !== undefined && (!isRecord(value.anamnesis)
+    || !hasOnlyKeys(value.anamnesis, ["relevantClinicalHistory", "developmentAndHistory", "educationWorkContext", "familySocialContext", "previousAssessmentsInterventions", "additionalNotes"])
+    || !Object.values(value.anamnesis).every((item) => typeof item === "string"))) return false;
+  if (value.tests !== undefined && (!isRecord(value.tests)
+    || !hasOnlyKeys(value.tests, ["items", "notAdministered", "notes"])
+    || (value.tests.items !== undefined && (!Array.isArray(value.tests.items) || !value.tests.items.every(isTestEntry)))
+    || !isOptionalBoolean(value.tests.notAdministered)
+    || !isOptionalString(value.tests.notes))) return false;
+  if (value.summary !== undefined && (!isRecord(value.summary)
+    || !hasOnlyKeys(value.summary, ["clinicalSummary", "strengths", "difficulties", "conclusions", "recommendations", "notes"])
+    || !isOptionalString(value.summary.clinicalSummary)
+    || !isStringArray(value.summary.strengths)
+    || !isStringArray(value.summary.difficulties)
+    || !isOptionalString(value.summary.conclusions)
+    || !isOptionalString(value.summary.recommendations)
+    || !isOptionalString(value.summary.notes))) return false;
+  if (value.planning !== undefined && (!isRecord(value.planning)
+    || !hasOnlyKeys(value.planning, ["notes"])
+    || !isOptionalString(value.planning.notes))) return false;
+  return hasOnlyKeys(value, ["modules", "accessReason", "anamnesis", "tests", "summary", "planning"]);
 }
 
 export function isClinicalAssessment(value: unknown): value is ClinicalAssessment {
@@ -151,6 +169,7 @@ export function isClinicalAssessment(value: unknown): value is ClinicalAssessmen
 export function validateAssessmentForCompletion(assessment: unknown): asserts assessment is ClinicalAssessment {
   if (!isClinicalAssessment(assessment)) throw new Error("La valutazione clinica non è compatibile con una versione supportata.");
   if (!assessment.clinicalDate) throw new Error("La data clinica è obbligatoria per completare la valutazione.");
+  if (assessment.schemaVersion === 2 && assessment.data.modules.length === 0) throw new Error("La valutazione deve contenere almeno un’area clinica.");
 }
 
 export function validateClinicalPathway(pathway: ClinicalPathway) {

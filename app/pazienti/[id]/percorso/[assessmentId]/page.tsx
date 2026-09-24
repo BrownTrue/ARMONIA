@@ -1,5 +1,5 @@
-import { AssessmentWizard } from "@/components/clinical/assessment-wizard";
+import { ClinicalAssessmentEditorDispatch } from "@/components/clinical/assessment-editor-dispatch";
 
 export default function ClinicalAssessmentPage() {
-  return <AssessmentWizard />;
+  return <ClinicalAssessmentEditorDispatch />;
 }

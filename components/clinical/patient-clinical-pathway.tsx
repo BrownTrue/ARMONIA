@@ -7,7 +7,9 @@ import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
 import { Modal } from "@/components/modal";
 import { createLanguageCommunicationAssessmentV1 } from "@/lib/clinical/assessment-v1";
-import type { ClinicalPathway } from "@/lib/clinical/types";
+import { createConfiguredClinicalAssessmentV2 } from "@/lib/clinical/assessment-v2";
+import { clinicalModuleRegistry } from "@/lib/clinical/module-registry";
+import type { ClinicalAssessmentTypeV2, ClinicalPathway } from "@/lib/clinical/types";
 import type { Goal } from "@/lib/types";
 import { today, uid } from "@/lib/types";
 
@@ -17,11 +19,12 @@ const goalStatusLabel = (status: string) => ({ not_started: "Da iniziare", in_pr
 
 export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { patientId: string; goals: Goal[]; onOpenGoals: () => void }) {
   const router = useRouter();
-  const { data, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
+  const { data, connection, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
   const [startOpen, setStartOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ClinicalPathway | null>(null);
+  const [newAssessmentOpen, setNewAssessmentOpen] = useState(false);
   const [error, setError] = useState("");
   const pathways = data.clinicalPathways
     .filter((item) => item.patientId === patientId)
@@ -53,6 +56,12 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
       setError(cause instanceof Error ? cause.message : "Impossibile creare la valutazione.");
     }
   };
+  const startV2Assessment = async (pathway: ClinicalPathway, input: { assessmentType: ClinicalAssessmentTypeV2; clinicalDate: string; modules: { code: string; version: number }[] }) => {
+    if (connection.kind !== "local") throw new Error("Le nuove valutazioni modulari sono disponibili soltanto in modalità locale.");
+    const assessment = createConfiguredClinicalAssessmentV2({ patientId, clinicalPathwayId: pathway.id, ...input });
+    await createClinicalAssessmentDraft(assessment);
+    router.push(`/pazienti/${patientId}/percorso/${assessment.id}`);
+  };
 
   if (!active && historical.length === 0) {
     return <>
@@ -74,7 +83,7 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
       </div>
       {error && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}
       <div className="mt-7 grid gap-5 lg:grid-cols-2">
-        <AssessmentPanel pathway={active} assessments={data.clinicalAssessments.filter((item) => item.clinicalPathwayId === active.id)} onStart={() => startAssessment(active)} patientId={patientId} />
+        <AssessmentPanel pathway={active} assessments={data.clinicalAssessments.filter((item) => item.clinicalPathwayId === active.id)} onStart={connection.kind === "local" ? () => setNewAssessmentOpen(true) : () => startAssessment(active)} patientId={patientId} />
         <PathwayGoalsPanel pathway={active} goals={goals} onOpenGoals={onOpenGoals} onLink={linkGoalToClinicalPathway} onUnlink={unlinkGoalFromClinicalPathway} />
       </div>
     </section>}
@@ -88,6 +97,7 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
     {closeOpen && active && <ClosePathwayModal pathway={active} onClose={() => setCloseOpen(false)} onConfirm={closeClinicalPathway} />}
     {editOpen && active && <EditPathwayModal pathway={active} onClose={() => setEditOpen(false)} onSave={saveClinicalPathway} />}
     {deleteTarget && <DeletePathwayModal pathway={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={deleteClinicalPathway} />}
+    {newAssessmentOpen && active && <NewAssessmentModal onClose={() => setNewAssessmentOpen(false)} onCreate={(input) => startV2Assessment(active, input)} />}
   </div>;
 }
 
@@ -113,9 +123,26 @@ function DeletePathwayModal({ pathway, onClose, onConfirm }: { pathway: Clinical
   return <Modal title="Elimina percorso" onClose={onClose}><p className="text-sm leading-6 text-slate-600">Vuoi eliminare “{pathway.title || "Percorso clinico"}”? L’operazione riguarda soltanto questo percorso vuoto e non modifica il paziente, le sedute o gli obiettivi.</p>{error && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}<div className="mt-6 flex flex-wrap justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button type="button" onClick={async()=>{setError("");try{await onConfirm(pathway.id);onClose();}catch(cause){setError(cause instanceof Error?cause.message:"Impossibile eliminare il percorso.");}}} className="btn bg-red-600 text-white">Conferma eliminazione</button></div></Modal>;
 }
 
-function AssessmentPanel({ pathway, assessments, onStart, patientId }: { pathway: ClinicalPathway; assessments: ReturnType<typeof useData>["data"]["clinicalAssessments"]; onStart: () => void; patientId: string }) {
+function AssessmentPanel({ assessments, onStart, patientId }: { pathway: ClinicalPathway; assessments: ReturnType<typeof useData>["data"]["clinicalAssessments"]; onStart: () => void; patientId: string }) {
   const sorted = [...assessments].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  return <div className="rounded-2xl border border-sage-100 p-5"><p className="text-sm font-bold text-slate-500">VALUTAZIONI</p>{sorted.length === 0 ? <><p className="mt-3 text-sm text-slate-500">Nessuna valutazione registrata.</p><button onClick={onStart} className="btn btn-primary mt-5 text-sm">Inizia prima valutazione</button></> : <div className="mt-4 space-y-3">{sorted.map((assessment) => <div key={assessment.id} className="rounded-xl bg-sage-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold">Prima valutazione</p><p className="mt-1 text-sm text-slate-500">Linguaggio e comunicazione</p></div><span className="chip">{assessment.status === "completed" ? "Completata" : "Bozza"}</span></div><p className="mt-3 text-xs text-slate-400">Ultimo aggiornamento {formatUpdatedAt(assessment.updatedAt)}</p><Link href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="btn btn-quiet mt-4 inline-block text-sm">{assessment.status === "completed" ? "Apri" : "Continua"}</Link></div>)}</div>}</div>;
+  const typeLabel = (assessment: (typeof assessments)[number]) => assessment.schemaVersion === 1 || assessment.assessmentType === "initial" ? "Prima valutazione" : assessment.assessmentType === "reassessment" ? "Rivalutazione" : assessment.assessmentType === "interim" ? "Valutazione intermedia" : "Valutazione";
+  const areaLabel = (assessment: (typeof assessments)[number]) => assessment.schemaVersion === 1 ? "Linguaggio e comunicazione" : assessment.data.modules.map((module) => clinicalModuleRegistry.find((item) => item.code === module.code && item.version === module.version)?.label).filter(Boolean).join(" · ");
+  return <div className="rounded-2xl border border-sage-100 p-5"><p className="text-sm font-bold text-slate-500">VALUTAZIONI</p>{sorted.length === 0 ? <p className="mt-3 text-sm text-slate-500">Nessuna valutazione registrata.</p> : <div className="mt-4 space-y-3">{sorted.map((assessment) => <div key={assessment.id} className="rounded-xl bg-sage-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold">{typeLabel(assessment)}</p><p className="mt-1 text-sm text-slate-500">{areaLabel(assessment)}</p></div><span className="chip">{assessment.status === "completed" ? "Completata" : "Bozza"}</span></div><p className="mt-3 text-xs text-slate-400">Ultimo aggiornamento {formatUpdatedAt(assessment.updatedAt)}</p><Link href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="btn btn-quiet mt-4 inline-block text-sm">{assessment.status === "completed" ? "Apri" : "Continua"}</Link></div>)}</div>}<div className="mt-5"><button onClick={onStart} className="btn btn-primary text-sm">Nuova valutazione</button></div></div>;
+}
+
+function NewAssessmentModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: { assessmentType: ClinicalAssessmentTypeV2; clinicalDate: string; modules: { code: string; version: number }[] }) => Promise<void> }) {
+  const [assessmentType, setAssessmentType] = useState<ClinicalAssessmentTypeV2>("initial");
+  const [clinicalDate, setClinicalDate] = useState(today());
+  const [selected, setSelected] = useState(() => clinicalModuleRegistry.length ? [`${clinicalModuleRegistry[0].code}@${clinicalModuleRegistry[0].version}`] : []);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const typeOptions: { value: ClinicalAssessmentTypeV2; label: string }[] = [{ value: "initial", label: "Prima valutazione" }, { value: "reassessment", label: "Rivalutazione" }, { value: "interim", label: "Valutazione intermedia" }, { value: "other", label: "Altro" }];
+  return <Modal title="Nuova valutazione" onClose={onClose}><form className="space-y-6" onSubmit={async (event) => { event.preventDefault(); setError(""); const modules = clinicalModuleRegistry.filter((module) => selected.includes(`${module.code}@${module.version}`)).map(({ code, version }) => ({ code, version })); if (!modules.length) { setError("Seleziona almeno un’area clinica."); return; } setSaving(true); try { await onCreate({ assessmentType, clinicalDate, modules }); } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossibile creare la valutazione."); setSaving(false); } }}>
+    <fieldset><legend className="text-sm font-bold">Tipo di valutazione</legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{typeOptions.map((option) => <button type="button" key={option.value} aria-pressed={assessmentType === option.value} onClick={() => setAssessmentType(option.value)} className={`rounded-xl border px-4 py-3 text-left text-sm ${assessmentType === option.value ? "border-sage-500 bg-sage-100 font-bold text-sage-700" : "border-sage-100 text-slate-600"}`}>{option.label}</button>)}</div></fieldset>
+    <Field label="Data clinica" type="date" required value={clinicalDate} onChange={(event) => setClinicalDate(event.target.value)} />
+    <fieldset><legend className="text-sm font-bold">Aree da includere nella valutazione</legend><p className="mt-1 text-xs leading-5 text-slate-500">Puoi includere una o più aree cliniche nella stessa valutazione.</p><div className="mt-3 grid gap-3">{clinicalModuleRegistry.map((module) => { const key = `${module.code}@${module.version}`; const checked = selected.includes(key); return <label key={key} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 ${checked ? "border-sage-500 bg-sage-50" : "border-sage-100"}`}><input type="checkbox" checked={checked} onChange={() => setSelected((current) => checked ? current.filter((item) => item !== key) : [...current, key])} /><span className="font-bold">{module.label}</span></label>; })}</div></fieldset>
+    {error && <p role="alert" className="text-sm font-medium text-red-600">{error}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button disabled={saving} className="btn btn-primary">{saving ? "Creazione…" : "Crea valutazione"}</button></div>
+  </form></Modal>;
 }
 
 function StartPathwayModal({ patientId, onClose, onSave }: { patientId: string; onClose: () => void; onSave: (pathway: ClinicalPathway) => Promise<void> }) {
