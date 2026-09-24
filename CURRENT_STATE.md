@@ -35,7 +35,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Percorso clinico locale opzionale con stato vuoto, creazione, chiusura non distruttiva e consultazione dei percorsi storici.
 - Wizard locale in sei passaggi per la prima valutazione Linguaggio e comunicazione, con autosave debounced, ripresa delle bozze, test multipli e completamento in sola lettura.
 - I campi elenco del wizard clinico (lingue, professionisti, punti di forza e difficoltà) supportano realmente una voce per riga e mantengono il contenuto attraverso autosave, cambio passaggio e refresh.
-- Le valutazioni completate espongono una stampa nativa con riepilogo A4 dedicato, sezioni non vuote, etichette leggibili e contenuto clinico separato dai controlli del wizard; le bozze non sono stampabili.
+- Le valutazioni completate espongono una stampa A4 professionale con branding, dati del professionista e del paziente, titolo del percorso, sezioni numerate, test multipli, footer e contenuto clinico separato dai controlli del wizard; le bozze non sono stampabili. Codici, array e multilinea vengono trasformati in etichette e liste leggibili, mentre le sezioni vuote sono omesse.
 - I percorsi attivi possono essere corretti nel titolo e nella data iniziale; un percorso può essere eliminato soltanto quando non contiene valutazioni.
 - Le bozze possono essere eliminate singolarmente. Le valutazioni completate restano normalmente in sola lettura, ma dispongono di una modalità esplicita di correzione senza autosave e di un’eliminazione protetta dalla conferma testuale `ELIMINA`.
 - Gli obiettivi esistenti possono essere collegati o scollegati dal percorso attivo dello stesso paziente tramite `Goal.clinicalPathwayId`; la chiusura conserva il collegamento storico e i percorsi chiusi sono in sola lettura per queste associazioni. Il mapping cloud della colonna nullable è predisposto dalla migration `008` non eseguita.
@@ -87,6 +87,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 ## Ultime modifiche importanti
 
 - Sono state preparate, senza eseguirle, le migration additive `006`–`008` e l'integrazione Supabase del Percorso clinico, mantenendo invariata la modalità locale e la UI.
+- La stampa delle valutazioni completate è stata ridisegnata come documento A4 e predisposta per ricevere in futuro un `logoSrc` professionale opzionale, senza modificare profilo o persistenza.
 
 - La Dashboard Oggi non lascia più tra gli appuntamenti da fare quelli che hanno già una seduta collegata e mostra separatamente i completati.
 - È stata aggiunta la registrazione retroattiva delle sedute preservando data reale e collegamento all'appuntamento.

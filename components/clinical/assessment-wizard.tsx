@@ -176,7 +176,7 @@ export function AssessmentWizard() {
   };
 
   return <AppShell>
-    {readOnly && <AssessmentSummary patientName={fullName(patient)} assessment={draft} />}
+    {readOnly && <AssessmentSummary patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} />}
     <div className="assessment-screen-only mx-auto max-w-4xl">
       <Link href={`/pazienti/${id}?tab=clinical`} className="text-sm font-bold text-sage-700">← Percorso clinico</Link>
       <header className="mt-5 flex flex-wrap items-start justify-between gap-4">
