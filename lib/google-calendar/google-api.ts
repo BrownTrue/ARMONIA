@@ -68,6 +68,11 @@ export async function ensureArmoniaCalendar(userId:string,record: GoogleTokenRec
   return next;
 }
 
+export async function verifyArmoniaCalendarAccess(record: GoogleTokenRecord) {
+  if (!record.calendarId) throw new Error("Calendar ID mancante");
+  await googleRequest(`${api}/calendars/${encodeURIComponent(record.calendarId)}`,record.accessToken);
+}
+
 export async function upsertGoogleEvent(userId:string,input: {
   appointmentId: string;
   eventId?: string;

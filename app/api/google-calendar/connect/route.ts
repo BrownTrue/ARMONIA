@@ -2,12 +2,19 @@ import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { GOOGLE_CALENDAR_SCOPE, googleCalendarConfigured, googleOAuthConfig } from "@/lib/google-calendar/config";
 import {authenticatedUserId} from "@/lib/supabase/server";
+import {googleTokenStore} from "@/lib/google-calendar/token-store";
 
 export async function GET(request: NextRequest) {
   if (!googleCalendarConfigured()) {
     return NextResponse.redirect(new URL("/impostazioni?google=not-configured", request.url));
   }
-  try { await authenticatedUserId(); } catch { return NextResponse.redirect(new URL("/login",request.url)); }
+  let userId:string;
+  try { userId=await authenticatedUserId(); } catch { return NextResponse.redirect(new URL("/login",request.url)); }
+  const mode=request.nextUrl.searchParams.get("mode")==="reconnect"?"reconnect":"connect";
+  if(mode==="reconnect"){
+    const existing=await googleTokenStore.load(userId);
+    if(!existing?.calendarId)return NextResponse.redirect(new URL("/impostazioni?google=reconnect-missing-connection",request.url));
+  }
   const config = googleOAuthConfig();
   const state = randomBytes(24).toString("hex");
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -28,6 +35,13 @@ export async function GET(request: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     maxAge: 600,
     path: "/",
+  });
+  response.cookies.set("armonia_google_oauth_mode",mode,{
+    httpOnly:true,
+    sameSite:"lax",
+    secure:process.env.NODE_ENV==="production",
+    maxAge:600,
+    path:"/",
   });
   return response;
 }
