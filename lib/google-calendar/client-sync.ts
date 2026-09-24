@@ -1,5 +1,6 @@
 "use client";
 import type { Appointment, Patient } from "@/lib/types";
+import {processQueueSnapshot,reconcileStaleUpserts} from "@/lib/google-calendar/sync-queue";
 
 export type GoogleNameFormat = "first_initial" | "full" | "initials";
 export type GoogleCalendarPreferences = { enabled:boolean; nameFormat:GoogleNameFormat; reminderMinutes:number };
@@ -31,7 +32,56 @@ function replaceOperation(operation:PendingOperation){const queue=read<Operation
 
 export function queueGoogleUpsert(appointment:Appointment,patient:Pick<Patient,"firstName"|"lastName">){if(!getGoogleCalendarPreferences().enabled)return;replaceOperation({key:appointment.id,action:"upsert",appointment,patient});void flushGoogleCalendarQueue()}
 export function queueGoogleDelete(appointmentId:string){const mapped=Boolean(read<Record<string,string>>(MAPPING_KEY,{})[appointmentId]),queued=read<Operation[]>(QUEUE_KEY,[]).some(item=>item.key===appointmentId);if(!cloudMode&&!mapped&&!queued)return;replaceOperation({key:appointmentId,action:"delete",appointmentId});void flushGoogleCalendarQueue()}
-export function queueAllGoogleAppointments(appointments:Appointment[],patients:Patient[]){if(!getGoogleCalendarPreferences().enabled)return;for(const appointment of appointments){const patient=patients.find(item=>item.id===appointment.patientId);if(patient)replaceOperation({key:appointment.id,action:"upsert",appointment,patient})}void flushGoogleCalendarQueue()}
+export function queueAllGoogleAppointments(appointments:Appointment[],patients:Patient[]){
+ if(!getGoogleCalendarPreferences().enabled)return;
+ const appointmentIds=new Set(appointments.map(item=>item.id));
+ const reconciled=reconcileStaleUpserts(read<Operation[]>(QUEUE_KEY,[]),appointmentIds,item=>item.action==="upsert"?item.appointment.id:item.appointmentId,(item,appointmentId):Operation=>({id:item.id,key:item.key,action:"delete",appointmentId}));
+ write(QUEUE_KEY,reconciled);
+ for(const appointment of appointments){
+  const queuedDelete=read<Operation[]>(QUEUE_KEY,[]).some(item=>item.key===appointment.id&&item.action==="delete");
+  if(queuedDelete)continue;
+  const patient=patients.find(item=>item.id===appointment.patientId);
+  if(patient)replaceOperation({key:appointment.id,action:"upsert",appointment,patient});
+ }
+ announce();
+ void flushGoogleCalendarQueue();
+}
 
-export async function flushGoogleCalendarQueue(){if(running||!getGoogleCalendarPreferences().enabled)return;running=true;write(STATE_KEY,{...read(STATE_KEY,{}),error:undefined});announce();try{while(true){const operation=read<Operation[]>(QUEUE_KEY,[])[0];if(!operation)break;const mapping=read<Record<string,string>>(MAPPING_KEY,{}),preferences=getGoogleCalendarPreferences();if(operation.action==="delete"&&!cloudMode&&!mapping[operation.appointmentId]){write(QUEUE_KEY,read<Operation[]>(QUEUE_KEY,[]).filter(item=>item.id!==operation.id));announce();continue}const body=operation.action==="delete"?{action:"delete",appointmentId:operation.appointmentId,eventId:mapping[operation.appointmentId]}:{action:"upsert",appointmentId:operation.appointment.id,eventId:mapping[operation.appointment.id],title:titleFor(operation.patient,preferences.nameFormat),date:operation.appointment.date,time:operation.appointment.time,duration:operation.appointment.duration,reminderMinutes:preferences.reminderMinutes};const response=await fetch("/api/google-calendar/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const result=await response.json() as {eventId?:string;error?:string};if(!response.ok)throw new Error(result.error||"Sincronizzazione Google non riuscita");if(operation.action==="delete")delete mapping[operation.appointmentId];else if(result.eventId)mapping[operation.appointment.id]=result.eventId;write(MAPPING_KEY,mapping);write(QUEUE_KEY,read<Operation[]>(QUEUE_KEY,[]).filter(item=>item.id!==operation.id));write(STATE_KEY,{lastSyncedAt:new Date().toISOString()});announce()}}catch(error){write(STATE_KEY,{...read(STATE_KEY,{}),error:error instanceof Error?error.message:"Errore di sincronizzazione"})}finally{running=false;announce()}}
+export async function flushGoogleCalendarQueue(){
+ if(running||!getGoogleCalendarPreferences().enabled)return;
+ running=true;
+ const previousState=read<Omit<GoogleSyncState,"pending"|"syncing">>(STATE_KEY,{});
+ write(STATE_KEY,{...previousState,error:undefined});
+ announce();
+ let completed=false;
+ try{
+  const initial=read<Operation[]>(QUEUE_KEY,[]);
+  const errors=await processQueueSnapshot(initial,id=>read<Operation[]>(QUEUE_KEY,[]).find(item=>item.id===id),async operation=>{
+   const mapping=read<Record<string,string>>(MAPPING_KEY,{}),preferences=getGoogleCalendarPreferences();
+   if(operation.action==="delete"&&!cloudMode&&!mapping[operation.appointmentId]){
+    write(QUEUE_KEY,read<Operation[]>(QUEUE_KEY,[]).filter(item=>item.id!==operation.id));
+    announce();
+    completed=true;
+    return;
+   }
+   const body=operation.action==="delete"?{action:"delete",appointmentId:operation.appointmentId,eventId:mapping[operation.appointmentId]}:{action:"upsert",appointmentId:operation.appointment.id,eventId:mapping[operation.appointment.id],title:titleFor(operation.patient,preferences.nameFormat),date:operation.appointment.date,time:operation.appointment.time,duration:operation.appointment.duration,reminderMinutes:preferences.reminderMinutes};
+   const response=await fetch("/api/google-calendar/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+   const result=await response.json() as {eventId?:string;error?:string};
+   if(!response.ok)throw new Error(result.error||"Sincronizzazione Google non riuscita");
+   if(operation.action==="delete")delete mapping[operation.appointmentId];else if(result.eventId)mapping[operation.appointment.id]=result.eventId;
+   write(MAPPING_KEY,mapping);
+   write(QUEUE_KEY,read<Operation[]>(QUEUE_KEY,[]).filter(item=>item.id!==operation.id));
+   completed=true;
+   announce();
+  });
+  const nextState:Omit<GoogleSyncState,"pending"|"syncing">={...previousState};
+  if(completed)nextState.lastSyncedAt=new Date().toISOString();
+  if(errors.length)nextState.error=errors.length===1?errors[0].message:`${errors.length} modifiche non sincronizzate. ${errors[0].message}`;
+  else delete nextState.error;
+  write(STATE_KEY,nextState);
+ }finally{
+  running=false;
+  announce();
+ }
+}
 export function clearGoogleCalendarLocalState(){write(PREFS_KEY,{...getGoogleCalendarPreferences(),enabled:false});storage()?.removeItem(QUEUE_KEY);storage()?.removeItem(MAPPING_KEY);storage()?.removeItem(STATE_KEY);announce()}

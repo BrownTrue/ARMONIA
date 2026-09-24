@@ -14,6 +14,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Miglioramenti
 
+- Introdurre un namespace per utente per coda, mapping e stato Google conservati nel browser, definendo prima una migrazione esplicita e non distruttiva della coda legacy già esistente.
 - Estendere i test automatici oltre la copertura attuale di ricorrenze, operazioni individuali e partizione Dashboard: CRUD principali, registrazione retroattiva e flussi UI completi.
 - Ampliare i test UI automatici del Percorso clinico; i test sintetici attuali coprono versionamento locale, vincoli dei percorsi, test multipli e ciclo draft/completed, mentre i flussi UI sono stati verificati manualmente in locale.
 

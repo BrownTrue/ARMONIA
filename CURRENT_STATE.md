@@ -26,6 +26,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Persistenza locale con `localStorage` e IndexedDB.
 - Persistenza cloud tramite repository Supabase e Storage privato con signed URL.
 - Sincronizzazione unidirezionale Armonia → Google Calendar per creazione, modifica ed eliminazione.
+- La coda Google nel browser processa ogni elemento dello snapshot iniziale in modo indipendente: gli errori temporanei restano pendenti senza bloccare le operazioni successive. Gli `upsert` riferiti ad appuntamenti non più esistenti vengono riconciliati come cancellazioni idempotenti tramite l'eventuale mapping server-side.
 - Preferenze Google per formato del titolo e reminder, con stato connessione nelle Impostazioni.
 - Statistiche di base su sedute, pazienti e obiettivi.
 - Envelope locale `schemaVersion: 1`, con migrazione sicura del precedente `AppData` non versionato e protezione da JSON corrotti o versioni future.
@@ -79,6 +80,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 ## Limiti noti e verificabili
 
 - La sincronizzazione Google è volutamente solo Armonia → Google; le modifiche effettuate in Google non aggiornano Armonia.
+- La coda Google locale usa ancora una chiave legacy non associata allo user ID. Il namespace per utente è rimandato perché le operazioni già presenti non possono essere attribuite retroattivamente con certezza senza una strategia di migrazione esplicita.
 - Per le serie ricorrenti sono disponibili solo creazione settimanale e modifica/eliminazione della singola occorrenza; non sono ancora presenti operazioni “questo e successivi” o “intera serie”.
 - La copertura automatica è limitata ai casi della ricorrenza, alle operazioni individuali e alla relazione appuntamento/seduta nella Dashboard; non è presente una suite completa dei flussi applicativi.
 - Il supporto cloud del Percorso clinico è soltanto predisposto e non è pubblicabile finché le migration `006`–`008` non vengono revisionate ed eseguite manualmente nell'ambiente corretto.

@@ -1,6 +1,7 @@
 import "server-only";
 import { GOOGLE_CALENDAR_NAME, GOOGLE_CALENDAR_TIME_ZONE, googleOAuthConfig } from "./config";
 import { googleTokenStore, type GoogleTokenRecord } from "./token-store";
+import { isGoogleDeleteAlreadyAbsent } from "./sync-queue";
 
 const api = "https://www.googleapis.com/calendar/v3";
 
@@ -114,6 +115,6 @@ export async function deleteGoogleEvent(userId:string,eventId: string) {
   try {
     await googleRequest<void>(`${api}/calendars/${encodeURIComponent(record.calendarId!)}/events/${encodeURIComponent(eventId)}`, record.accessToken, { method: "DELETE" });
   } catch (error) {
-    if ((error as { status?: number }).status !== 404) throw error;
+    if (!isGoogleDeleteAlreadyAbsent(error)) throw error;
   }
 }

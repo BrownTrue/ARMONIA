@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {deleteGoogleEvent,upsertGoogleEvent} from "@/lib/google-calendar/google-api";
 import {googleTokenStore,type GoogleNameFormat} from "@/lib/google-calendar/token-store";
 import {authenticatedUserId,supabaseServiceClient} from "@/lib/supabase/server";
+import {removeLinkedGoogleEvent} from "@/lib/google-calendar/event-link-cleanup";
 
 type Payload={action:"delete";appointmentId?:string;eventId?:string}|{action:"upsert";appointmentId:string;eventId?:string;title?:string;date?:string;time?:string;duration?:number;reminderMinutes?:number};
 const localMode=process.env.NEXT_PUBLIC_DATA_MODE==="local";
@@ -16,15 +17,19 @@ async function localRequest(userId:string,payload:Payload){
 
 async function cloudRequest(userId:string,payload:Payload){
  const service=supabaseServiceClient();
+ const removeLinkedEvent=()=>removeLinkedGoogleEvent({
+  find:async()=>{const {data,error}=await service.from("google_calendar_event_links").select("google_event_id,attempt_count").eq("user_id",userId).eq("appointment_id",payload.appointmentId).maybeSingle();if(error)throw error;return data?{googleEventId:data.google_event_id,attemptCount:data.attempt_count||0}:null},
+  markSyncing:async attemptCount=>{const {error}=await service.from("google_calendar_event_links").update({desired_action:"delete",sync_status:"syncing",attempt_count:attemptCount,last_error:null,updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)throw error},
+  deleteGoogleEvent:eventId=>deleteGoogleEvent(userId,eventId),
+  remove:async()=>{const {error}=await service.from("google_calendar_event_links").delete().eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)throw error},
+  markError:async message=>{const {error}=await service.from("google_calendar_event_links").update({sync_status:"error",last_error:message,updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)console.error("Aggiornamento errore Google Calendar:",error)},
+ });
  if(payload.action==="delete"){
   if(!payload.appointmentId)throw new Error("ID appuntamento mancante");
-  const {data:link,error}=await service.from("google_calendar_event_links").select("google_event_id,attempt_count").eq("user_id",userId).eq("appointment_id",payload.appointmentId).maybeSingle();if(error)throw error;if(!link?.google_event_id)return {ok:true};
-  await service.from("google_calendar_event_links").update({desired_action:"delete",sync_status:"syncing",attempt_count:(link.attempt_count||0)+1,last_error:null,updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);
-  try{await deleteGoogleEvent(userId,link.google_event_id);const removed=await service.from("google_calendar_event_links").delete().eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(removed.error)throw removed.error;return {ok:true}}
-  catch(error){await service.from("google_calendar_event_links").update({sync_status:"error",last_error:error instanceof Error?error.message:"Eliminazione non riuscita",updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);throw error}
+  return removeLinkedEvent();
  }
+ const appointmentResult=await service.from("appointments").select("id,patient_id,starts_at,duration_minutes").eq("id",payload.appointmentId).eq("user_id",userId).maybeSingle();if(appointmentResult.error)throw appointmentResult.error;if(!appointmentResult.data)return {...await removeLinkedEvent(),resolution:"appointment_missing"};
  const connection=await googleTokenStore.load(userId);if(!connection||!connection.syncEnabled)throw new Error("Google Calendar non collegato");
- const appointmentResult=await service.from("appointments").select("id,patient_id,starts_at,duration_minutes").eq("id",payload.appointmentId).eq("user_id",userId).maybeSingle();if(appointmentResult.error)throw appointmentResult.error;if(!appointmentResult.data)throw new Error("Appuntamento non trovato");
  const patientResult=await service.from("patients").select("first_name,last_name").eq("id",appointmentResult.data.patient_id).eq("user_id",userId).maybeSingle();if(patientResult.error)throw patientResult.error;if(!patientResult.data)throw new Error("Paziente non trovato");
  const linkResult=await service.from("google_calendar_event_links").select("google_event_id,attempt_count").eq("user_id",userId).eq("appointment_id",payload.appointmentId).maybeSingle();if(linkResult.error)throw linkResult.error;
  const pending=await service.from("google_calendar_event_links").upsert({user_id:userId,appointment_id:payload.appointmentId,google_event_id:linkResult.data?.google_event_id||null,desired_action:"upsert",sync_status:"syncing",attempt_count:(linkResult.data?.attempt_count||0)+1,last_error:null,updated_at:new Date().toISOString()});if(pending.error)throw pending.error;
