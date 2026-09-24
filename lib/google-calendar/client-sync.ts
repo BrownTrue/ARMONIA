@@ -66,17 +66,18 @@ export async function flushGoogleCalendarQueue(){
    }
    const body=operation.action==="delete"?{action:"delete",appointmentId:operation.appointmentId,eventId:mapping[operation.appointmentId]}:{action:"upsert",appointmentId:operation.appointment.id,eventId:mapping[operation.appointment.id],title:titleFor(operation.patient,preferences.nameFormat),date:operation.appointment.date,time:operation.appointment.time,duration:operation.appointment.duration,reminderMinutes:preferences.reminderMinutes};
    const response=await fetch("/api/google-calendar/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-   const result=await response.json() as {eventId?:string;error?:string};
-   if(!response.ok)throw new Error(result.error||"Sincronizzazione Google non riuscita");
+   const result=await response.json() as {eventId?:string;error?:string;errorType?:string};
+   if(!response.ok){const error=new Error(result.error||"Sincronizzazione Google non riuscita");Object.assign(error,{errorType:result.errorType});throw error}
    if(operation.action==="delete")delete mapping[operation.appointmentId];else if(result.eventId)mapping[operation.appointment.id]=result.eventId;
    write(MAPPING_KEY,mapping);
    write(QUEUE_KEY,read<Operation[]>(QUEUE_KEY,[]).filter(item=>item.id!==operation.id));
    completed=true;
    announce();
-  });
+  },error=>(error as Error&{errorType?:string}).errorType==="google_oauth");
   const nextState:Omit<GoogleSyncState,"pending"|"syncing">={...previousState};
   if(completed)nextState.lastSyncedAt=new Date().toISOString();
-  if(errors.length)nextState.error=errors.length===1?errors[0].message:`${errors.length} modifiche non sincronizzate. ${errors[0].message}`;
+  const pending=read<Operation[]>(QUEUE_KEY,[]).length;
+  if(errors.length)nextState.error=pending>1?`${pending} modifiche non sincronizzate. ${errors[0].message}`:errors[0].message;
   else delete nextState.error;
   write(STATE_KEY,nextState);
  }finally{

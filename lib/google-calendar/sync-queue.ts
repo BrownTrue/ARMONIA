@@ -16,6 +16,7 @@ export async function processQueueSnapshot<T extends QueueItem>(
   initial: readonly T[],
   currentById: (id: string) => T | undefined,
   process: (item: T) => Promise<void>,
+  stopAfterError: (error: Error) => boolean = () => false,
 ) {
   const errors: Error[] = [];
 
@@ -26,7 +27,9 @@ export async function processQueueSnapshot<T extends QueueItem>(
     try {
       await process(current);
     } catch (cause) {
-      errors.push(cause instanceof Error ? cause : new Error("Errore di sincronizzazione"));
+      const error = cause instanceof Error ? cause : new Error("Errore di sincronizzazione");
+      errors.push(error);
+      if (stopAfterError(error)) break;
     }
   }
 

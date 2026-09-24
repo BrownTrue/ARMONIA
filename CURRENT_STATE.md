@@ -27,6 +27,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Persistenza cloud tramite repository Supabase e Storage privato con signed URL.
 - Sincronizzazione unidirezionale Armonia → Google Calendar per creazione, modifica ed eliminazione.
 - La coda Google nel browser processa ogni elemento dello snapshot iniziale in modo indipendente: gli errori temporanei restano pendenti senza bloccare le operazioni successive. Gli `upsert` riferiti ad appuntamenti non più esistenti vengono riconciliati come cancellazioni idempotenti tramite l'eventuale mapping server-side.
+- Gli errori del token endpoint Google espongono soltanto il codice OAuth sicuro o lo status HTTP. Un fallimento globale di refresh interrompe gli ulteriori tentativi nello stesso flush senza rimuovere le operazioni pendenti; gli errori relativi a un singolo evento continuano invece a non bloccare gli altri elementi.
 - Preferenze Google per formato del titolo e reminder, con stato connessione nelle Impostazioni.
 - Statistiche di base su sedute, pazienti e obiettivi.
 - Envelope locale `schemaVersion: 1`, con migrazione sicura del precedente `AppData` non versionato e protezione da JSON corrotti o versioni future.

@@ -3,6 +3,7 @@ import {deleteGoogleEvent,upsertGoogleEvent} from "@/lib/google-calendar/google-
 import {googleTokenStore,type GoogleNameFormat} from "@/lib/google-calendar/token-store";
 import {authenticatedUserId,supabaseServiceClient} from "@/lib/supabase/server";
 import {removeLinkedGoogleEvent} from "@/lib/google-calendar/event-link-cleanup";
+import {isGoogleOAuthError} from "@/lib/google-calendar/oauth-error";
 
 type Payload={action:"delete";appointmentId?:string;eventId?:string}|{action:"upsert";appointmentId:string;eventId?:string;title?:string;date?:string;time?:string;duration?:number;reminderMinutes?:number};
 const localMode=process.env.NEXT_PUBLIC_DATA_MODE==="local";
@@ -38,4 +39,4 @@ async function cloudRequest(userId:string,payload:Payload){
  catch(error){await service.from("google_calendar_event_links").update({sync_status:"error",last_error:error instanceof Error?error.message:"Sincronizzazione non riuscita",updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);throw error}
 }
 
-export async function POST(request:NextRequest){try{const userId=await authenticatedUserId(),payload=await request.json() as Payload;if(!payload||!['upsert','delete'].includes(payload.action)||!payload.appointmentId&&payload.action==="upsert")return NextResponse.json({error:"Richiesta non valida"},{status:400});return NextResponse.json(localMode?await localRequest(userId,payload):await cloudRequest(userId,payload))}catch(error){console.error("Sincronizzazione Google Calendar:",error);const message=error instanceof Error?error.message:"Sincronizzazione non riuscita";return NextResponse.json({error:message},{status:message.includes("Sessione Supabase")?401:500})}}
+export async function POST(request:NextRequest){try{const userId=await authenticatedUserId(),payload=await request.json() as Payload;if(!payload||!['upsert','delete'].includes(payload.action)||!payload.appointmentId&&payload.action==="upsert")return NextResponse.json({error:"Richiesta non valida"},{status:400});return NextResponse.json(localMode?await localRequest(userId,payload):await cloudRequest(userId,payload))}catch(error){console.error("Sincronizzazione Google Calendar:",error);const message=error instanceof Error?error.message:"Sincronizzazione non riuscita";return NextResponse.json({error:message,errorType:isGoogleOAuthError(error)?"google_oauth":undefined},{status:message.includes("Sessione Supabase")?401:500})}}

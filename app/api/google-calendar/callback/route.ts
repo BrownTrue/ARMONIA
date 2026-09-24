@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureArmoniaCalendar } from "@/lib/google-calendar/google-api";
 import { googleOAuthConfig } from "@/lib/google-calendar/config";
 import {authenticatedUserId} from "@/lib/supabase/server";
+import {googleOAuthResponseError} from "@/lib/google-calendar/oauth-error";
 
 const settingsUrl = (request: NextRequest, value: string) =>
   new URL(`/impostazioni?google=${value}`, request.url);
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       }),
       cache: "no-store",
     });
-    if (!response.ok) throw new Error(`Scambio OAuth non riuscito (${response.status})`);
+    if (!response.ok) throw await googleOAuthResponseError(response,"Scambio OAuth non riuscito");
     const value = (await response.json()) as {
       access_token: string;
       refresh_token?: string;

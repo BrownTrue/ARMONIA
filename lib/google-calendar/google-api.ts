@@ -2,6 +2,7 @@ import "server-only";
 import { GOOGLE_CALENDAR_NAME, GOOGLE_CALENDAR_TIME_ZONE, googleOAuthConfig } from "./config";
 import { googleTokenStore, type GoogleTokenRecord } from "./token-store";
 import { isGoogleDeleteAlreadyAbsent } from "./sync-queue";
+import { googleOAuthResponseError } from "./oauth-error";
 
 const api = "https://www.googleapis.com/calendar/v3";
 
@@ -39,7 +40,7 @@ async function refresh(userId:string,record: GoogleTokenRecord) {
     body,
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Rinnovo autorizzazione Google non riuscito (${response.status})`);
+  if (!response.ok) throw await googleOAuthResponseError(response,"Rinnovo autorizzazione Google non riuscito");
   const value = (await response.json()) as { access_token: string; expires_in: number };
   const next = {
     ...record,
