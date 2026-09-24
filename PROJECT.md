@@ -19,6 +19,8 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 - `components/data-provider.tsx`: API dati condivisa dalla UI e selezione fra provider locale e Supabase.
 - `components/`: shell applicativa e moduli riutilizzabili per form, modali, autenticazione e appuntamenti.
 - `lib/supabase/`: client browser/server e repository Supabase.
+- `lib/data/`: lettura, normalizzazione e versionamento dello stato locale.
+- `lib/clinical/`: tipi, payload versionati, validazione runtime e operazioni locali del dominio clinico.
 - `lib/google-calendar/`: configurazione, API Google, sincronizzazione e token store.
 - `lib/today-dashboard.ts`: classificazione degli appuntamenti odierni in da fare e completati.
 - `supabase/migrations/`: schema e modifiche additive del database.
@@ -27,7 +29,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 
 Armonia supporta due modalità tramite `NEXT_PUBLIC_DATA_MODE`:
 
-- **Locale**: i dati applicativi persistono in `localStorage`; i file dei materiali sono conservati in IndexedDB. È presente un archivio locale separato per la connessione Google usata nello sviluppo.
+- **Locale**: i dati applicativi persistono in `localStorage` tramite un envelope versionato; il formato storico non versionato viene migrato in lettura senza perdere le collezioni esistenti. I file dei materiali sono conservati in IndexedDB. È presente un archivio locale separato per la connessione Google usata nello sviluppo.
 - **Supabase**: autenticazione, entità applicative e relazioni sono gestite da Supabase; i file sono nel bucket privato `therapy-materials` e vengono aperti tramite signed URL. La connessione Google usa un token store server-side persistente.
 
 Il `DataProvider` espone alla UI le stesse operazioni in entrambe le modalità. Supabase è attivo solo quando la configurazione pubblica è presente e la modalità non è impostata su `local`.
@@ -40,7 +42,7 @@ In modalità cloud l'accesso usa email e password Supabase, con sessione persist
 
 ### Pazienti
 
-Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente mostra contatti, prossimo appuntamento, obiettivi, materiali collegati e timeline delle sedute.
+Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente è organizzata nelle sezioni Panoramica, Percorso clinico e Sedute, preservando contatti, prossimo appuntamento, obiettivi e timeline delle sedute.
 
 ### Appuntamenti e calendario
 
@@ -59,6 +61,10 @@ La dashboard usa il collegamento reale tra appuntamenti e sedute. Gli appuntamen
 ### Obiettivi
 
 Gli obiettivi sono gestiti nella scheda paziente con stato, progresso e collegamento alle sedute.
+
+### Percorso clinico
+
+In modalità locale la scheda paziente consente di avviare e chiudere percorsi clinici opzionali, consultare i percorsi storici e compilare una prima valutazione guidata `language_communication`. Il wizard usa sei passaggi, autosave debounced, ripresa delle bozze e completamento esplicito con successiva sola lettura. Include tipi applicativi, payload strutturato V1, validazione runtime e protezione da percorsi attivi duplicati. Non sono ancora presenti persistenza Supabase, migration, collegamento strutturato agli obiettivi o timeline clinica aggregata.
 
 ### Materiali
 

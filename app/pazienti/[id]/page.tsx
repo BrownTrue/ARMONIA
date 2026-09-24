@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { PatientClinicalPathway } from "@/components/clinical/patient-clinical-pathway";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { PatientForm } from "@/components/patient-form";
@@ -14,7 +15,18 @@ export default function PatientPage() {
   const { data, ready, deletePatient, deleteSession, deleteGoal } = useData();
   const [edit, setEdit] = useState(false),
     [detail, setDetail] = useState<Session | null>(null),
-    [goalEdit, setGoalEdit] = useState<Goal | "new" | null>(null);
+    [goalEdit, setGoalEdit] = useState<Goal | "new" | null>(null),
+    [tab, setTab] = useState<"overview" | "clinical" | "sessions">("overview");
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (requested === "clinical" || requested === "sessions" || requested === "overview") setTab(requested);
+  }, []);
+  const selectTab = (nextTab: "overview" | "clinical" | "sessions") => {
+    setTab(nextTab);
+    const url = new URL(window.location.href);
+    if (nextTab === "overview") url.searchParams.delete("tab"); else url.searchParams.set("tab", nextTab);
+    window.history.replaceState({}, "", url);
+  };
   const p = data.patients.find((x) => x.id === id);
   if (!ready)
     return (
@@ -60,7 +72,7 @@ export default function PatientPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={() => setEdit(true)} className="btn btn-quiet">
             Modifica
           </button>
@@ -80,7 +92,10 @@ export default function PatientPage() {
           </Link>
         </div>
       </header>
-      <div className="mt-8 grid gap-5 lg:grid-cols-3">
+      <nav aria-label="Sezioni paziente" className="mt-8 flex gap-2 overflow-x-auto rounded-2xl border border-sage-100 bg-white p-1.5">
+        {([['overview','Panoramica'],['clinical','Percorso clinico'],['sessions','Sedute']] as const).map(([value,label]) => <button key={value} onClick={() => selectTab(value)} className={`min-w-max flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === value ? "bg-sage-100 text-sage-700" : "text-slate-500 hover:bg-sage-50"}`}>{label}</button>)}
+      </nav>
+      {tab === "overview" && <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <section className="card p-5 lg:col-span-2">
           <p className="text-sm font-bold text-slate-500">
             PROSSIMO APPUNTAMENTO
@@ -145,7 +160,11 @@ export default function PatientPage() {
             {sessions[0]?.nextPlan || "Nessuna indicazione salvata."}
           </p>
         </section>
-        <section className="card p-5 lg:col-span-3">
+      </div>}
+      {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onOpenGoals={() => selectTab("overview")} /></div>}
+      {tab === "sessions" && <div className="mt-5 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Sedute</h2><p className="mt-1 text-sm text-slate-500">Storico delle sedute registrate per il paziente.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary">Registra seduta</Link></div>
+        <section className="card p-5">
           <h2 className="font-bold">Timeline sedute</h2>
           {sessions.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">
@@ -193,7 +212,7 @@ export default function PatientPage() {
             </div>
           )}
         </section>
-      </div>
+      </div>}
       {edit && (
         <Modal title="Modifica paziente" onClose={() => setEdit(false)}>
           <PatientForm patient={p} onDone={() => setEdit(false)} />

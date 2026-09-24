@@ -5,7 +5,7 @@ const splitDate=(value:string)=>{const d=new Date(value);return {date:d.toLocale
 const joinDate=(date:string,time:string)=>new Date(`${date}T${time}:00`).toISOString();
 const check=<T extends {error:unknown}>(result:T)=>{if(result.error)throw result.error;return result};
 
-export async function loadCloudData(client:SupabaseClient,user:User):Promise<AppData>{
+export async function loadCloudData(client:SupabaseClient,user:User):Promise<Omit<AppData,"clinicalPathways"|"clinicalAssessments">>{
   const [profiles,patients,appointments,sessions,goals,materials,patientMaterials,sessionMaterials,sessionGoals]=await Promise.all([
     client.from("profiles").select("*").eq("id",user.id).maybeSingle(),
     client.from("patients").select("*").order("created_at",{ascending:false}),

@@ -1,0 +1,121 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useData } from "@/components/data-provider";
+import { Field } from "@/components/form-controls";
+import { Modal } from "@/components/modal";
+import { createLanguageCommunicationAssessmentV1 } from "@/lib/clinical/assessment-v1";
+import type { ClinicalPathway } from "@/lib/clinical/types";
+import type { Goal } from "@/lib/types";
+import { today, uid } from "@/lib/types";
+
+const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
+const formatUpdatedAt = (value: string) => new Date(value).toLocaleString("it-IT", { dateStyle: "medium", timeStyle: "short" });
+
+export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { patientId: string; goals: Goal[]; onOpenGoals: () => void }) {
+  const router = useRouter();
+  const { data, connection, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft } = useData();
+  const [startOpen, setStartOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ClinicalPathway | null>(null);
+  const [error, setError] = useState("");
+  const pathways = data.clinicalPathways
+    .filter((item) => item.patientId === patientId)
+    .sort((a, b) => (b.startedOn + b.createdAt).localeCompare(a.startedOn + a.createdAt));
+  const active = pathways.find((item) => item.status === "active");
+  const historical = pathways.filter((item) => item.status === "closed");
+  const activeGoals = goals.filter((goal) => goal.status !== "achieved" && goal.status !== "suspended");
+  const requestDelete = (pathway: ClinicalPathway) => {
+    const hasAssessments = data.clinicalAssessments.some((assessment) => assessment.clinicalPathwayId === pathway.id);
+    if (hasAssessments) {
+      setError("Questo percorso contiene valutazioni. Elimina prima le valutazioni che non vuoi conservare oppure chiudi il percorso.");
+      return;
+    }
+    setError("");
+    setDeleteTarget(pathway);
+  };
+
+  if (connection.kind !== "local") {
+    return <section className="card p-6"><h2 className="text-xl font-bold">Percorso clinico</h2><p className="mt-3 max-w-2xl text-sm text-slate-500">Il Percorso clinico è disponibile soltanto nella modalità locale di sviluppo in questa fase.</p></section>;
+  }
+
+  const startAssessment = async (pathway: ClinicalPathway) => {
+    setError("");
+    try {
+      const assessment = createLanguageCommunicationAssessmentV1(patientId, pathway.id);
+      await createClinicalAssessmentDraft(assessment);
+      router.push(`/pazienti/${patientId}/percorso/${assessment.id}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Impossibile creare la valutazione.");
+    }
+  };
+
+  if (!active && historical.length === 0) {
+    return <>
+      <section className="card px-6 py-10 text-center sm:px-10">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-sage-100 text-xl">◎</div>
+        <h2 className="mt-4 text-xl font-bold">Percorso clinico</h2>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">Organizza valutazioni, obiettivi e percorso terapeutico del paziente. Puoi continuare a utilizzare Armonia normalmente anche senza attivarlo.</p>
+        <button onClick={() => setStartOpen(true)} className="btn btn-primary mt-6">Inizia percorso clinico</button>
+      </section>
+      {startOpen && <StartPathwayModal patientId={patientId} onClose={() => setStartOpen(false)} onSave={saveClinicalPathway} />}
+    </>;
+  }
+
+  return <div className="space-y-5">
+    {active && <section className="card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><div className="flex items-center gap-2"><h2 className="text-xl font-bold">{active.title || "Percorso clinico"}</h2><span className="chip">Attivo</span></div><p className="mt-2 text-sm text-slate-500">Attivo dal {formatDate(active.startedOn)}</p></div>
+        <div className="flex flex-wrap justify-end gap-2"><button onClick={() => setEditOpen(true)} className="btn btn-quiet text-sm">Modifica percorso</button><button onClick={() => setCloseOpen(true)} className="btn btn-quiet text-sm">Chiudi percorso</button><button onClick={() => requestDelete(active)} className="rounded-xl px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50">Elimina percorso</button></div>
+      </div>
+      {error && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}
+      <div className="mt-7 grid gap-5 lg:grid-cols-2">
+        <AssessmentPanel pathway={active} assessments={data.clinicalAssessments.filter((item) => item.clinicalPathwayId === active.id)} onStart={() => startAssessment(active)} patientId={patientId} />
+        <div className="rounded-2xl border border-sage-100 p-5">
+          <p className="text-sm font-bold text-slate-500">OBIETTIVI</p>
+          <p className="mt-3 text-3xl font-bold">{activeGoals.length}</p>
+          <p className="mt-1 text-sm text-slate-500">obiettivi attivi del paziente</p>
+          <button onClick={onOpenGoals} className="btn btn-quiet mt-5 text-sm">Gestisci obiettivi</button>
+          <p className="mt-3 text-xs leading-5 text-slate-400">Gli obiettivi restano quelli già presenti in Armonia. Il collegamento strutturato al percorso verrà aggiunto in una fase successiva.</p>
+        </div>
+      </div>
+    </section>}
+    {!active && <section className="card p-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-xl font-bold">Nessun percorso attivo</h2><p className="mt-2 text-sm text-slate-500">I percorsi precedenti restano consultabili qui sotto.</p></div><button onClick={() => setStartOpen(true)} className="btn btn-primary">Inizia nuovo percorso</button></div></section>}
+    {historical.length > 0 && <section className="card p-5 sm:p-6"><h2 className="font-bold">Percorsi precedenti</h2><div className="mt-4 space-y-3">{historical.map((pathway) => {
+      const assessments = data.clinicalAssessments.filter((item) => item.clinicalPathwayId === pathway.id);
+      return <div key={pathway.id} className="rounded-2xl border border-sage-100 p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="font-bold">{pathway.title || "Percorso clinico"}</p><p className="mt-1 text-sm text-slate-500">{formatDate(pathway.startedOn)} – {pathway.closedOn ? formatDate(pathway.closedOn) : "—"}</p></div><div className="flex items-center gap-2"><span className="chip">Chiuso</span><button onClick={() => requestDelete(pathway)} className="rounded-lg px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50">Elimina</button></div></div>{assessments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{assessments.map((assessment) => <Link key={assessment.id} href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="btn btn-quiet text-sm">Prima valutazione · {assessment.status === "completed" ? "Completata" : "Bozza"}</Link>)}</div>}</div>;
+    })}</div></section>}
+    {startOpen && <StartPathwayModal patientId={patientId} onClose={() => setStartOpen(false)} onSave={saveClinicalPathway} />}
+    {closeOpen && active && <ClosePathwayModal pathway={active} onClose={() => setCloseOpen(false)} onConfirm={closeClinicalPathway} />}
+    {editOpen && active && <EditPathwayModal pathway={active} onClose={() => setEditOpen(false)} onSave={saveClinicalPathway} />}
+    {deleteTarget && <DeletePathwayModal pathway={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={deleteClinicalPathway} />}
+  </div>;
+}
+
+function EditPathwayModal({ pathway, onClose, onSave }: { pathway: ClinicalPathway; onClose: () => void; onSave: (pathway: ClinicalPathway) => Promise<void> }) {
+  const [error, setError] = useState("");
+  return <Modal title="Modifica percorso" onClose={onClose}><form className="space-y-4" onSubmit={async (event) => { event.preventDefault(); setError(""); const form = new FormData(event.currentTarget); try { await onSave({ ...pathway, title: String(form.get("title") || "").trim() || undefined, startedOn: String(form.get("startedOn") || ""), updatedAt: new Date().toISOString() }); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossibile modificare il percorso."); } }}><Field name="startedOn" label="Data di inizio" type="date" required defaultValue={pathway.startedOn} /><Field name="title" label="Titolo opzionale" defaultValue={pathway.title || ""} placeholder="Percorso clinico" />{error && <p role="alert" className="text-sm font-medium text-red-600">{error}</p>}<p className="text-xs leading-5 text-slate-500">Stato e valutazioni del percorso non verranno modificati.</p><div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button className="btn btn-primary">Salva modifiche</button></div></form></Modal>;
+}
+
+function DeletePathwayModal({ pathway, onClose, onConfirm }: { pathway: ClinicalPathway; onClose: () => void; onConfirm: (id: string) => Promise<void> }) {
+  const [error, setError] = useState("");
+  return <Modal title="Elimina percorso" onClose={onClose}><p className="text-sm leading-6 text-slate-600">Vuoi eliminare “{pathway.title || "Percorso clinico"}”? L’operazione riguarda soltanto questo percorso vuoto e non modifica il paziente, le sedute o gli obiettivi.</p>{error && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}<div className="mt-6 flex flex-wrap justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button type="button" onClick={async()=>{setError("");try{await onConfirm(pathway.id);onClose();}catch(cause){setError(cause instanceof Error?cause.message:"Impossibile eliminare il percorso.");}}} className="btn bg-red-600 text-white">Conferma eliminazione</button></div></Modal>;
+}
+
+function AssessmentPanel({ pathway, assessments, onStart, patientId }: { pathway: ClinicalPathway; assessments: ReturnType<typeof useData>["data"]["clinicalAssessments"]; onStart: () => void; patientId: string }) {
+  const sorted = [...assessments].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return <div className="rounded-2xl border border-sage-100 p-5"><p className="text-sm font-bold text-slate-500">VALUTAZIONI</p>{sorted.length === 0 ? <><p className="mt-3 text-sm text-slate-500">Nessuna valutazione registrata.</p><button onClick={onStart} className="btn btn-primary mt-5 text-sm">Inizia prima valutazione</button></> : <div className="mt-4 space-y-3">{sorted.map((assessment) => <div key={assessment.id} className="rounded-xl bg-sage-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold">Prima valutazione</p><p className="mt-1 text-sm text-slate-500">Linguaggio e comunicazione</p></div><span className="chip">{assessment.status === "completed" ? "Completata" : "Bozza"}</span></div><p className="mt-3 text-xs text-slate-400">Ultimo aggiornamento {formatUpdatedAt(assessment.updatedAt)}</p><Link href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="btn btn-quiet mt-4 inline-block text-sm">{assessment.status === "completed" ? "Apri" : "Continua"}</Link></div>)}</div>}</div>;
+}
+
+function StartPathwayModal({ patientId, onClose, onSave }: { patientId: string; onClose: () => void; onSave: (pathway: ClinicalPathway) => Promise<void> }) {
+  const [error, setError] = useState("");
+  return <Modal title="Inizia percorso clinico" onClose={onClose}><form className="space-y-4" onSubmit={async (event) => { event.preventDefault(); setError(""); const form = new FormData(event.currentTarget); const timestamp = new Date().toISOString(); try { await onSave({ id: uid(), patientId, status: "active", title: String(form.get("title") || "").trim() || undefined, startedOn: String(form.get("startedOn") || ""), createdAt: timestamp, updatedAt: timestamp }); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossibile creare il percorso."); } }}><Field name="startedOn" label="Data di inizio" type="date" required defaultValue={today()} /><Field name="title" label="Titolo opzionale" placeholder="Percorso clinico" />{error && <p role="alert" className="text-sm font-medium text-red-600">{error}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button className="btn btn-primary">Inizia percorso</button></div></form></Modal>;
+}
+
+function ClosePathwayModal({ pathway, onClose, onConfirm }: { pathway: ClinicalPathway; onClose: () => void; onConfirm: (id: string, closedOn: string) => Promise<void> }) {
+  const [error, setError] = useState("");
+  return <Modal title="Chiudi percorso" onClose={onClose}><form className="space-y-4" onSubmit={async (event) => { event.preventDefault(); setError(""); const form = new FormData(event.currentTarget); try { await onConfirm(pathway.id, String(form.get("closedOn") || "")); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossibile chiudere il percorso."); } }}><p className="text-sm leading-6 text-slate-600">La chiusura non elimina valutazioni, obiettivi o sedute. Il percorso resterà consultabile nello storico.</p><Field name="closedOn" label="Data di chiusura" type="date" min={pathway.startedOn} required defaultValue={today() < pathway.startedOn ? pathway.startedOn : today()} />{error && <p role="alert" className="text-sm font-medium text-red-600">{error}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button className="btn btn-primary">Conferma chiusura</button></div></form></Modal>;
+}
