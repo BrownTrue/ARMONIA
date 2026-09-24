@@ -43,7 +43,7 @@ export function AssessmentSummary({ patientName, assessment, pathwayTitle, profe
 
   return <article className="assessment-print-summary" aria-label="Riepilogo stampabile della valutazione">
     <header className="assessment-print-header">
-      <div className="assessment-print-identity"><div className="assessment-print-logo">{logoSrc ? <Image src={logoSrc} alt="" width={48} height={56} priority /> : <span aria-hidden="true">A</span>}</div><div><p className="assessment-print-professional">{professionalName || "Armonia"}</p>{professional?.profession?.trim() && <p>{professional.profession}</p>}{professional?.studio?.trim() && <p>{professional.studio}</p>}</div><p className="assessment-print-brand">ARMONIA</p></div>
+      <div className="assessment-print-identity"><div className="assessment-print-logo">{logoSrc ? <Image src={logoSrc} alt="" width={190} height={68} priority unoptimized /> : <span aria-hidden="true">A</span>}</div><div><p className="assessment-print-professional">{professionalName || "Armonia"}</p>{professional?.profession?.trim() && <p>{professional.profession}</p>}{professional?.studio?.trim() && <p>{professional.studio}</p>}</div><p className="assessment-print-brand">ARMONIA</p></div>
       <div className="assessment-print-title-block"><p className="assessment-print-kicker">{pathwayTitle?.trim() || "Percorso clinico"}</p><h1>Prima valutazione</h1><p>Linguaggio e comunicazione</p></div>
       <div className="assessment-print-patient-card"><div><span>Paziente</span><strong>{patientName}</strong></div><div><span>Data clinica</span><strong>{formatDate(assessment.clinicalDate)}</strong></div></div>
     </header>

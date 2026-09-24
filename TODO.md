@@ -9,6 +9,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 - Aggiornare il README affinché includa le migration `004` e `005` e la configurazione server-side richiesta da Google Calendar su Vercel.
 - Revisionare con attenzione e poi applicare manualmente, nell'ordine, `006_clinical_pathways.sql`, `007_clinical_assessments.sql` e `008_goals_clinical_pathway.sql` prima di pubblicare il codice cloud clinico. Le migration sono state create ma non eseguite.
 - Dopo l'applicazione manuale delle migration, collaudare il Percorso clinico cloud con dati sintetici in un ambiente sicuro prima del deploy sui dati reali.
+- Revisionare e applicare manualmente `009_professional_branding_storage.sql` prima di pubblicare il supporto cloud al logo professionale, quindi verificarlo con un account di collaudo.
+- Eseguire il security hardening Supabase già rimandato: revisionare i privilegi `EXECUTE` delle funzioni `SECURITY DEFINER`, attivare Leaked Password Protection e rieseguire il Security Advisor. Non intervenire sui warning senza una revisione dedicata.
 
 ## Miglioramenti
 

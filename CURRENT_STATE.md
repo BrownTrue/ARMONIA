@@ -12,6 +12,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Autenticazione Supabase con email/password, sessione persistente e logout in modalità cloud.
 - Pagine pubbliche `/about` e `/privacy`, accessibili senza sessione anche in modalità cloud.
 - Profilo modificabile e persistente.
+- Logo professionale configurabile dalle Impostazioni, con anteprima, sostituzione sicura, rimozione confermata e fallback Armonia. PNG/JPEG/WebP fino a 2 MB vengono ridimensionati proporzionalmente entro 1200×1200 e normalizzati in WebP.
 - CRUD pazienti e scheda con appuntamenti, obiettivi, materiali e timeline.
 - Calendario interattivo con viste Mese, Settimana e Agenda, navigazione e CRUD appuntamenti.
 - Creazione di appuntamenti ricorrenti settimanali con data finale inclusiva, occorrenze autonome e modifica/eliminazione individuale.
@@ -53,6 +54,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - La Dashboard Oggi usa `lib/today-dashboard.ts` per partizionare gli appuntamenti odierni non annullati.
 - La sincronizzazione Google è avviata dalle mutazioni degli appuntamenti; in modalità cloud token e operazioni sensibili restano server-side.
 - I file locali dei materiali usano IndexedDB; in cloud usano il bucket privato `therapy-materials`.
+- Il logo professionale non è incluso in `AppData`: in locale usa l'object store IndexedDB `branding` nello stesso database dei materiali, senza alterare lo store `files`; in cloud usa il path deterministico privato `{user_id}/logo.webp` nel bucket `professional-branding` previsto dalla migration `009` non eseguita.
 - `lib/data/local-store.ts` mantiene la chiave `armonia-demo-v2`, distingue il formato legacy dall'envelope V1 e impedisce la sovrascrittura automatica di dati corrotti o provenienti da versioni future.
 - `lib/clinical/` contiene tipi, factory, validazione e regole condivise del Percorso clinico; `lib/supabase/clinical-repository.ts` le riutilizza per la persistenza cloud e il `DataProvider` seleziona il provider senza differenze per la UI.
 - `components/clinical/` contiene la dashboard opzionale del percorso e il wizard specifico della valutazione V1; non è stato introdotto un motore universale di questionari.
@@ -70,6 +72,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - `006_clinical_pathways.sql`: **creata ma non eseguita**; tabella dei percorsi, vincoli di appartenenza, massimo un percorso attivo, RLS e grant `authenticated`.
 - `007_clinical_assessments.sql`: **creata ma non eseguita**; valutazioni V1 collegate al percorso, JSONB validato a runtime, RLS e grant `authenticated`.
 - `008_goals_clinical_pathway.sql`: **creata ma non eseguita**; collegamento nullable e coerente per proprietario/paziente tra Goal e percorso, senza backfill.
+- `009_professional_branding_storage.sql`: **creata ma non eseguita**; bucket privato per il logo professionale e policy Storage limitate al solo `{auth.uid()}/logo.webp`.
 
 La presenza delle migration nel repository non dimostra che siano state applicate a uno specifico ambiente Supabase. Prima di interventi cloud occorre verificare separatamente lo stato dell'ambiente interessato.
 
@@ -80,6 +83,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - La copertura automatica è limitata ai casi della ricorrenza, alle operazioni individuali e alla relazione appuntamento/seduta nella Dashboard; non è presente una suite completa dei flussi applicativi.
 - Il supporto cloud del Percorso clinico è soltanto predisposto e non è pubblicabile finché le migration `006`–`008` non vengono revisionate ed eseguite manualmente nell'ambiente corretto.
 - Il repository cloud presuppone la presenza contemporanea delle tre migration: pubblicarlo prima renderebbe incompleto il caricamento cloud e le scritture cliniche.
+- Il logo cloud resta sul fallback Armonia finché la migration `009` non viene applicata manualmente; il codice branding non deve essere pubblicato prima della migration.
 - Nell’MVP una correzione salvata sovrascrive la versione precedente della valutazione completata; non esistono ancora storico revisioni, audit log, autore o confronto tra versioni.
 - Il README elenca le migration fino alla `003`, mentre nel repository sono presenti anche la `004` e la `005`; inoltre non documenta l'intera configurazione server-side Google per Vercel.
 - Il repository da solo non consente di verificare stato del deploy Vercel, variabili configurate o migration effettivamente applicate in produzione.

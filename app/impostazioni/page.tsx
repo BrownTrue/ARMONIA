@@ -1,21 +1,27 @@
 "use client";
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
 import type { Profile } from "@/lib/types";
+import { useBranding } from "@/components/branding-provider";
 import {clearGoogleCalendarLocalState,flushGoogleCalendarQueue,getGoogleCalendarPreferences,getGoogleSyncState,persistGoogleCalendarPreferences,queueAllGoogleAppointments,saveGoogleCalendarPreferences,subscribeGoogleSync,type GoogleCalendarPreferences,type GoogleSyncState} from "@/lib/google-calendar/client-sync";
 type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
 const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
 export default function Settings() {
   const router = useRouter();
   const { data, ready, connection, saveProfile, signOut } = useData();
+  const { logoSrc, hasCustomLogo, ready: brandingReady, saveLogo, removeLogo } = useBranding();
+  const logoInput = useRef<HTMLInputElement>(null);
   const [v, setV] = useState<Profile>(data.profile),
     [saved, setSaved] = useState(false),
     [google,setGoogle]=useState<GoogleStatus|null>(null),
     [googlePrefs,setGooglePrefs]=useState<GoogleCalendarPreferences>({enabled:false,nameFormat:"first_initial",reminderMinutes:30}),
-    [syncState,setSyncState]=useState<GoogleSyncState>({pending:0,syncing:false});
+    [syncState,setSyncState]=useState<GoogleSyncState>({pending:0,syncing:false}),
+    [brandingBusy,setBrandingBusy]=useState(false),
+    [brandingMessage,setBrandingMessage]=useState<{kind:"success"|"error";text:string}|null>(null);
   useEffect(() => { if (ready) setV(data.profile); }, [ready, data.profile]);
   useEffect(()=>{setGooglePrefs(getGoogleCalendarPreferences());setSyncState(getGoogleSyncState());return subscribeGoogleSync(()=>setSyncState(getGoogleSyncState()))},[]);
   useEffect(()=>{fetch("/api/google-calendar/status",{cache:"no-store"}).then(r=>r.json()).then((status:GoogleStatus)=>{setGoogle(status);if(status.connected){const current=getGoogleCalendarPreferences(),preferences={...current,enabled:status.syncEnabled??true,nameFormat:cloudDataMode&&status.nameFormat?status.nameFormat:current.nameFormat,reminderMinutes:cloudDataMode&&status.reminderMinutes!==undefined?status.reminderMinutes:current.reminderMinutes};saveGoogleCalendarPreferences(preferences);setGooglePrefs(preferences);if(new URLSearchParams(window.location.search).get("google")==="connected")queueAllGoogleAppointments(data.appointments,data.patients)}}).catch(error=>setGoogle({configured:true,connected:false,error:error instanceof Error?error.message:"Errore di collegamento"}))},[ready]);
@@ -84,6 +90,21 @@ export default function Settings() {
           </span>
         )}
       </form>
+      <section className="card mt-5 max-w-2xl p-6">
+        <div><h2 className="font-bold">Logo professionista / studio</h2><p className="mt-1 text-sm text-slate-500">PNG, JPG o WebP · massimo 2 MB. Il logo verrà adattato automaticamente ai documenti.</p></div>
+        <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
+          <div className="grid h-28 place-items-center overflow-hidden rounded-2xl border border-sage-100 bg-sage-50 p-4">
+            {brandingReady ? <Image src={logoSrc} alt="Anteprima logo" width={180} height={90} unoptimized className="h-full w-full object-contain" /> : <span className="text-sm text-slate-400">Caricamento…</span>}
+          </div>
+          <div className="rounded-2xl border border-sage-100 bg-white p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-sage-700">Così apparirà nei documenti</p>
+            <div className="mt-3 flex items-center gap-3"><Image src={logoSrc} alt="" width={52} height={52} unoptimized className="h-12 w-14 object-contain" /><div><p className="font-bold">{data.profile.firstName} {data.profile.lastName}</p>{data.profile.profession&&<p className="text-sm text-slate-500">{data.profile.profession}</p>}{data.profile.studio&&<p className="text-xs text-slate-400">{data.profile.studio}</p>}</div></div>
+          </div>
+        </div>
+        <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async(event)=>{const file=event.target.files?.[0];event.target.value="";if(!file)return;setBrandingBusy(true);setBrandingMessage(null);try{await saveLogo(file);setBrandingMessage({kind:"success",text:"Logo salvato."})}catch(cause){setBrandingMessage({kind:"error",text:cause instanceof Error?cause.message:"Non è stato possibile salvare il logo."})}finally{setBrandingBusy(false)}}}/>
+        <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={brandingBusy||!brandingReady} onClick={()=>logoInput.current?.click()} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{hasCustomLogo?"Cambia logo":"Carica logo"}</button>{hasCustomLogo&&<button type="button" disabled={brandingBusy} onClick={async()=>{if(!confirm("Rimuovere il logo personale? Nei documenti verrà utilizzato il logo Armonia."))return;setBrandingBusy(true);setBrandingMessage(null);try{await removeLogo();setBrandingMessage({kind:"success",text:"Logo rimosso. È stato ripristinato il logo Armonia."})}catch(cause){setBrandingMessage({kind:"error",text:cause instanceof Error?cause.message:"Non è stato possibile rimuovere il logo."})}finally{setBrandingBusy(false)}}} className="btn btn-quiet">Rimuovi logo</button>}</div>
+        {brandingMessage&&<p role={brandingMessage.kind==="error"?"alert":"status"} className={`mt-3 text-sm font-bold ${brandingMessage.kind==="error"?"text-red-600":"text-sage-700"}`}>{brandingMessage.text}</p>}
+      </section>
       <section className="card mt-5 max-w-2xl p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="font-bold">Google Calendar</h2><p className="mt-1 text-sm text-slate-500">Sincronizzazione unidirezionale verso il calendario dedicato “Armonia”.</p></div>

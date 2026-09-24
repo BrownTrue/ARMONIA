@@ -29,8 +29,8 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 
 Armonia supporta due modalità tramite `NEXT_PUBLIC_DATA_MODE`:
 
-- **Locale**: i dati applicativi persistono in `localStorage` tramite un envelope versionato; il formato storico non versionato viene migrato in lettura senza perdere le collezioni esistenti. I file dei materiali sono conservati in IndexedDB. È presente un archivio locale separato per la connessione Google usata nello sviluppo.
-- **Supabase**: autenticazione, entità applicative e relazioni sono gestite da Supabase; i file sono nel bucket privato `therapy-materials` e vengono aperti tramite signed URL. La connessione Google usa un token store server-side persistente.
+- **Locale**: i dati applicativi persistono in `localStorage` tramite un envelope versionato; il formato storico non versionato viene migrato in lettura senza perdere le collezioni esistenti. I file dei materiali e il logo professionale sono conservati in object store IndexedDB separati. È presente un archivio locale separato per la connessione Google usata nello sviluppo.
+- **Supabase**: autenticazione, entità applicative e relazioni sono gestite da Supabase; i file sono nel bucket privato `therapy-materials` e il logo professionale usa il bucket privato `professional-branding` dopo l'applicazione manuale della migration `009`. La connessione Google usa un token store server-side persistente.
 
 Il `DataProvider` espone alla UI le stesse operazioni in entrambe le modalità. Supabase è attivo solo quando la configurazione pubblica è presente e la modalità non è impostata su `local`.
 
@@ -39,6 +39,10 @@ Il `DataProvider` espone alla UI le stesse operazioni in entrambe le modalità. 
 In modalità cloud l'accesso usa email e password Supabase, con sessione persistente e logout. Le route operative sono protette da `AuthGate`; `/about`, `/privacy` e `/login` sono pubbliche. Il profilo comprende nome, cognome, professione, email e studio/centro ed è persistente nel provider attivo.
 
 ## Funzionalità
+
+### Branding professionale
+
+Ogni professionista può usare un logo personale nelle stampe. L'immagine viene validata, ridimensionata proporzionalmente e normalizzata in WebP nel browser. In assenza del logo personale viene usato il marchio Armonia. Il logo non fa parte di `AppData`: resta isolato in IndexedDB locale o in Storage privato per utente.
 
 ### Pazienti
 

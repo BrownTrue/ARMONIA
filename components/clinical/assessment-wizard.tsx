@@ -5,10 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AssessmentSummary } from "@/components/clinical/assessment-summary";
+import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import type { AssessmentTestEntryV1, ClinicalChoice, ClinicalValue, LanguageCommunicationAssessmentV1 } from "@/lib/clinical/assessment-v1";
 import { formatMultilineList, parseMultilineList } from "@/lib/clinical/multiline-list";
+import { waitForPrintableLogo } from "@/lib/branding/image";
 import type { ClinicalAssessment } from "@/lib/clinical/types";
 import { fullName, uid } from "@/lib/types";
 
@@ -21,6 +23,7 @@ export function AssessmentWizard() {
   const { id, assessmentId } = useParams<{ id: string; assessmentId: string }>();
   const router = useRouter();
   const { data, ready, autosaveClinicalAssessmentDraft, completeClinicalAssessment, correctClinicalAssessment, deleteClinicalAssessment } = useData();
+  const { logoSrc, ready: brandingReady } = useBranding();
   const source = data.clinicalAssessments.find((item) => item.id === assessmentId);
   const [draft, setDraft] = useState<ClinicalAssessment | null>(null);
   const draftRef = useRef<ClinicalAssessment | null>(null);
@@ -50,12 +53,11 @@ export function AssessmentWizard() {
     }
   }, [source, correcting]);
   useEffect(() => {
-    if (draft?.status !== "completed" || printRequestedRef.current) return;
+    if (draft?.status !== "completed" || !brandingReady || printRequestedRef.current) return;
     if (new URLSearchParams(window.location.search).get("print") !== "1") return;
     printRequestedRef.current = true;
-    const timer = window.setTimeout(() => window.print(), 150);
-    return () => window.clearTimeout(timer);
-  }, [draft?.status]);
+    void waitForPrintableLogo().then(() => window.print());
+  }, [draft?.status, brandingReady, logoSrc]);
 
   const persist = async (candidate: ClinicalAssessment, revision: number) => {
     if (candidate.status === "completed") return;
@@ -176,7 +178,7 @@ export function AssessmentWizard() {
   };
 
   return <AppShell>
-    {readOnly && <AssessmentSummary patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} />}
+    {readOnly && <AssessmentSummary patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
     <div className="assessment-screen-only mx-auto max-w-4xl">
       <Link href={`/pazienti/${id}?tab=clinical`} className="text-sm font-bold text-sage-700">← Percorso clinico</Link>
       <header className="mt-5 flex flex-wrap items-start justify-between gap-4">
@@ -198,7 +200,7 @@ export function AssessmentWizard() {
         <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-sage-100 pt-5">
           <button type="button" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))} className="btn btn-quiet disabled:cursor-not-allowed disabled:opacity-40">Indietro</button>
           <div className="flex flex-wrap justify-end gap-2">
-            {readOnly && <><button type="button" onClick={() => setCorrectConfirmOpen(true)} className="btn btn-quiet">Correggi valutazione</button><button type="button" onClick={() => window.print()} className="btn btn-primary">Stampa valutazione</button></>}
+            {readOnly && <><button type="button" onClick={() => setCorrectConfirmOpen(true)} className="btn btn-quiet">Correggi valutazione</button><button type="button" disabled={!brandingReady} onClick={async() => { await waitForPrintableLogo(); window.print(); }} className="btn btn-primary disabled:cursor-wait disabled:opacity-60">Stampa valutazione</button></>}
             {correcting ? <><button type="button" onClick={cancelCorrection} className="btn btn-quiet">Annulla correzione</button><button type="button" onClick={saveCorrection} className="btn btn-primary">Salva correzioni</button></> : <><button type="button" onClick={saveAndClose} className="btn btn-quiet">{readOnly ? "Chiudi" : "Salva e chiudi"}</button>{step < STEPS.length - 1 ? <button type="button" onClick={() => setStep((current) => Math.min(STEPS.length - 1, current + 1))} className="btn btn-primary">Avanti</button> : !readOnly && <button type="button" onClick={complete} className="btn btn-primary">Completa valutazione</button>}</>}
           </div>
         </div>
