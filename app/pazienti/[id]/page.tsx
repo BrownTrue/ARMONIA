@@ -7,6 +7,7 @@ import { PatientClinicalPathway } from "@/components/clinical/patient-clinical-p
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { PatientForm } from "@/components/patient-form";
+import { buildPatientTimeline } from "@/lib/clinical/timeline";
 import type { Goal, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
 export default function PatientPage() {
@@ -47,6 +48,7 @@ export default function PatientPage() {
     .filter((s) => s.patientId === id)
     .sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
   const goals = data.goals.filter((g) => g.patientId === id);
+  const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments);
   const next = data.appointments
     .filter((a) => a.patientId === id && a.type !== "cancelled")
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
@@ -93,7 +95,7 @@ export default function PatientPage() {
         </div>
       </header>
       <nav aria-label="Sezioni paziente" className="mt-8 flex gap-2 overflow-x-auto rounded-2xl border border-sage-100 bg-white p-1.5">
-        {([['overview','Panoramica'],['clinical','Percorso clinico'],['sessions','Sedute']] as const).map(([value,label]) => <button key={value} onClick={() => selectTab(value)} className={`min-w-max flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === value ? "bg-sage-100 text-sage-700" : "text-slate-500 hover:bg-sage-50"}`}>{label}</button>)}
+        {([['overview','Panoramica'],['clinical','Percorso clinico'],['sessions','Timeline']] as const).map(([value,label]) => <button key={value} onClick={() => selectTab(value)} className={`min-w-max flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === value ? "bg-sage-100 text-sage-700" : "text-slate-500 hover:bg-sage-50"}`}>{label}</button>)}
       </nav>
       {tab === "overview" && <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <section className="card p-5 lg:col-span-2">
@@ -163,52 +165,33 @@ export default function PatientPage() {
       </div>}
       {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onOpenGoals={() => selectTab("overview")} /></div>}
       {tab === "sessions" && <div className="mt-5 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Sedute</h2><p className="mt-1 text-sm text-slate-500">Storico delle sedute registrate per il paziente.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary">Registra seduta</Link></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Timeline</h2><p className="mt-1 text-sm text-slate-500">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary">Registra seduta</Link></div>
         <section className="card p-5">
-          <h2 className="font-bold">Timeline sedute</h2>
-          {sessions.length === 0 ? (
+          <h2 className="font-bold">Storia clinica</h2>
+          {timeline.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">
-              Nessuna seduta registrata.
+              Nessuna seduta o valutazione registrata.
             </p>
           ) : (
             <div className="mt-4 divide-y divide-sage-100">
-              {sessions.map((s) => (
-                <div
-                  className="flex flex-wrap items-center gap-3 py-4"
-                  key={s.id}
-                >
+              {timeline.map((item) => item.type === "session" ? (
+                <div className="flex flex-wrap items-center gap-3 py-4" key={item.id}>
                   <div className="min-w-28">
-                    <b>
-                      {new Date(s.date + "T12:00").toLocaleDateString("it-IT")}
-                    </b>
+                    <b>{new Date(item.occurredOn + "T12:00").toLocaleDateString("it-IT")}</b>
                     <p className="text-sm text-slate-500">
-                      {s.duration} minuti
+                      {item.session.duration} minuti
                     </p>
                   </div>
                   <div className="min-w-48 flex-1">
-                    <p className="text-sm">
-                      {s.result || s.activities || "Seduta registrata"}
-                    </p>
+                    <p className="font-bold">{item.title}</p><p className="mt-1 text-sm">{item.subtitle}</p>
                     <p className="mt-1 text-sm text-sage-700">
-                      Prossima volta: {s.nextPlan || "—"}
+                      Prossima volta: {item.session.nextPlan || "—"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setDetail(s)}
-                    className="btn btn-quiet"
-                  >
-                    Apri / modifica
-                  </button>
-                  <button
-                    onClick={() =>
-                      confirm("Eliminare questa seduta?") && deleteSession(s.id)
-                    }
-                    className="btn text-red-600"
-                  >
-                    Elimina
-                  </button>
+                  <button onClick={() => setDetail(item.session)} className="btn btn-quiet">Apri / modifica</button>
+                  <button onClick={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} className="btn text-red-600">Elimina</button>
                 </div>
-              ))}
+              ) : <div className="flex flex-wrap items-center gap-3 py-4" key={item.id}><div className="min-w-28"><b>{new Date(item.occurredOn+"T12:00").toLocaleDateString("it-IT")}</b><p className="text-sm text-slate-500">Valutazione</p></div><div className="min-w-48 flex-1"><p className="font-bold">{item.title}</p><p className="mt-1 text-sm text-slate-500">{item.subtitle}</p></div><Link href={`/pazienti/${p.id}/percorso/${item.entityId}`} className="btn btn-quiet">{item.assessment.status==="completed"?"Apri":"Continua"}</Link>{item.assessment.status==="completed"&&<Link href={`/pazienti/${p.id}/percorso/${item.entityId}?print=1`} className="btn btn-quiet">Stampa</Link>}</div>)}
             </div>
           )}
         </section>

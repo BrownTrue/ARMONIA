@@ -30,13 +30,16 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - Envelope locale `schemaVersion: 1`, con migrazione sicura del precedente `AppData` non versionato e protezione da JSON corrotti o versioni future.
 - Tipi e payload V1 per percorsi clinici opzionali e valutazioni iniziali `language_communication`.
 - Validazione runtime minima e CRUD locale di percorsi e bozze di valutazione, senza persistenza cloud.
-- Navigazione interna della scheda paziente con Panoramica, Percorso clinico e Sedute.
+- Navigazione interna della scheda paziente con Panoramica, Percorso clinico e Timeline.
 - Percorso clinico locale opzionale con stato vuoto, creazione, chiusura non distruttiva e consultazione dei percorsi storici.
 - Wizard locale in sei passaggi per la prima valutazione Linguaggio e comunicazione, con autosave debounced, ripresa delle bozze, test multipli e completamento in sola lettura.
 - I campi elenco del wizard clinico (lingue, professionisti, punti di forza e difficoltà) supportano realmente una voce per riga e mantengono il contenuto attraverso autosave, cambio passaggio e refresh.
 - Le valutazioni completate espongono una stampa nativa con riepilogo A4 dedicato, sezioni non vuote, etichette leggibili e contenuto clinico separato dai controlli del wizard; le bozze non sono stampabili.
 - I percorsi attivi possono essere corretti nel titolo e nella data iniziale; un percorso può essere eliminato soltanto quando non contiene valutazioni.
 - Le bozze possono essere eliminate singolarmente. Le valutazioni completate restano normalmente in sola lettura, ma dispongono di una modalità esplicita di correzione senza autosave e di un’eliminazione protetta dalla conferma testuale `ELIMINA`.
+- In modalità locale gli obiettivi esistenti possono essere collegati o scollegati dal percorso attivo dello stesso paziente tramite `Goal.clinicalPathwayId`; la chiusura conserva il collegamento storico e i percorsi chiusi sono in sola lettura per queste associazioni.
+- Il form Registra seduta propone prima gli obiettivi del percorso attivo e poi gli obiettivi attivi non associati, continuando a salvare la selezione esclusivamente in `Session.goalIds`/`session_goals`.
+- La Timeline del paziente aggrega sedute e valutazioni tramite `PatientTimelineItem`, ordinando per data effettiva/clinica e `createdAt`, senza introdurre una tabella timeline.
 
 ## Architettura rilevante
 
@@ -54,6 +57,7 @@ Fotografia ricavata dal repository al 24 settembre 2026.
 - `components/clinical/` contiene la dashboard opzionale del percorso e il wizard specifico della valutazione V1; non è stato introdotto un motore universale di questionari.
 - `components/clinical/assessment-summary.tsx` genera il riepilogo leggibile usato esclusivamente per la stampa delle valutazioni completate; le regole `@media print` nascondono la shell e i controlli applicativi.
 - Le correzioni di una valutazione completata usano un’operazione locale distinta dall’autosave delle bozze, mantengono `status: completed`, `patientId`, `clinicalPathwayId`, `schemaVersion` e `createdAt`, e aggiornano `updatedAt`.
+- `lib/clinical/goals.ts` applica le regole locali di associazione Goal/percorso; `lib/clinical/timeline.ts` costruisce una proiezione discriminata ed estendibile di sedute e valutazioni.
 
 ## Stato dello schema e migration presenti
 
@@ -70,7 +74,8 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - La sincronizzazione Google è volutamente solo Armonia → Google; le modifiche effettuate in Google non aggiornano Armonia.
 - Per le serie ricorrenti sono disponibili solo creazione settimanale e modifica/eliminazione della singola occorrenza; non sono ancora presenti operazioni “questo e successivi” o “intera serie”.
 - La copertura automatica è limitata ai casi della ricorrenza, alle operazioni individuali e alla relazione appuntamento/seduta nella Dashboard; non è presente una suite completa dei flussi applicativi.
-- Il Percorso clinico e il wizard sono disponibili soltanto in modalità locale; non esistono ancora collegamento strutturato ai goals, timeline aggregata, repository Supabase o migration dedicate.
+- Il Percorso clinico, il collegamento Goal/percorso e il wizard sono disponibili soltanto in modalità locale; non esistono ancora repository Supabase o migration dedicate.
+- In modalità cloud `Goal.clinicalPathwayId` resta `undefined`: il repository Supabase non legge né scrive una colonna inesistente.
 - Nell’MVP una correzione salvata sovrascrive la versione precedente della valutazione completata; non esistono ancora storico revisioni, audit log, autore o confronto tra versioni.
 - Il README elenca le migration fino alla `003`, mentre nel repository sono presenti anche la `004` e la `005`; inoltre non documenta l'intera configurazione server-side Google per Vercel.
 - Il repository da solo non consente di verificare stato del deploy Vercel, variabili configurate o migration effettivamente applicate in produzione.

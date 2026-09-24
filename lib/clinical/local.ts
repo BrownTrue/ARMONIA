@@ -47,6 +47,9 @@ export function deleteClinicalPathway(data: AppData, id: string): AppData {
   if (data.clinicalAssessments.some((assessment) => assessment.clinicalPathwayId === id)) {
     throw new Error("Questo percorso contiene valutazioni. Elimina prima le valutazioni che non vuoi conservare oppure chiudi il percorso.");
   }
+  if (data.goals.some((goal) => goal.clinicalPathwayId === id)) {
+    throw new Error("Questo percorso contiene obiettivi collegati e non può essere eliminato. Chiudi il percorso per conservarne lo storico.");
+  }
   return { ...data, clinicalPathways: data.clinicalPathways.filter((pathway) => pathway.id !== id) };
 }
 

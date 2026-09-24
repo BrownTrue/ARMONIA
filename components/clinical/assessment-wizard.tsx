@@ -34,6 +34,7 @@ export function AssessmentWizard() {
   const [correctConfirmOpen, setCorrectConfirmOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const originalCompletedRef = useRef<ClinicalAssessment | null>(null);
+  const printRequestedRef = useRef(false);
 
   useEffect(() => {
     if (!source || draftRef.current) return;
@@ -48,6 +49,13 @@ export function AssessmentWizard() {
       setSaveState("saved");
     }
   }, [source, correcting]);
+  useEffect(() => {
+    if (draft?.status !== "completed" || printRequestedRef.current) return;
+    if (new URLSearchParams(window.location.search).get("print") !== "1") return;
+    printRequestedRef.current = true;
+    const timer = window.setTimeout(() => window.print(), 150);
+    return () => window.clearTimeout(timer);
+  }, [draft?.status]);
 
   const persist = async (candidate: ClinicalAssessment, revision: number) => {
     if (candidate.status === "completed") return;

@@ -13,10 +13,11 @@ import { today, uid } from "@/lib/types";
 
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
 const formatUpdatedAt = (value: string) => new Date(value).toLocaleString("it-IT", { dateStyle: "medium", timeStyle: "short" });
+const goalStatusLabel = (status: string) => ({ not_started: "Da iniziare", in_progress: "In corso", consolidation: "Consolidamento", achieved: "Raggiunto", suspended: "Sospeso" }[status] || status);
 
 export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { patientId: string; goals: Goal[]; onOpenGoals: () => void }) {
   const router = useRouter();
-  const { data, connection, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft } = useData();
+  const { data, connection, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
   const [startOpen, setStartOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -27,11 +28,15 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
     .sort((a, b) => (b.startedOn + b.createdAt).localeCompare(a.startedOn + a.createdAt));
   const active = pathways.find((item) => item.status === "active");
   const historical = pathways.filter((item) => item.status === "closed");
-  const activeGoals = goals.filter((goal) => goal.status !== "achieved" && goal.status !== "suspended");
   const requestDelete = (pathway: ClinicalPathway) => {
     const hasAssessments = data.clinicalAssessments.some((assessment) => assessment.clinicalPathwayId === pathway.id);
     if (hasAssessments) {
       setError("Questo percorso contiene valutazioni. Elimina prima le valutazioni che non vuoi conservare oppure chiudi il percorso.");
+      return;
+    }
+    const hasGoals = goals.some((goal) => goal.clinicalPathwayId === pathway.id);
+    if (hasGoals) {
+      setError("Questo percorso contiene obiettivi collegati e non può essere eliminato. Chiudi il percorso per conservarne lo storico.");
       return;
     }
     setError("");
@@ -74,25 +79,32 @@ export function PatientClinicalPathway({ patientId, goals, onOpenGoals }: { pati
       {error && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}
       <div className="mt-7 grid gap-5 lg:grid-cols-2">
         <AssessmentPanel pathway={active} assessments={data.clinicalAssessments.filter((item) => item.clinicalPathwayId === active.id)} onStart={() => startAssessment(active)} patientId={patientId} />
-        <div className="rounded-2xl border border-sage-100 p-5">
-          <p className="text-sm font-bold text-slate-500">OBIETTIVI</p>
-          <p className="mt-3 text-3xl font-bold">{activeGoals.length}</p>
-          <p className="mt-1 text-sm text-slate-500">obiettivi attivi del paziente</p>
-          <button onClick={onOpenGoals} className="btn btn-quiet mt-5 text-sm">Gestisci obiettivi</button>
-          <p className="mt-3 text-xs leading-5 text-slate-400">Gli obiettivi restano quelli già presenti in Armonia. Il collegamento strutturato al percorso verrà aggiunto in una fase successiva.</p>
-        </div>
+        <PathwayGoalsPanel pathway={active} goals={goals} onOpenGoals={onOpenGoals} onLink={linkGoalToClinicalPathway} onUnlink={unlinkGoalFromClinicalPathway} />
       </div>
     </section>}
     {!active && <section className="card p-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-xl font-bold">Nessun percorso attivo</h2><p className="mt-2 text-sm text-slate-500">I percorsi precedenti restano consultabili qui sotto.</p></div><button onClick={() => setStartOpen(true)} className="btn btn-primary">Inizia nuovo percorso</button></div></section>}
     {historical.length > 0 && <section className="card p-5 sm:p-6"><h2 className="font-bold">Percorsi precedenti</h2><div className="mt-4 space-y-3">{historical.map((pathway) => {
       const assessments = data.clinicalAssessments.filter((item) => item.clinicalPathwayId === pathway.id);
-      return <div key={pathway.id} className="rounded-2xl border border-sage-100 p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="font-bold">{pathway.title || "Percorso clinico"}</p><p className="mt-1 text-sm text-slate-500">{formatDate(pathway.startedOn)} – {pathway.closedOn ? formatDate(pathway.closedOn) : "—"}</p></div><div className="flex items-center gap-2"><span className="chip">Chiuso</span><button onClick={() => requestDelete(pathway)} className="rounded-lg px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50">Elimina</button></div></div>{assessments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{assessments.map((assessment) => <Link key={assessment.id} href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="btn btn-quiet text-sm">Prima valutazione · {assessment.status === "completed" ? "Completata" : "Bozza"}</Link>)}</div>}</div>;
+      const linkedGoals = goals.filter((goal) => goal.clinicalPathwayId === pathway.id);
+      return <div key={pathway.id} className="rounded-2xl border border-sage-100 p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="font-bold">{pathway.title || "Percorso clinico"}</p><p className="mt-1 text-sm text-slate-500">{formatDate(pathway.startedOn)} – {pathway.closedOn ? formatDate(pathway.closedOn) : "—"}</p></div><div className="flex items-center gap-2"><span className="chip">Chiuso</span><button onClick={() => requestDelete(pathway)} className="rounded-lg px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50">Elimina</button></div></div>{assessments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{assessments.map((assessment) => <Link key={assessment.id} href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="btn btn-quiet text-sm">Prima valutazione · {assessment.status === "completed" ? "Completata" : "Bozza"}</Link>)}</div>}{linkedGoals.length > 0 && <div className="mt-4 border-t border-sage-100 pt-4"><p className="text-xs font-bold text-slate-500">OBIETTIVI COLLEGATI</p><div className="mt-2 space-y-2">{linkedGoals.map((goal)=><GoalRow goal={goal} key={goal.id}/>)}</div><p className="mt-3 text-xs text-slate-400">Collegamento storico in sola lettura.</p></div>}</div>;
     })}</div></section>}
     {startOpen && <StartPathwayModal patientId={patientId} onClose={() => setStartOpen(false)} onSave={saveClinicalPathway} />}
     {closeOpen && active && <ClosePathwayModal pathway={active} onClose={() => setCloseOpen(false)} onConfirm={closeClinicalPathway} />}
     {editOpen && active && <EditPathwayModal pathway={active} onClose={() => setEditOpen(false)} onSave={saveClinicalPathway} />}
     {deleteTarget && <DeletePathwayModal pathway={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={deleteClinicalPathway} />}
   </div>;
+}
+
+function GoalRow({goal,action}:{goal:Goal;action?:React.ReactNode}) {
+  return <div className="rounded-xl bg-sage-50 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-bold">{goal.title}</p><p className="mt-1 text-xs text-slate-500">{goalStatusLabel(goal.status)} · {goal.progress}%</p></div>{action}</div></div>;
+}
+
+function PathwayGoalsPanel({pathway,goals,onOpenGoals,onLink,onUnlink}:{pathway:ClinicalPathway;goals:Goal[];onOpenGoals:()=>void;onLink:(goalId:string,pathwayId:string)=>Promise<void>;onUnlink:(goalId:string)=>Promise<void>}) {
+  const [error,setError]=useState("");
+  const linked=goals.filter((goal)=>goal.clinicalPathwayId===pathway.id);
+  const unlinked=goals.filter((goal)=>!goal.clinicalPathwayId);
+  const run=async(action:()=>Promise<void>)=>{setError("");try{await action();}catch(cause){setError(cause instanceof Error?cause.message:"Operazione non riuscita.");}};
+  return <div className="rounded-2xl border border-sage-100 p-5"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-slate-500">OBIETTIVI DEL PERCORSO</p><button onClick={onOpenGoals} className="text-xs font-bold text-sage-700">Gestisci obiettivi</button></div>{linked.length?<div className="mt-3 space-y-2">{linked.map((goal)=><GoalRow goal={goal} key={goal.id} action={<button onClick={()=>void run(()=>onUnlink(goal.id))} className="text-xs font-bold text-slate-500 hover:text-red-600">Scollega</button>}/>)}</div>:<p className="mt-3 text-sm text-slate-500">Nessun obiettivo collegato.</p>}{unlinked.length>0&&<div className="mt-5 border-t border-sage-100 pt-4"><p className="text-xs font-bold text-slate-500">ALTRI OBIETTIVI DEL PAZIENTE</p><div className="mt-3 space-y-2">{unlinked.map((goal)=><GoalRow goal={goal} key={goal.id} action={<button onClick={()=>void run(()=>onLink(goal.id,pathway.id))} className="text-xs font-bold text-sage-700">Collega al percorso</button>}/>)}</div></div>}{error&&<p role="alert" className="mt-3 text-sm font-medium text-red-600">{error}</p>}</div>;
 }
 
 function EditPathwayModal({ pathway, onClose, onSave }: { pathway: ClinicalPathway; onClose: () => void; onSave: (pathway: ClinicalPathway) => Promise<void> }) {

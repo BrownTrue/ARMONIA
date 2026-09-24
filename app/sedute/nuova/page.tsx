@@ -39,6 +39,10 @@ function Form() {
     : undefined;
   const appointmentsForDate = data.appointments.filter((a) => a.patientId === v.patientId && a.date === v.date && a.type !== "cancelled");
   const duplicate = v.appointmentId ? data.sessions.find((s) => s.appointmentId === v.appointmentId) : undefined;
+  const activePathway = data.clinicalPathways.find((pathway) => pathway.patientId === v.patientId && pathway.status === "active");
+  const activeGoals = data.goals.filter((goal) => goal.patientId === v.patientId && goal.status !== "achieved" && goal.status !== "suspended");
+  const pathwayGoals = activePathway ? activeGoals.filter((goal) => goal.clinicalPathwayId === activePathway.id) : [];
+  const otherGoals = activeGoals.filter((goal) => !goal.clinicalPathwayId);
   if (duplicate)
     return <AppShell><div className="card mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Seduta già registrata</h1><p className="mt-2 text-slate-500">Per questo appuntamento esiste già una seduta. Aprila dalla timeline del paziente per modificarla.</p><button onClick={() => router.push(`/pazienti/${duplicate.patientId}`)} className="btn btn-primary mt-6">Apri timeline paziente</button></div></AppShell>;
   if (!p)
@@ -121,20 +125,23 @@ function Form() {
           />
         </section>
         <section className="card p-5">
-          <label className="text-sm font-bold">Obiettivi della seduta</label>
-          {data.goals.filter((g) => g.patientId === p.id && g.status !== "achieved" && g.status !== "suspended").length === 0 ? (
+          <h2 className="text-sm font-bold">Obiettivi della seduta</h2>
+          {pathwayGoals.length === 0 && otherGoals.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Nessun obiettivo attivo per questo paziente.</p>
           ) : (
-            <div className="mt-3 space-y-2">
-              {data.goals.filter((g) => g.patientId === p.id && g.status !== "achieved" && g.status !== "suspended").map((goal) => (
-                <label className="flex items-center gap-2 text-sm" key={goal.id}>
-                  <input type="checkbox" checked={v.goalIds.includes(goal.id)} onChange={(e) => {
-                    const checked = e.target.checked;
-                    setV((old) => ({ ...old, goalIds: checked ? [...old.goalIds, goal.id] : old.goalIds.filter((id) => id !== goal.id) }));
-                  }} />
-                  {goal.title}
-                </label>
-              ))}
+            <div className="mt-4 space-y-5">
+              {pathwayGoals.length > 0 && <GoalChoices
+                title="OBIETTIVI DEL PERCORSO ATTIVO"
+                goals={pathwayGoals}
+                selected={v.goalIds}
+                onToggle={(goalId,checked)=>setV((old)=>({...old,goalIds:checked?[...old.goalIds,goalId]:old.goalIds.filter((id)=>id!==goalId)}))}
+              />}
+              {otherGoals.length > 0 && <GoalChoices
+                title={activePathway?"ALTRI OBIETTIVI ATTIVI":"OBIETTIVI ATTIVI"}
+                goals={otherGoals}
+                selected={v.goalIds}
+                onToggle={(goalId,checked)=>setV((old)=>({...old,goalIds:checked?[...old.goalIds,goalId]:old.goalIds.filter((id)=>id!==goalId)}))}
+              />}
             </div>
           )}
         </section>
@@ -194,6 +201,10 @@ function Form() {
       </form>
     </AppShell>
   );
+}
+
+function GoalChoices({title,goals,selected,onToggle}:{title:string;goals:ReturnType<typeof useData>["data"]["goals"];selected:string[];onToggle:(goalId:string,checked:boolean)=>void}) {
+  return <fieldset><legend className="text-xs font-bold text-slate-500">{title}</legend><div className="mt-2 space-y-2">{goals.map((goal)=><label className="flex items-center gap-2 text-sm" key={goal.id}><input type="checkbox" checked={selected.includes(goal.id)} onChange={(event)=>onToggle(goal.id,event.target.checked)}/>{goal.title}</label>)}</div></fieldset>;
 }
 export default function NewSession() {
   return (

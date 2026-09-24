@@ -42,7 +42,7 @@ In modalità cloud l'accesso usa email e password Supabase, con sessione persist
 
 ### Pazienti
 
-Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente è organizzata nelle sezioni Panoramica, Percorso clinico e Sedute, preservando contatti, prossimo appuntamento, obiettivi e timeline delle sedute.
+Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente è organizzata nelle sezioni Panoramica, Percorso clinico e Timeline, preservando contatti, prossimo appuntamento e obiettivi. La timeline applicativa aggrega sedute e valutazioni cliniche senza una tabella database dedicata.
 
 ### Appuntamenti e calendario
 
@@ -60,11 +60,11 @@ La dashboard usa il collegamento reale tra appuntamenti e sedute. Gli appuntamen
 
 ### Obiettivi
 
-Gli obiettivi sono gestiti nella scheda paziente con stato, progresso e collegamento alle sedute.
+Gli obiettivi sono gestiti nella scheda paziente con stato, progresso e collegamento alle sedute. In modalità locale possono essere associati facoltativamente a un unico Percorso clinico dello stesso paziente; restano la sola entità `Goal` e gli obiettivi non associati continuano a funzionare normalmente.
 
 ### Percorso clinico
 
-In modalità locale la scheda paziente consente di avviare e chiudere percorsi clinici opzionali, consultare i percorsi storici e compilare una prima valutazione guidata `language_communication`. Il wizard usa sei passaggi, autosave debounced, ripresa delle bozze e completamento esplicito con successiva sola lettura. Include tipi applicativi, payload strutturato V1, validazione runtime e protezione da percorsi attivi duplicati. Non sono ancora presenti persistenza Supabase, migration, collegamento strutturato agli obiettivi o timeline clinica aggregata.
+In modalità locale la scheda paziente consente di avviare e chiudere percorsi clinici opzionali, consultare i percorsi storici, associare gli obiettivi esistenti e compilare una prima valutazione guidata `language_communication`. Il wizard usa sei passaggi, autosave debounced, ripresa delle bozze e completamento esplicito con successiva sola lettura. Include tipi applicativi, payload strutturato V1, validazione runtime e protezione da percorsi attivi duplicati. Non sono ancora presenti persistenza Supabase o migration dedicate al Percorso clinico.
 
 ### Materiali
 
