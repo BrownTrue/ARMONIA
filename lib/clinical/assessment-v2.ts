@@ -32,6 +32,18 @@ export type LanguageOralDiscourseFeature = "reduced_coherence" | "reduced_cohesi
 export type LanguageOralEarlyCommunicationArea = "communicative_intent" | "gestures" | "joint_attention" | "turn_taking" | "imitation" | "functional_play" | "symbolic_play" | "communicative_modalities" | "early_verbal_productions";
 export type LanguageOralEarlyCommunicationFeature = "reduced_communicative_initiative" | "limited_gesture_use" | "joint_attention_difficulty" | "turn_taking_difficulty" | "limited_imitation" | "limited_symbolic_play" | "reliance_on_nonverbal_modalities";
 export type LanguageOralScreeningStatus = "no_relevant_concern" | "further_assessment" | "concern_observed";
+export type ClinicalObservationStatus = LanguageOralObservationStatus;
+export type SpeechSoundArea = "phonetic_inventory" | "articulation" | "phonological_organization" | "error_consistency" | "intelligibility" | "stimulability";
+export type SpeechSoundFeature = "omissions" | "substitutions" | "distortions" | "additions" | "phonological_patterns" | "inconsistent_errors" | "reduced_intelligibility" | "limited_stimulability";
+export type SpeechSoundModuleV1 = { profile?: { status: ClinicalObservationStatus; exploredAreas?: SpeechSoundArea[]; observedFeatures?: SpeechSoundFeature[]; notes?: string } };
+export type FluencyContext = "spontaneous_speech" | "conversation" | "narration" | "reading" | "structured_task";
+export type FluencyFeature = "sound_syllable_repetitions" | "word_repetitions" | "prolongations" | "blocks" | "interjections" | "revisions" | "irregular_rate" | "rapid_rate";
+export type FluencyAssociatedFeature = "visible_tension" | "secondary_behaviors" | "avoidance" | "communicative_impact" | "variability_by_context";
+export type FluencyModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: FluencyContext[]; observedFeatures?: FluencyFeature[]; associatedFeatures?: FluencyAssociatedFeature[]; notes?: string } };
+export type VoiceContext = "conversation" | "sustained_phonation" | "reading" | "increased_vocal_demand" | "professional_voice_use";
+export type VoiceAspect = "vocal_quality" | "pitch" | "loudness" | "endurance" | "phonatory_onset" | "respiratory_phonatory_coordination" | "functional_voice_use";
+export type VoiceFeature = "roughness" | "breathiness" | "strain" | "weak_voice" | "reduced_projection" | "pitch_alteration" | "vocal_fatigue" | "intermittent_voice" | "aphonia_episodes" | "coordination_difficulty";
+export type VoiceModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: VoiceContext[]; exploredAspects?: VoiceAspect[]; observedFeatures?: VoiceFeature[]; notes?: string } };
 
 export type LanguageOralModuleV1 = {
   earlyCommunication?: {
@@ -178,6 +190,8 @@ export function isClinicalModuleEmpty(module: ClinicalModuleInstance) {
   if (!definition || !definition.validate(module.data)) return false;
   return typeof module.data === "object" && module.data !== null && !Array.isArray(module.data) && Object.keys(module.data).length === 0;
 }
+
+export const requiresClinicalModuleRemovalConfirmation = (module: ClinicalModuleInstance) => !isClinicalModuleEmpty(module);
 
 export function removeClinicalModule(assessment: ClinicalAssessmentV2, code: string, version: number) {
   if (assessment.data.modules.length <= 1) throw new Error("La valutazione deve contenere almeno un’area clinica.");

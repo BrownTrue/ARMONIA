@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { ClinicalAssessmentV2Data, ClinicalModuleInstance, LanguageOralModuleV1 } from "./assessment-v2.ts";
+import type { ClinicalAssessmentV2Data, ClinicalModuleInstance, FluencyModuleV1, LanguageOralModuleV1, SpeechSoundModuleV1, VoiceModuleV1 } from "./assessment-v2.ts";
 
 export type ClinicalPrintField = { label: string; value: string | string[] };
 export type ClinicalPrintSection = { code: string; title: string; fields: ClinicalPrintField[] };
@@ -42,6 +42,14 @@ const discourseFeatures = new Set(["reduced_coherence", "reduced_cohesion", "seq
 const earlyCommunicationAreas = new Set(["communicative_intent", "gestures", "joint_attention", "turn_taking", "imitation", "functional_play", "symbolic_play", "communicative_modalities", "early_verbal_productions"]);
 const earlyCommunicationFeatures = new Set(["reduced_communicative_initiative", "limited_gesture_use", "joint_attention_difficulty", "turn_taking_difficulty", "limited_imitation", "limited_symbolic_play", "reliance_on_nonverbal_modalities"]);
 const screeningStatuses = new Set(["no_relevant_concern", "further_assessment", "concern_observed"]);
+const speechSoundAreas = new Set(["phonetic_inventory", "articulation", "phonological_organization", "error_consistency", "intelligibility", "stimulability"]);
+const speechSoundFeatures = new Set(["omissions", "substitutions", "distortions", "additions", "phonological_patterns", "inconsistent_errors", "reduced_intelligibility", "limited_stimulability"]);
+const fluencyContexts = new Set(["spontaneous_speech", "conversation", "narration", "reading", "structured_task"]);
+const fluencyFeatures = new Set(["sound_syllable_repetitions", "word_repetitions", "prolongations", "blocks", "interjections", "revisions", "irregular_rate", "rapid_rate"]);
+const fluencyAssociatedFeatures = new Set(["visible_tension", "secondary_behaviors", "avoidance", "communicative_impact", "variability_by_context"]);
+const voiceContexts = new Set(["conversation", "sustained_phonation", "reading", "increased_vocal_demand", "professional_voice_use"]);
+const voiceAspects = new Set(["vocal_quality", "pitch", "loudness", "endurance", "phonatory_onset", "respiratory_phonatory_coordination", "functional_voice_use"]);
+const voiceFeatures = new Set(["roughness", "breathiness", "strain", "weak_voice", "reduced_projection", "pitch_alteration", "vocal_fatigue", "intermittent_voice", "aphonia_episodes", "coordination_difficulty"]);
 const isScreening = (value: unknown) => isRecord(value) && hasOnlyKeys(value, ["status", "notes"]) && typeof value.status === "string" && screeningStatuses.has(value.status) && (value.notes === undefined || typeof value.notes === "string");
 
 export function isLanguageOralModuleV1(value: unknown): value is LanguageOralModuleV1 {
@@ -67,6 +75,17 @@ export function isLanguageOralModuleV1(value: unknown): value is LanguageOralMod
   if (value.finalNote !== undefined && typeof value.finalNote !== "string") return false;
   return true;
 }
+
+function isObservationProfileModule(value: unknown, detailSets: Record<string, ReadonlySet<string>>) {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["profile"])) return false;
+  if (value.profile === undefined) return true;
+  if (!isRecord(value.profile) || !hasOnlyKeys(value.profile, ["status", ...Object.keys(detailSets), "notes"]) || !hasValidStatusAndNotes(value.profile)) return false;
+  const profile = value.profile as Record<string, unknown>;
+  return Object.entries(detailSets).every(([key, allowed]) => isOptionalCodeArray(profile[key], allowed));
+}
+export const isSpeechSoundModuleV1 = (value: unknown): value is SpeechSoundModuleV1 => isObservationProfileModule(value, { exploredAreas: speechSoundAreas, observedFeatures: speechSoundFeatures });
+export const isFluencyModuleV1 = (value: unknown): value is FluencyModuleV1 => isObservationProfileModule(value, { contextsExplored: fluencyContexts, observedFeatures: fluencyFeatures, associatedFeatures: fluencyAssociatedFeatures });
+export const isVoiceModuleV1 = (value: unknown): value is VoiceModuleV1 => isObservationProfileModule(value, { contextsExplored: voiceContexts, exploredAspects: voiceAspects, observedFeatures: voiceFeatures });
 
 export const LANGUAGE_ORAL_LABELS: Record<string, string> = {
   no_evident_difficulty: "Nessuna difficoltà evidente nel contesto osservato",
@@ -131,6 +150,23 @@ export const LANGUAGE_ORAL_EARLY_LABELS: Record<string, string> = {
   gestures: "Uso dei gesti",
 };
 
+export const OBSERVATIONAL_MODULE_LABELS: Record<string, string> = {
+  ...LANGUAGE_ORAL_LABELS,
+  phonetic_inventory: "Inventario fonetico", articulation: "Articolazione", phonological_organization: "Organizzazione fonologica", error_consistency: "Consistenza degli errori", intelligibility: "Intelligibilità", stimulability: "Stimolabilità",
+  omissions: "Omissioni", substitutions: "Sostituzioni", distortions: "Distorsioni", additions: "Aggiunte", phonological_patterns: "Pattern/processi fonologici", inconsistent_errors: "Errori inconsistenti", reduced_intelligibility: "Intelligibilità ridotta", limited_stimulability: "Stimolabilità ridotta",
+  spontaneous_speech: "Eloquio spontaneo", conversation: "Conversazione", narration: "Narrazione", reading: "Lettura", structured_task: "Compito strutturato",
+  sound_syllable_repetitions: "Ripetizioni di suoni o sillabe", word_repetitions: "Ripetizioni di parole", prolongations: "Prolungamenti", blocks: "Blocchi", interjections: "Interiezioni", revisions: "Revisioni/riformulazioni", irregular_rate: "Velocità o ritmo irregolari", rapid_rate: "Eloquio accelerato",
+  visible_tension: "Tensione visibile", secondary_behaviors: "Comportamenti associati", avoidance: "Evitamento", communicative_impact: "Impatto sulla comunicazione", variability_by_context: "Variabilità in base al contesto",
+  sustained_phonation: "Fonazione sostenuta", increased_vocal_demand: "Situazioni a maggiore richiesta vocale", professional_voice_use: "Uso professionale della voce",
+  vocal_quality: "Qualità vocale", pitch: "Altezza", loudness: "Intensità", endurance: "Resistenza vocale", phonatory_onset: "Attacco fonatorio", respiratory_phonatory_coordination: "Coordinazione pneumo-fonica", functional_voice_use: "Uso funzionale della voce",
+  roughness: "Raucedine/ruvidità", breathiness: "Soffiosità", strain: "Tensione/sforzo", weak_voice: "Voce debole", reduced_projection: "Ridotta proiezione", pitch_alteration: "Alterazione dell’altezza", vocal_fatigue: "Affaticamento vocale", intermittent_voice: "Voce intermittente/instabile", aphonia_episodes: "Episodi di afonia", coordination_difficulty: "Difficoltà di coordinazione pneumo-fonica",
+};
+export const OBSERVATIONAL_MODULE_OPTIONS = {
+  speechSound: { exploredAreas: [...speechSoundAreas], observedFeatures: [...speechSoundFeatures] },
+  fluency: { contextsExplored: [...fluencyContexts], observedFeatures: [...fluencyFeatures], associatedFeatures: [...fluencyAssociatedFeatures] },
+  voice: { contextsExplored: [...voiceContexts], exploredAspects: [...voiceAspects], observedFeatures: [...voiceFeatures] },
+} as const;
+
 const printField = (label: string, value?: string | string[]) => value && (!Array.isArray(value) || value.length) ? [{ label, value }] : [];
 const printDomain = (code: string, title: string, domain: { status: string; notes?: string } | undefined, details: ClinicalPrintField[]) => domain ? [{
   code, title, fields: [
@@ -180,7 +216,12 @@ const languageOralV1: ClinicalModuleDefinition<LanguageOralModuleV1> = {
   ],
 };
 
-const definitions = [languageOralV1] as const;
+const printObservationProfile = (code: string, title: string, profile: { status: string; notes?: string } | undefined, details: { label: string; values?: string[] }[]) => profile ? [{ code, title, fields: [{ label: "Osservazione generale", value: LANGUAGE_ORAL_LABELS[profile.status] }, ...details.flatMap((detail) => printField(detail.label, detail.values?.map((value) => OBSERVATIONAL_MODULE_LABELS[value]))), ...printField("Osservazioni", profile.notes?.trim())] }] : [];
+const speechSoundV1: ClinicalModuleDefinition<SpeechSoundModuleV1> = { code: "speech_sound", version: 1, label: "Fonetica, fonologia e articolazione", createEmptyData: () => ({}), validate: isSpeechSoundModuleV1, toPrintSections: (data) => printObservationProfile("speech_sound.profile", "Profilo fonetico-fonologico e articolatorio", data.profile, [{ label: "Aspetti esplorati", values: data.profile?.exploredAreas }, { label: "Caratteristiche osservate", values: data.profile?.observedFeatures }]) };
+const fluencyV1: ClinicalModuleDefinition<FluencyModuleV1> = { code: "fluency", version: 1, label: "Fluenza", createEmptyData: () => ({}), validate: isFluencyModuleV1, toPrintSections: (data) => printObservationProfile("fluency.profile", "Profilo della fluenza", data.profile, [{ label: "Contesti esplorati", values: data.profile?.contextsExplored }, { label: "Caratteristiche osservate", values: data.profile?.observedFeatures }, { label: "Caratteristiche associate", values: data.profile?.associatedFeatures }]) };
+const voiceV1: ClinicalModuleDefinition<VoiceModuleV1> = { code: "voice", version: 1, label: "Voce", createEmptyData: () => ({}), validate: isVoiceModuleV1, toPrintSections: (data) => printObservationProfile("voice.profile", "Profilo vocale", data.profile, [{ label: "Contesti esplorati", values: data.profile?.contextsExplored }, { label: "Aspetti esplorati", values: data.profile?.exploredAspects }, { label: "Caratteristiche osservate", values: data.profile?.observedFeatures }]) };
+
+const definitions = [languageOralV1, speechSoundV1, fluencyV1, voiceV1] as const;
 
 export function getClinicalModuleDefinition(code: string, version: number) {
   return definitions.find((definition) => definition.code === code && definition.version === version);

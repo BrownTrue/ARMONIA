@@ -13,8 +13,8 @@ function Section({ number, title, fields }: { number: string; title: string; fie
 export function AssessmentSummaryV2({ patientName, assessment, pathwayTitle, professional, logoSrc = "/branding/logo-mark.svg", goals = [] }: Props) {
   const all = toClinicalAssessmentV2PrintSections(assessment.data);
   const common = (code: string) => all.find((section) => section.code === code)?.fields || [];
-  const moduleSections = assessment.data.modules.map((module) => { const definition = getClinicalModuleDefinition(module.code, module.version); return definition && definition.validate(module.data) ? { label: definition.label, sections: definition.toPrintSections(module.data as never) } : undefined; }).filter(Boolean) as { label: string; sections: { code: string; title: string; fields: ClinicalPrintField[] }[] }[];
-  const areaHasContent = moduleSections.some((module) => module.sections.length);
+  const moduleSections = assessment.data.modules.map((module) => { const definition = getClinicalModuleDefinition(module.code, module.version); return definition && definition.validate(module.data) ? { label: definition.label, sections: definition.toPrintSections(module.data as never) } : undefined; }).filter((module): module is { label: string; sections: { code: string; title: string; fields: ClinicalPrintField[] }[] } => Boolean(module?.sections.length));
+  const areaHasContent = moduleSections.length > 0;
   const planningFields = [...common("planning"), ...(goals.length ? [{ label: "Obiettivi del percorso", value: goals.map((goal) => `${goal.title} · ${goal.progress}%`) }] : [])];
   const professionalName = [professional?.firstName, professional?.lastName].filter(Boolean).join(" ");
   const generatedOn = new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
