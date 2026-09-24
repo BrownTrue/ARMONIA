@@ -1,10 +1,10 @@
 import Image from "next/image";
 import type { ClinicalValue, LanguageCommunicationAssessmentV1 } from "@/lib/clinical/assessment-v1";
 import { assessmentPrintVisibility, formatClinicalValue, hasPrintableValue, printableLines, printableList, printableTestHasContent, readableClinicalLabel } from "@/lib/clinical/print-format";
-import type { ClinicalAssessment } from "@/lib/clinical/types";
+import type { ClinicalAssessmentV1 } from "@/lib/clinical/types";
 import type { Profile } from "@/lib/types";
 
-type SummaryProps = { patientName: string; assessment: ClinicalAssessment; pathwayTitle?: string; professional?: Profile; logoSrc?: string };
+type SummaryProps = { patientName: string; assessment: ClinicalAssessmentV1; pathwayTitle?: string; professional?: Profile; logoSrc?: string };
 const formatDate = (value?: string) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" }) : "Non indicata";
 
 function monthsValue(value?: ClinicalValue<number>) {

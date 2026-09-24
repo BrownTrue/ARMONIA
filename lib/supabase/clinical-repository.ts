@@ -103,6 +103,9 @@ export function clinicalAssessmentFromRow(row: ClinicalAssessmentRow): ClinicalA
 }
 
 export function clinicalAssessmentRow(assessment: ClinicalAssessment, userId: string) {
+  if (assessment.schemaVersion !== 1) {
+    throw new Error("La persistenza cloud delle valutazioni V2 non è ancora abilitata.");
+  }
   return {
     id: assessment.id,
     user_id: userId,

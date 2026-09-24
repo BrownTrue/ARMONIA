@@ -4,6 +4,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Prima di abilitare Clinical Assessment V2 in cloud, decidere e revisionare il ruolo SQL di `clinical_assessments.module_type`; predisporre poi una migration additiva che preservi il significato V1, abiliti `schema_version = 2` e i nuovi `assessment_type`, senza backfill dei record storici.
+
 - Verificare, prima di attivare Google Calendar in un ambiente cloud, se `004_google_calendar_production.sql` è stata applicata in quell'ambiente e se le variabili server necessarie sono configurate. La verifica e l'eventuale esecuzione devono essere manuali e autorizzate.
 - Prima di usare gli appuntamenti ricorrenti in modalità cloud, applicare manualmente e con autorizzazione `005_weekly_recurring_appointments.sql` nell'ambiente interessato.
 - Aggiornare il README affinché includa le migration `004` e `005` e la configurazione server-side richiesta da Google Calendar su Vercel.

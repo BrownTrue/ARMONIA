@@ -5,6 +5,7 @@ import type {
   LanguageCommunicationAssessmentV1,
 } from "./assessment-v1.ts";
 import type { ClinicalAssessment, ClinicalPathway } from "./types.ts";
+import { isRegisteredClinicalModule } from "./module-registry.ts";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const AVAILABILITY = new Set(["available", "not_available", "not_applicable"]);
@@ -106,23 +107,49 @@ export function isLanguageCommunicationPayloadV1(value: unknown): value is Langu
   return true;
 }
 
-export function isClinicalAssessment(value: unknown): value is ClinicalAssessment {
-  if (!isRecord(value)) return false;
+function hasAssessmentBase(value: Record<string, unknown>) {
   return typeof value.id === "string"
     && typeof value.patientId === "string"
     && typeof value.clinicalPathwayId === "string"
-    && value.moduleType === "language_communication"
-    && value.assessmentType === "initial"
     && (value.status === "draft" || value.status === "completed")
-    && value.schemaVersion === 1
     && (value.clinicalDate === undefined || isIsoDate(value.clinicalDate))
-    && isLanguageCommunicationPayloadV1(value.data)
     && typeof value.createdAt === "string"
     && typeof value.updatedAt === "string";
 }
 
+const isEmptyRecord = (value: unknown) => isRecord(value) && Object.keys(value).length === 0;
+
+export function isClinicalAssessmentV2Payload(value: unknown) {
+  if (!isRecord(value) || !Array.isArray(value.modules)) return false;
+  if (!value.modules.every((module) => isRecord(module)
+    && typeof module.code === "string"
+    && Number.isInteger(module.version)
+    && (module.version as number) > 0
+    && "data" in module
+    && isRegisteredClinicalModule(module as { code: string; version: number; data: unknown }))) return false;
+  return (value.common === undefined || isEmptyRecord(value.common))
+    && (value.tests === undefined || isEmptyRecord(value.tests))
+    && (value.summary === undefined || isEmptyRecord(value.summary))
+    && (value.planning === undefined || isEmptyRecord(value.planning));
+}
+
+export function isClinicalAssessment(value: unknown): value is ClinicalAssessment {
+  if (!isRecord(value)) return false;
+  if (!hasAssessmentBase(value)) return false;
+  if (value.schemaVersion === 1) return value.moduleType === "language_communication"
+    && value.assessmentType === "initial"
+    && isLanguageCommunicationPayloadV1(value.data);
+  if (value.schemaVersion === 2) return (value.assessmentType === "initial"
+    || value.assessmentType === "reassessment"
+    || value.assessmentType === "interim"
+    || value.assessmentType === "other")
+    && value.moduleType === undefined
+    && isClinicalAssessmentV2Payload(value.data);
+  return false;
+}
+
 export function validateAssessmentForCompletion(assessment: unknown): asserts assessment is ClinicalAssessment {
-  if (!isClinicalAssessment(assessment)) throw new Error("La valutazione non è compatibile con language_communication V1.");
+  if (!isClinicalAssessment(assessment)) throw new Error("La valutazione clinica non è compatibile con una versione supportata.");
   if (!assessment.clinicalDate) throw new Error("La data clinica è obbligatoria per completare la valutazione.");
 }
 

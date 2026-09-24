@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { AssessmentSummary } from "@/components/clinical/assessment-summary";
+import { ClinicalAssessmentPrint } from "@/components/clinical/assessment-print-dispatch";
 import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
@@ -12,7 +12,7 @@ import type { AssessmentTestEntryV1, ClinicalChoice, ClinicalValue, LanguageComm
 import { ClinicalAutosaveQueue } from "@/lib/clinical/autosave-queue";
 import { formatMultilineList, parseMultilineList } from "@/lib/clinical/multiline-list";
 import { waitForPrintableLogo } from "@/lib/branding/image";
-import type { ClinicalAssessment } from "@/lib/clinical/types";
+import type { ClinicalAssessmentV1 } from "@/lib/clinical/types";
 import { fullName, uid } from "@/lib/types";
 
 const STEPS = ["Motivo dell’accesso", "Anamnesi", "Osservazione", "Test / strumenti", "Sintesi", "Obiettivi / pianificazione"];
@@ -25,9 +25,10 @@ export function AssessmentWizard() {
   const router = useRouter();
   const { data, ready, autosaveClinicalAssessmentDraft, completeClinicalAssessment, correctClinicalAssessment, deleteClinicalAssessment } = useData();
   const { logoSrc, ready: brandingReady } = useBranding();
-  const source = data.clinicalAssessments.find((item) => item.id === assessmentId);
-  const [draft, setDraft] = useState<ClinicalAssessment | null>(null);
-  const draftRef = useRef<ClinicalAssessment | null>(null);
+  const sourceCandidate = data.clinicalAssessments.find((item) => item.id === assessmentId);
+  const source = sourceCandidate?.schemaVersion === 1 ? sourceCandidate : undefined;
+  const [draft, setDraft] = useState<ClinicalAssessmentV1 | null>(null);
+  const draftRef = useRef<ClinicalAssessmentV1 | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveQueueRef = useRef<ClinicalAutosaveQueue | null>(null);
   if (!autosaveQueueRef.current) autosaveQueueRef.current = new ClinicalAutosaveQueue();
@@ -39,7 +40,7 @@ export function AssessmentWizard() {
   const [correcting, setCorrecting] = useState(false);
   const [correctConfirmOpen, setCorrectConfirmOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const originalCompletedRef = useRef<ClinicalAssessment | null>(null);
+  const originalCompletedRef = useRef<ClinicalAssessmentV1 | null>(null);
   const printRequestedRef = useRef(false);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export function AssessmentWizard() {
     void waitForPrintableLogo().then(() => window.print());
   }, [draft?.status, brandingReady, logoSrc]);
 
-  const persist = async (candidate: ClinicalAssessment, revision: number) => {
+  const persist = async (candidate: ClinicalAssessmentV1, revision: number) => {
     if (candidate.status === "completed") return;
     setSaveState("saving");
     setMessage("");
@@ -87,7 +88,7 @@ export function AssessmentWizard() {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [dirty, draft]);
 
-  const updateDraft = (change: (current: ClinicalAssessment) => ClinicalAssessment) => {
+  const updateDraft = (change: (current: ClinicalAssessmentV1) => ClinicalAssessmentV1) => {
     if (!draftRef.current || (draftRef.current.status === "completed" && !correcting)) return;
     const next = { ...change(draftRef.current), updatedAt: new Date().toISOString() };
     revisionRef.current += 1;
@@ -104,7 +105,9 @@ export function AssessmentWizard() {
     if (candidate?.status === "draft") await persist(candidate, revisionRef.current);
   };
 
-  if (!ready || !draft) return <AppShell><p>Caricamento…</p></AppShell>;
+  if (!ready) return <AppShell><p>Caricamento…</p></AppShell>;
+  if (sourceCandidate?.schemaVersion === 2) return <AppShell><p>La valutazione V2 non dispone ancora di un editor in questa fase infrastrutturale.</p><Link href={`/pazienti/${id}?tab=clinical`} className="mt-4 inline-block font-bold text-sage-700">Torna al paziente</Link></AppShell>;
+  if (!draft) return <AppShell><p>Caricamento…</p></AppShell>;
   const patient = data.patients.find((item) => item.id === id);
   const pathway = data.clinicalPathways.find((item) => item.id === draft.clinicalPathwayId);
   if (!patient || !pathway || draft.patientId !== patient.id) return <AppShell><p>Valutazione non trovata o non coerente con il paziente.</p><Link href={`/pazienti/${id}?tab=clinical`} className="mt-4 inline-block font-bold text-sage-700">Torna al paziente</Link></AppShell>;
@@ -156,6 +159,7 @@ export function AssessmentWizard() {
     setMessage("");
     try {
       const corrected = await correctClinicalAssessment(candidate);
+      if (corrected.schemaVersion !== 1) throw new Error("La correzione restituita non è compatibile con il wizard V1.");
       draftRef.current = corrected;
       setDraft(corrected);
       setDirty(false);
@@ -181,7 +185,7 @@ export function AssessmentWizard() {
   };
 
   return <AppShell>
-    {readOnly && <AssessmentSummary patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
+    {readOnly && <ClinicalAssessmentPrint patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
     <div className="assessment-screen-only mx-auto max-w-4xl">
       <Link href={`/pazienti/${id}?tab=clinical`} className="text-sm font-bold text-sage-700">← Percorso clinico</Link>
       <header className="mt-5 flex flex-wrap items-start justify-between gap-4">
@@ -219,7 +223,7 @@ function DeleteDraftModal({onClose,onConfirm}:{onClose:()=>void;onConfirm:()=>Pr
   return <Modal title="Elimina bozza" onClose={onClose}><p className="text-sm leading-6 text-slate-600">Vuoi eliminare questa bozza? Verrà eliminata soltanto la valutazione; il percorso clinico, il paziente, le sedute e gli obiettivi resteranno invariati.</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button type="button" onClick={onConfirm} className="btn bg-red-600 text-white">Elimina bozza</button></div></Modal>;
 }
 
-function DeleteCompletedModal({assessment,onClose,onConfirm}:{assessment:ClinicalAssessment;onClose:()=>void;onConfirm:()=>Promise<void>}) {
+function DeleteCompletedModal({assessment,onClose,onConfirm}:{assessment:ClinicalAssessmentV1;onClose:()=>void;onConfirm:()=>Promise<void>}) {
   const [confirmation,setConfirmation]=useState("");
   const date=assessment.clinicalDate?new Date(`${assessment.clinicalDate}T12:00:00`).toLocaleDateString("it-IT"):"non indicata";
   return <Modal title="Elimina valutazione completata" onClose={onClose}><div className="space-y-4 text-sm leading-6 text-slate-600"><p><strong>Prima valutazione · Linguaggio e comunicazione</strong><br/>Data clinica: {date}</p><p>L’operazione è permanente ed elimina esclusivamente questa valutazione. Il Percorso clinico non verrà eliminato; sedute, appuntamenti e obiettivi resteranno invariati.</p><label className="block font-bold text-ink">Digita ELIMINA per confermare<input value={confirmation} onChange={(event)=>setConfirmation(event.target.value)} className={inputClass}/></label></div><div className="mt-6 flex flex-wrap justify-end gap-2"><button type="button" onClick={onClose} className="btn btn-quiet">Annulla</button><button type="button" disabled={confirmation!=="ELIMINA"} onClick={onConfirm} className="btn bg-red-600 text-white disabled:cursor-not-allowed disabled:opacity-40">Elimina definitivamente</button></div></Modal>;

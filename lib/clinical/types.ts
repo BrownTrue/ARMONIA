@@ -1,4 +1,5 @@
 import type { LanguageCommunicationAssessmentV1 } from "./assessment-v1.ts";
+import type { ClinicalAssessmentV2Data } from "./assessment-v2.ts";
 
 export type ClinicalPathwayStatus = "active" | "closed";
 
@@ -13,20 +14,32 @@ export type ClinicalPathway = {
   updatedAt: string;
 };
 
-export type ClinicalModuleType = "language_communication";
-export type ClinicalAssessmentType = "initial";
+export type ClinicalModuleTypeV1 = "language_communication";
+export type ClinicalAssessmentTypeV1 = "initial";
+export type ClinicalAssessmentTypeV2 = "initial" | "reassessment" | "interim" | "other";
 export type ClinicalAssessmentStatus = "draft" | "completed";
 
-export type ClinicalAssessment = {
+type ClinicalAssessmentBase = {
   id: string;
   patientId: string;
   clinicalPathwayId: string;
-  moduleType: ClinicalModuleType;
-  assessmentType: ClinicalAssessmentType;
   status: ClinicalAssessmentStatus;
-  schemaVersion: 1;
   clinicalDate?: string;
-  data: LanguageCommunicationAssessmentV1;
   createdAt: string;
   updatedAt: string;
 };
+
+export type ClinicalAssessmentV1 = ClinicalAssessmentBase & {
+  moduleType: ClinicalModuleTypeV1;
+  assessmentType: ClinicalAssessmentTypeV1;
+  schemaVersion: 1;
+  data: LanguageCommunicationAssessmentV1;
+};
+
+export type ClinicalAssessmentV2 = ClinicalAssessmentBase & {
+  assessmentType: ClinicalAssessmentTypeV2;
+  schemaVersion: 2;
+  data: ClinicalAssessmentV2Data;
+};
+
+export type ClinicalAssessment = ClinicalAssessmentV1 | ClinicalAssessmentV2;

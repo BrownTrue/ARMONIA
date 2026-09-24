@@ -121,16 +121,11 @@ export function correctClinicalAssessment(data: AppData, assessment: ClinicalAss
   if (current.patientId !== assessment.patientId || current.clinicalPathwayId !== assessment.clinicalPathwayId) {
     throw new Error("Non è possibile spostare una valutazione su un altro paziente o percorso.");
   }
-  const corrected: ClinicalAssessment = {
-    ...assessment,
-    id: current.id,
-    patientId: current.patientId,
-    clinicalPathwayId: current.clinicalPathwayId,
-    status: "completed",
-    schemaVersion: current.schemaVersion,
-    createdAt: current.createdAt,
-    updatedAt,
-  };
+  if (current.schemaVersion !== assessment.schemaVersion) throw new Error("Non è possibile cambiare versione durante una correzione.");
+  const immutable = { id: current.id, patientId: current.patientId, clinicalPathwayId: current.clinicalPathwayId, status: "completed" as const, createdAt: current.createdAt, updatedAt };
+  const corrected: ClinicalAssessment = assessment.schemaVersion === 1
+    ? { ...assessment, ...immutable, schemaVersion: 1 }
+    : { ...assessment, ...immutable, schemaVersion: 2 };
   validateAssessmentRelation(data, corrected);
   validateAssessmentForCompletion(corrected);
   return { ...data, clinicalAssessments: replaceById(data.clinicalAssessments, corrected) };
