@@ -8,10 +8,11 @@ export type ClinicalModuleGroup = {
 };
 
 export const clinicalModuleGroups: readonly ClinicalModuleGroup[] = [
-  { code: "communication_language_speech", label: "Comunicazione, linguaggio e parlato", order: 1, moduleCodes: ["language_oral", "speech_sound", "motor_speech", "fluency", "aac_multimodal"] },
+  { code: "communication_language_speech", label: "Comunicazione, linguaggio e parlato", order: 1, moduleCodes: ["language_oral", "speech_sound", "motor_speech", "fluency", "aac_multimodal", "social_pragmatics"] },
   { code: "voice", label: "Voce", order: 2, moduleCodes: ["voice"] },
   { code: "feeding_oral_functions", label: "Alimentazione e funzioni orali", order: 3, moduleCodes: ["feeding_swallowing", "orofacial_functions"] },
   { code: "hearing_communication", label: "Udito e comunicazione", order: 4, moduleCodes: ["auditory_communication"] },
+  { code: "learning_cognitive_functions", label: "Apprendimenti e funzioni cognitive", order: 5, moduleCodes: ["school_learning", "cognitive_communication"] },
 ] as const;
 
 export function getClinicalModulesForGroup(group: ClinicalModuleGroup) {
