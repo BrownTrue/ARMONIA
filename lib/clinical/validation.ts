@@ -169,7 +169,7 @@ export function isClinicalAssessment(value: unknown): value is ClinicalAssessmen
 export function validateAssessmentForCompletion(assessment: unknown): asserts assessment is ClinicalAssessment {
   if (!isClinicalAssessment(assessment)) throw new Error("La valutazione clinica non è compatibile con una versione supportata.");
   if (!assessment.clinicalDate) throw new Error("La data clinica è obbligatoria per completare la valutazione.");
-  if (assessment.schemaVersion === 2 && assessment.data.modules.length === 0) throw new Error("La valutazione deve contenere almeno un’area clinica.");
+  if (assessment.schemaVersion === 2 && assessment.data.modules.length === 0) throw new Error("Seleziona almeno un’area clinica prima di completare la valutazione.");
 }
 
 export function validateClinicalPathway(pathway: ClinicalPathway) {

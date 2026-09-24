@@ -55,6 +55,16 @@ export type FeedingSwallowingModuleV1 = { profile?: { status: ClinicalObservatio
 export type OrofacialArea = "resting_posture" | "lips" | "tongue" | "jaw" | "oral_mobility" | "breathing_pattern" | "chewing_function" | "swallowing_pattern" | "oral_habits";
 export type OrofacialFeature = "open_mouth_posture" | "reduced_lip_seal" | "altered_tongue_rest_posture" | "reduced_oral_mobility" | "asymmetry" | "oral_breathing_pattern" | "mixed_breathing_pattern" | "atypical_chewing_pattern" | "altered_swallowing_pattern" | "oral_habit_present";
 export type OrofacialFunctionsModuleV1 = { profile?: { status: ClinicalObservationStatus; exploredAreas?: OrofacialArea[]; observedFeatures?: OrofacialFeature[]; notes?: string } };
+export type AacContext = "spontaneous_interaction" | "structured_activity" | "conversation" | "choice_activity" | "functional_daily_context" | "interaction_with_partner";
+export type AacModality = "speech" | "vocalizations" | "gestures" | "signs" | "objects" | "photographs" | "graphic_symbols" | "writing" | "communication_board" | "electronic_aac";
+export type AacArea = "communicative_intent" | "initiation" | "communicative_functions" | "choice_expression" | "message_formulation" | "symbol_understanding" | "symbol_use" | "navigation_access" | "communication_partner" | "generalization";
+export type AacFeature = "limited_spontaneous_use" | "prompt_dependency" | "restricted_communicative_functions" | "message_formulation_difficulty" | "symbol_access_difficulty" | "navigation_difficulty" | "access_method_difficulty" | "partner_support_beneficial" | "visual_support_beneficial" | "context_dependent_use" | "multimodal_communication";
+export type AacMultimodalModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: AacContext[]; modalitiesObserved?: AacModality[]; exploredAreas?: AacArea[]; observedFeatures?: AacFeature[]; notes?: string } };
+export type AuditoryCommunicationContext = "quiet_one_to_one" | "background_noise" | "group_context" | "unfamiliar_speaker" | "distance" | "telephone_media" | "structured_listening_task";
+export type AuditoryCommunicationArea = "auditory_attention" | "sound_awareness" | "auditory_discrimination" | "auditory_identification" | "spoken_language_comprehension" | "auditory_memory" | "auditory_sequencing" | "listening_in_noise" | "functional_device_use";
+export type AuditoryCommunicationFeature = "inconsistent_response" | "discrimination_difficulty" | "identification_difficulty" | "difficulty_in_noise" | "difficulty_with_unfamiliar_speaker" | "repetition_needed" | "reliance_on_visual_cues" | "reduced_auditory_memory" | "sequencing_difficulty" | "context_dependency";
+export type AuditoryCommunicationSupport = "repetition" | "slower_speech" | "visual_cues" | "lip_reading" | "contextual_support" | "reduced_background_noise" | "closer_distance";
+export type AuditoryCommunicationModuleV1 = { profile?: { status: ClinicalObservationStatus; contextsExplored?: AuditoryCommunicationContext[]; exploredAreas?: AuditoryCommunicationArea[]; observedFeatures?: AuditoryCommunicationFeature[]; supportsObserved?: AuditoryCommunicationSupport[]; hearingTechnology?: string; notes?: string } };
 
 export type LanguageOralModuleV1 = {
   earlyCommunication?: {
@@ -185,7 +195,6 @@ export function createConfiguredClinicalAssessmentV2({
   now?: string;
 }) {
   if (!clinicalDate) throw new Error("La data clinica è obbligatoria.");
-  if (modules.length === 0) throw new Error("Seleziona almeno un’area clinica.");
   const unique = modules.filter((module, index) => modules.findIndex((candidate) => candidate.code === module.code && candidate.version === module.version) === index);
   const assessment = createClinicalAssessmentV2(patientId, clinicalPathwayId, assessmentType, now);
   return { ...assessment, clinicalDate, data: { ...assessment.data, modules: unique.map((module) => createClinicalModuleInstance(module.code, module.version)) } };
@@ -205,7 +214,7 @@ export function isClinicalModuleEmpty(module: ClinicalModuleInstance) {
 export const requiresClinicalModuleRemovalConfirmation = (module: ClinicalModuleInstance) => !isClinicalModuleEmpty(module);
 
 export function removeClinicalModule(assessment: ClinicalAssessmentV2, code: string, version: number) {
-  if (assessment.data.modules.length <= 1) throw new Error("La valutazione deve contenere almeno un’area clinica.");
+  if (assessment.status === "completed" && assessment.data.modules.length <= 1) throw new Error("Una valutazione completata deve contenere almeno un’area clinica.");
   return { ...assessment, data: { ...assessment.data, modules: assessment.data.modules.filter((module) => module.code !== code || module.version !== version) } };
 }
 

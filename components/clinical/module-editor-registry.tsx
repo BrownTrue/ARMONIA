@@ -1,5 +1,5 @@
 import { LanguageOralEditor } from "./modules/language-oral-editor";
-import { FeedingSwallowingEditor, FluencyEditor, MotorSpeechEditor, OrofacialFunctionsEditor, SpeechSoundEditor, VoiceEditor } from "./modules/observational-module-editors";
+import { AacMultimodalEditor, AuditoryCommunicationEditor, FeedingSwallowingEditor, FluencyEditor, MotorSpeechEditor, OrofacialFunctionsEditor, SpeechSoundEditor, VoiceEditor } from "./modules/observational-module-editors";
 import type { ComponentType } from "react";
 import type { ClinicalModuleEditorProps } from "@/lib/clinical/module-registry";
 
@@ -11,6 +11,8 @@ const editors: { code: string; version: number; Editor: ComponentType<ClinicalMo
   { code: "voice", version: 1, Editor: VoiceEditor as ComponentType<ClinicalModuleEditorProps<unknown>> },
   { code: "feeding_swallowing", version: 1, Editor: FeedingSwallowingEditor as ComponentType<ClinicalModuleEditorProps<unknown>> },
   { code: "orofacial_functions", version: 1, Editor: OrofacialFunctionsEditor as ComponentType<ClinicalModuleEditorProps<unknown>> },
+  { code: "aac_multimodal", version: 1, Editor: AacMultimodalEditor as ComponentType<ClinicalModuleEditorProps<unknown>> },
+  { code: "auditory_communication", version: 1, Editor: AuditoryCommunicationEditor as ComponentType<ClinicalModuleEditorProps<unknown>> },
 ];
 
 export function getClinicalModuleEditor(code: string, version: number) {
