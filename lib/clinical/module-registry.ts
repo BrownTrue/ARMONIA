@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { AacMultimodalModuleV1, AuditoryCommunicationModuleV1, ClinicalAssessmentV2Data, ClinicalModuleInstance, CognitiveCommunicationModuleV1, FeedingSwallowingModuleV1, FluencyModuleV1, LanguageOralModuleV1, MotorSpeechModuleV1, OrofacialFunctionsModuleV1, SchoolLearningModuleV1, SocialPragmaticsModuleV1, SpeechSoundModuleV1, VoiceModuleV1 } from "./assessment-v2.ts";
+import { anamnesisSectionRegistry, normalizeClinicalAnamnesis } from "./anamnesis-sections.ts";
 
 export type ClinicalPrintField = { label: string; value: string | string[] };
 export type ClinicalPrintSection = { code: string; title: string; fields: ClinicalPrintField[] };
@@ -313,6 +314,7 @@ export const clinicalModuleRegistry = definitions;
 const commonPrintSection = (code: string, title: string, fields: ClinicalPrintField[]) => fields.length ? [{ code, title, fields }] : [];
 
 export function toClinicalAssessmentV2PrintSections(data: ClinicalAssessmentV2Data): ClinicalPrintSection[] {
+  const anamnesis = normalizeClinicalAnamnesis(data.anamnesis);
   return [
     ...commonPrintSection("access_reason", "Motivo dell’accesso", [
       ...printField("Motivo della valutazione", data.accessReason?.reason?.trim()),
@@ -320,14 +322,7 @@ export function toClinicalAssessmentV2PrintSections(data: ClinicalAssessmentV2Da
       ...printField("Informazioni riferite da", data.accessReason?.reportedBy?.trim()),
       ...printField("Contesto iniziale rilevante", data.accessReason?.relevantContext?.trim()),
     ]),
-    ...commonPrintSection("anamnesis", "Anamnesi", [
-      ...printField("Storia clinica rilevante", data.anamnesis?.relevantClinicalHistory?.trim()),
-      ...printField("Sviluppo e storia personale", data.anamnesis?.developmentAndHistory?.trim()),
-      ...printField("Contesto scolastico, formativo o lavorativo", data.anamnesis?.educationWorkContext?.trim()),
-      ...printField("Contesto familiare e sociale", data.anamnesis?.familySocialContext?.trim()),
-      ...printField("Valutazioni o interventi precedenti", data.anamnesis?.previousAssessmentsInterventions?.trim()),
-      ...printField("Altre informazioni", data.anamnesis?.additionalNotes?.trim()),
-    ]),
+    ...commonPrintSection("anamnesis", "Anamnesi", anamnesisSectionRegistry.flatMap((definition) => printField(definition.label, anamnesis?.sections?.[definition.code]?.trim()))),
     ...data.modules.flatMap((module) => getClinicalModuleDefinition(module.code, module.version)?.validate(module.data)
       ? getClinicalModuleDefinition(module.code, module.version)!.toPrintSections(module.data as never) : []),
     ...commonPrintSection("tests", "Test / strumenti", [

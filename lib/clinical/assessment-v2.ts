@@ -2,6 +2,7 @@ import { uid } from "../types.ts";
 import type { ClinicalAssessmentTypeV2, ClinicalAssessmentV2 } from "./types.ts";
 import type { AssessmentTestEntryV1 } from "./assessment-v1.ts";
 import { createClinicalModuleInstance, getClinicalModuleDefinition } from "./module-registry.ts";
+import type { ClinicalAnamnesisV2, LegacyClinicalAnamnesisV2 } from "./anamnesis-sections.ts";
 
 export type ClinicalModuleInstance = {
   code: string;
@@ -131,14 +132,7 @@ export type ClinicalAssessmentV2Data = {
     reportedBy?: string;
     relevantContext?: string;
   };
-  anamnesis?: {
-    relevantClinicalHistory?: string;
-    developmentAndHistory?: string;
-    educationWorkContext?: string;
-    familySocialContext?: string;
-    previousAssessmentsInterventions?: string;
-    additionalNotes?: string;
-  };
+  anamnesis?: ClinicalAnamnesisV2 | LegacyClinicalAnamnesisV2;
   tests?: {
     items?: AssessmentTestEntryV1[];
     notAdministered?: boolean;

@@ -6,6 +6,7 @@ import type {
 } from "./assessment-v1.ts";
 import type { ClinicalAssessment, ClinicalPathway } from "./types.ts";
 import { isRegisteredClinicalModule } from "./module-registry.ts";
+import { isClinicalAnamnesisV2 } from "./anamnesis-sections.ts";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const AVAILABILITY = new Set(["available", "not_available", "not_applicable"]);
@@ -129,9 +130,7 @@ export function isClinicalAssessmentV2Payload(value: unknown) {
   if (value.accessReason !== undefined && (!isRecord(value.accessReason)
     || !hasOnlyKeys(value.accessReason, ["reason", "referralSource", "reportedBy", "relevantContext"])
     || !Object.values(value.accessReason).every((item) => typeof item === "string"))) return false;
-  if (value.anamnesis !== undefined && (!isRecord(value.anamnesis)
-    || !hasOnlyKeys(value.anamnesis, ["relevantClinicalHistory", "developmentAndHistory", "educationWorkContext", "familySocialContext", "previousAssessmentsInterventions", "additionalNotes"])
-    || !Object.values(value.anamnesis).every((item) => typeof item === "string"))) return false;
+  if (value.anamnesis !== undefined && !isClinicalAnamnesisV2(value.anamnesis)) return false;
   if (value.tests !== undefined && (!isRecord(value.tests)
     || !hasOnlyKeys(value.tests, ["items", "notAdministered", "notes"])
     || (value.tests.items !== undefined && (!Array.isArray(value.tests.items) || !value.tests.items.every(isTestEntry)))
