@@ -76,6 +76,7 @@ export async function verifyArmoniaCalendarAccess(record: GoogleTokenRecord) {
 export async function upsertGoogleEvent(userId:string,input: {
   appointmentId: string;
   eventId?: string;
+  createEventId?: string;
   title: string;
   date: string;
   time: string;
@@ -89,6 +90,7 @@ export async function upsertGoogleEvent(userId:string,input: {
   const endDate = `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, "0")}-${String(end.getUTCDate()).padStart(2, "0")}`;
   const endTime = `${String(end.getUTCHours()).padStart(2, "0")}:${String(end.getUTCMinutes()).padStart(2, "0")}`;
   const event = {
+    ...(input.eventId ? {} : input.createEventId ? { id: input.createEventId } : {}),
     summary: input.title,
     description: "",
     start: { dateTime: `${input.date}T${input.time}:00`, timeZone: GOOGLE_CALENDAR_TIME_ZONE },
@@ -112,8 +114,29 @@ export async function upsertGoogleEvent(userId:string,input: {
     if (input.eventId && (error as { status?: number }).status === 404) {
       return googleRequest<{ id: string }>(base, record.accessToken, { method: "POST", body: JSON.stringify(event) });
     }
+    if (!input.eventId && input.createEventId && (error as { status?: number }).status === 409) {
+      const { id: _existingId, ...patchEvent } = event;
+      return googleRequest<{ id: string }>(`${base}/${encodeURIComponent(input.createEventId)}`, record.accessToken, {
+        method: "PATCH",
+        body: JSON.stringify(patchEvent),
+      });
+    }
     throw error;
   }
+}
+
+export async function findGoogleEventsByAppointmentId(userId: string, appointmentId: string) {
+  const record = await ensureArmoniaCalendar(userId, await validGoogleToken(userId));
+  const query = new URLSearchParams({
+    privateExtendedProperty: `armoniaAppointmentId=${appointmentId}`,
+    maxResults: "10",
+    showDeleted: "false",
+  });
+  const result = await googleRequest<{ items?: Array<{ id?: string }> }>(
+    `${api}/calendars/${encodeURIComponent(record.calendarId!)}/events?${query}`,
+    record.accessToken,
+  );
+  return (result.items || []).flatMap(item => item.id ? [item.id] : []);
 }
 
 export async function deleteGoogleEvent(userId:string,eventId: string) {

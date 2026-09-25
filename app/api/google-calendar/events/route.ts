@@ -1,14 +1,13 @@
 import {NextRequest,NextResponse} from "next/server";
 import {deleteGoogleEvent,upsertGoogleEvent} from "@/lib/google-calendar/google-api";
-import {googleTokenStore,type GoogleNameFormat} from "@/lib/google-calendar/token-store";
+import {googleTokenStore} from "@/lib/google-calendar/token-store";
 import {authenticatedUserId,supabaseServiceClient} from "@/lib/supabase/server";
 import {removeLinkedGoogleEvent} from "@/lib/google-calendar/event-link-cleanup";
 import {isGoogleOAuthError} from "@/lib/google-calendar/oauth-error";
+import {googleEventTitle,romeAppointmentDateTime} from "@/lib/google-calendar/event-details";
 
 type Payload={action:"delete";appointmentId?:string;eventId?:string}|{action:"upsert";appointmentId:string;eventId?:string;title?:string;date?:string;time?:string;duration?:number;reminderMinutes?:number};
 const localMode=process.env.NEXT_PUBLIC_DATA_MODE==="local";
-const titleFor=(first:string,last:string,format:GoogleNameFormat)=>format==="full"?`Logopedia · ${first} ${last}`.trim():format==="initials"?`Logopedia · ${(first[0]||"").toUpperCase()}.${last?` ${(last[0]||"").toUpperCase()}.`:""}`:`Logopedia · ${first}${last?` ${(last[0]||"").toUpperCase()}.`:""}`;
-const romeDateTime=(value:string)=>{const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Rome",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(value)),get=(type:string)=>parts.find(p=>p.type===type)?.value||"";return {date:`${get("year")}-${get("month")}-${get("day")}`,time:`${get("hour")}:${get("minute")}`}};
 
 async function localRequest(userId:string,payload:Payload){
  if(payload.action==="delete"){if(!payload.eventId)throw new Error("ID evento mancante");await deleteGoogleEvent(userId,payload.eventId);return {ok:true}}
@@ -34,8 +33,8 @@ async function cloudRequest(userId:string,payload:Payload){
  const patientResult=await service.from("patients").select("first_name,last_name").eq("id",appointmentResult.data.patient_id).eq("user_id",userId).maybeSingle();if(patientResult.error)throw patientResult.error;if(!patientResult.data)throw new Error("Paziente non trovato");
  const linkResult=await service.from("google_calendar_event_links").select("google_event_id,attempt_count").eq("user_id",userId).eq("appointment_id",payload.appointmentId).maybeSingle();if(linkResult.error)throw linkResult.error;
  const pending=await service.from("google_calendar_event_links").upsert({user_id:userId,appointment_id:payload.appointmentId,google_event_id:linkResult.data?.google_event_id||null,desired_action:"upsert",sync_status:"syncing",attempt_count:(linkResult.data?.attempt_count||0)+1,last_error:null,updated_at:new Date().toISOString()});if(pending.error)throw pending.error;
- const when=romeDateTime(appointmentResult.data.starts_at);
- try{const event=await upsertGoogleEvent(userId,{appointmentId:payload.appointmentId,eventId:linkResult.data?.google_event_id||undefined,title:titleFor(patientResult.data.first_name,patientResult.data.last_name,connection.nameFormat),date:when.date,time:when.time,duration:appointmentResult.data.duration_minutes,reminderMinutes:connection.reminderMinutes});const saved=await service.from("google_calendar_event_links").update({google_event_id:event.id,sync_status:"synced",last_error:null,last_synced_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(saved.error)throw saved.error;return {ok:true,eventId:event.id}}
+ const when=romeAppointmentDateTime(appointmentResult.data.starts_at);
+ try{const event=await upsertGoogleEvent(userId,{appointmentId:payload.appointmentId,eventId:linkResult.data?.google_event_id||undefined,title:googleEventTitle(patientResult.data.first_name,patientResult.data.last_name,connection.nameFormat),date:when.date,time:when.time,duration:appointmentResult.data.duration_minutes,reminderMinutes:connection.reminderMinutes});const saved=await service.from("google_calendar_event_links").update({google_event_id:event.id,sync_status:"synced",last_error:null,last_synced_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(saved.error)throw saved.error;return {ok:true,eventId:event.id}}
  catch(error){await service.from("google_calendar_event_links").update({sync_status:"error",last_error:error instanceof Error?error.message:"Sincronizzazione non riuscita",updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);throw error}
 }
 

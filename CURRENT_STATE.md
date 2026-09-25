@@ -32,6 +32,7 @@ Fotografia ricavata dal repository al 25 settembre 2026.
 - In caso di errore OAuth terminale, le Impostazioni offrono una riconnessione conservativa distinta da “Scollega”. Il callback conserva `calendarId` e preferenze, verifica l'accesso al calendario esistente con le nuove credenziali e salva solo i nuovi token; non crea calendari sostitutivi, non cancella la coda e non avvia automaticamente la sincronizzazione.
 - La coda Google legacy mantiene la chiave e il formato esistenti, ma flush e mutazioni sono coordinati tra tab tramite Web Locks con lease locale di fallback. “Sincronizza ora” elabora soltanto le operazioni pendenti; la riaccodatura completa è un'azione secondaria confermata. Il runner single-flight esegue un passaggio successivo quando arriva nuovo lavoro e i parametri OAuth `connected`/`reconnected` vengono consumati una sola volta e rimossi dall'URL.
 - Preferenze Google per formato del titolo e reminder, con stato connessione nelle Impostazioni.
+- L'infrastruttura dormiente per la futura outbox Google server-side è presente in produzione: la migration additiva `011`, applicata manualmente il 25/09/2026, estende i link evento con versionamento, retry e lease e aggiunge primitive server-only di claim/complete/retry/fail, ma non crea trigger sugli appuntamenti. I trigger atomici sono rimandati a una futura `012` da coordinare con il cutover; il worker server è disabilitato, il cron non è configurato e la sincronizzazione browser legacy resta attiva e autorevole.
 - Statistiche di base su sedute, pazienti e obiettivi.
 - Envelope locale `schemaVersion: 1`, con migrazione sicura del precedente `AppData` non versionato e protezione da JSON corrotti o versioni future.
 - Tipi e payload V1 per percorsi clinici opzionali e valutazioni iniziali `language_communication`.
@@ -82,6 +83,7 @@ Fotografia ricavata dal repository al 25 settembre 2026.
 - `008_goals_clinical_pathway.sql`: collegamento nullable e coerente per proprietario/paziente tra Goal e percorso, senza backfill; lo stato di applicazione non è stato verificato in questo intervento.
 - `009_professional_branding_storage.sql`: **creata ma non eseguita**; bucket privato per il logo professionale e policy Storage limitate al solo `{auth.uid()}/logo.webp`.
 - `010_clinical_assessments_v2.sql`: registrazione esatta della modifica applicata manualmente al database reale il 25/09/2026; rende `module_type` nullable e vincola in modo discriminato V1 (`language_communication`/`initial`) e V2 (`module_type = null`, quattro tipi di valutazione). Dopo l'applicazione risultavano 5 righe V1, 0 V2, nessun dato modificato e constraint validato.
+- `011_google_calendar_server_outbox.sql`: **applicata manualmente in produzione il 25/09/2026**; estende `google_calendar_event_links` con `operation_version`, pianificazione tentativi, lease e classificazione degli errori e aggiunge le quattro funzioni server-side di claim/complete/retry/fail. Le verifiche post-migration riportano 93 link totali, tutti con `google_event_id`: 90 `synced`, 3 errori legacy, 0 `pending` e 0 `syncing`. Su `public.appointments` non risultano trigger non interni, quindi l'infrastruttura resta dormiente; la registrazione atomica delle mutazioni è rimandata a una futura `012`, non ancora creata né applicata.
 
 La presenza delle migration nel repository non dimostra che siano state applicate a uno specifico ambiente Supabase. Prima di interventi cloud occorre verificare separatamente lo stato dell'ambiente interessato.
 
@@ -97,9 +99,11 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - Nell’MVP una correzione salvata sovrascrive la versione precedente della valutazione completata; non esistono ancora storico revisioni, audit log, autore o confronto tra versioni.
 - Il README elenca le migration fino alla `003`, mentre nel repository sono presenti anche la `004` e la `005`; inoltre non documenta l'intera configurazione server-side Google per Vercel.
 - Il repository da solo non consente di verificare stato del deploy Vercel, variabili configurate o migration effettivamente applicate in produzione.
+- Il processore Google server-side è dormiente e disabilitato; non esiste ancora alcun cron, la migration `012` non è stata creata o applicata e non è stato effettuato il cutover dalla sincronizzazione browser legacy.
 
 ## Ultime modifiche importanti
 
+- La migration `011` è stata applicata manualmente in produzione il 25/09/2026 e verificata senza trigger su `appointments`: colonne e primitive server-side sono presenti, mentre worker, cron e cutover restano disabilitati.
 - È stata registrata nel repository la migration `010`, già applicata manualmente in produzione il 25/09/2026. Il repository Supabase locale ora mappa e valida liste miste V1/V2; le nuove valutazioni cloud sono V2 e le V1 esistenti restano invariate, senza conversione.
 - La stampa delle valutazioni completate è stata ridisegnata come documento A4 e predisposta per ricevere in futuro un `logoSrc` professionale opzionale, senza modificare profilo o persistenza.
 
