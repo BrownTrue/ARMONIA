@@ -42,6 +42,6 @@ export function AppointmentForm({appointment,initialDate,initialTime,onDone}:{ap
       {appointment?.recurrenceSeriesId&&<div className="sm:col-span-2 rounded-xl bg-sage-50 p-3 text-sm text-sage-800">Questo appuntamento fa parte di una serie settimanale. Le modifiche riguardano solo questa occorrenza.</div>}
     </div>
     {error&&<p role="alert" className="mt-4 text-sm font-medium text-red-600">{error}</p>}
-    <div className="mt-6 flex justify-end gap-2"><button type="button" className="btn btn-quiet" onClick={onDone}>Annulla</button><button disabled={saving} className="btn btn-primary disabled:cursor-wait disabled:opacity-60">{saving?"Salvataggio…":appointment?"Salva modifiche":repeat==="weekly"?"Crea appuntamenti":"Crea appuntamento"}</button></div>
+    <div className="form-actions mt-6"><button type="button" className="btn btn-quiet" onClick={onDone}>Annulla</button><button disabled={saving} className="btn btn-primary disabled:cursor-wait disabled:opacity-60">{saving?"Salvataggio…":appointment?"Salva modifiche":repeat==="weekly"?"Crea appuntamenti":"Crea appuntamento"}</button></div>
   </form>;
 }

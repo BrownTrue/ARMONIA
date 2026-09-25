@@ -46,7 +46,7 @@ export default function Settings() {
         <p className="text-sm text-slate-500">{connection.message}</p>
       </div>
       <form
-        className="card mt-8 max-w-2xl p-6"
+        className="card mt-8 max-w-2xl p-4 sm:p-6"
         onSubmit={async (e) => {
           e.preventDefault();
           await saveProfile(v);
@@ -87,14 +87,14 @@ export default function Settings() {
             />
           </div>
         </div>
-        <button className="btn btn-primary mt-6">Salva profilo</button>
+        <button className="btn btn-primary mt-6 w-full sm:w-auto">Salva profilo</button>
         {saved && (
-          <span className="ml-3 text-sm font-bold text-sage-700">
+          <span className="mt-3 block text-sm font-bold text-sage-700 sm:ml-3 sm:inline">
             Modifiche salvate ✓
           </span>
         )}
       </form>
-      <section className="card mt-5 max-w-2xl p-6">
+      <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <div><h2 className="font-bold">Logo professionista / studio</h2><p className="mt-1 text-sm text-slate-500">PNG, JPG o WebP · massimo 2 MB. Il logo verrà adattato automaticamente ai documenti.</p></div>
         <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
           <div className="grid h-28 place-items-center overflow-hidden rounded-2xl border border-sage-100 bg-sage-50 p-4">
@@ -109,7 +109,7 @@ export default function Settings() {
         <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={brandingBusy||!brandingReady} onClick={()=>logoInput.current?.click()} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{hasCustomLogo?"Cambia logo":"Carica logo"}</button>{hasCustomLogo&&<button type="button" disabled={brandingBusy} onClick={async()=>{if(!confirm("Rimuovere il logo personale? Nei documenti verrà utilizzato il logo Armonia."))return;setBrandingBusy(true);setBrandingMessage(null);try{await removeLogo();setBrandingMessage({kind:"success",text:"Logo rimosso. È stato ripristinato il logo Armonia."})}catch(cause){setBrandingMessage({kind:"error",text:cause instanceof Error?cause.message:"Non è stato possibile rimuovere il logo."})}finally{setBrandingBusy(false)}}} className="btn btn-quiet">Rimuovi logo</button>}</div>
         {brandingMessage&&<p role={brandingMessage.kind==="error"?"alert":"status"} className={`mt-3 text-sm font-bold ${brandingMessage.kind==="error"?"text-red-600":"text-sage-700"}`}>{brandingMessage.text}</p>}
       </section>
-      <section className="card mt-5 max-w-2xl p-6">
+      <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="font-bold">Google Calendar</h2><p className="mt-1 text-sm text-slate-500">Sincronizzazione unidirezionale verso il calendario dedicato “Armonia”.</p></div>
           <span className={`rounded-full px-3 py-1 text-sm font-bold ${google?.connected&&!syncState.error?"bg-blue-50 text-blue-700":google?.error||syncState.error?"bg-red-50 text-red-700":"bg-slate-100 text-slate-500"}`}>{google?.connected&&!syncState.error?"Collegato":google?.error||syncState.error?"Errore":"Non collegato"}</span>
@@ -127,7 +127,7 @@ export default function Settings() {
         </> : <div className="mt-5"><a href="/api/google-calendar/connect" className="btn btn-primary inline-block">Collega Google Calendar</a>{google?.error&&<p className="mt-3 text-sm font-bold text-red-600">{google.error}</p>}</div>}
         <p className="mt-5 border-t border-sage-100 pt-4 text-xs text-slate-500">Prototipo locale: il token OAuth è cifrato sul dispositivo. Per la produzione sarà usato uno store backend persistente e cifrato.</p>
       </section>
-      <section className="card mt-5 max-w-2xl p-6">
+      <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <h2 className="font-bold">Account</h2>
         <button
           disabled={connection.kind === "local"}

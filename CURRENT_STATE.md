@@ -11,6 +11,7 @@ Fotografia ricavata dal repository al 25 settembre 2026.
 
 - Autenticazione Supabase con email/password, sessione persistente e logout in modalità cloud.
 - Pagine pubbliche `/about` e `/privacy`, accessibili senza sessione anche in modalità cloud.
+- La shell applicativa ha una navigazione mobile completa: la barra rapida conserva le cinque aree quotidiane e un menu laterale accessibile espone tutte le sezioni, incluse Impostazioni, account e logout. I layout condivisi adottano touch target, intestazioni, azioni form e modali adattive per viewport da 360 px, senza creare una seconda app mobile.
 - Profilo modificabile e persistente.
 - Logo professionale configurabile dalle Impostazioni, con anteprima, sostituzione sicura, rimozione confermata e fallback Armonia. PNG/JPEG/WebP fino a 2 MB vengono ridimensionati proporzionalmente entro 1200×1200 e normalizzati in WebP.
 - CRUD pazienti e scheda con appuntamenti, obiettivi, materiali e timeline.
@@ -45,7 +46,7 @@ Fotografia ricavata dal repository al 25 settembre 2026.
 - I campi elenco del wizard clinico (lingue, professionisti, punti di forza e difficoltà) supportano realmente una voce per riga e mantengono il contenuto attraverso autosave, cambio passaggio e refresh.
 - Le valutazioni completate espongono una stampa A4 professionale con branding, dati del professionista e del paziente, titolo del percorso, sezioni numerate, test multipli, footer e contenuto clinico separato dai controlli del wizard; le bozze non sono stampabili. Codici, array e multilinea vengono trasformati in etichette e liste leggibili, mentre le sezioni vuote sono omesse.
 - I percorsi attivi possono essere corretti nel titolo e nella data iniziale; un percorso può essere eliminato soltanto quando non contiene valutazioni.
-- Le bozze possono essere eliminate singolarmente. Le valutazioni completate restano normalmente in sola lettura, ma dispongono di una modalità esplicita di correzione senza autosave e di un’eliminazione protetta dalla conferma testuale `ELIMINA`.
+- Le valutazioni V1 e V2 possono essere eliminate singolarmente sia in bozza sia dopo il completamento; le completed restano in sola lettura e modificabili soltanto tramite correzione esplicita, mentre l’eliminazione amministrativa è protetta dalla conferma testuale `ELIMINA` e non rimuove percorso, paziente, sedute o obiettivi.
 - Gli obiettivi esistenti possono essere collegati o scollegati dal percorso attivo dello stesso paziente tramite `Goal.clinicalPathwayId`; la chiusura conserva il collegamento storico e i percorsi chiusi sono in sola lettura per queste associazioni. Il mapping cloud della colonna nullable è predisposto dalla migration `008` non eseguita.
 - Il form Registra seduta propone prima gli obiettivi del percorso attivo e poi gli obiettivi attivi non associati, continuando a salvare la selezione esclusivamente in `Session.goalIds`/`session_goals`.
 - La Timeline del paziente aggrega sedute e valutazioni tramite `PatientTimelineItem`, ordinando per data effettiva/clinica e `createdAt`, senza introdurre una tabella timeline.

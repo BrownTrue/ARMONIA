@@ -79,14 +79,14 @@ export default function Calendar() {
         : "Agenda";
   return (
     <AppShell>
-      <header className="mb-5 flex flex-wrap items-center justify-between gap-4">
+      <header className="page-header mb-5">
         <div>
           <h1 className="text-3xl font-bold">Calendario</h1>
           <p className="mt-2 text-slate-500">
             Organizza appuntamenti e giornate di lavoro.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="page-header-actions">
           <Link href="/sedute/nuova" aria-disabled={!data.patients.length} title={!data.patients.length ? "Crea prima un paziente" : undefined} className={`btn btn-quiet ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}>Registra seduta</Link>
           <button
             onClick={() => setEditor({ date: today() })}
@@ -98,10 +98,10 @@ export default function Calendar() {
           </button>
         </div>
       </header>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div
           aria-label="Vista calendario"
-          className="inline-flex rounded-xl bg-sage-100 p-1"
+          className="grid grid-cols-3 rounded-xl bg-sage-100 p-1"
         >
           {(
             [
@@ -113,7 +113,7 @@ export default function Calendar() {
             <button
               aria-pressed={view === key}
               onClick={() => choose(key)}
-              className={`rounded-lg px-4 py-2 text-sm font-bold ${view === key ? "bg-white text-sage-700 shadow-sm" : "text-slate-500"}`}
+              className={`min-h-11 rounded-lg px-2 py-2 text-sm font-bold sm:px-4 ${view === key ? "bg-white text-sage-700 shadow-sm" : "text-slate-500"}`}
               key={key}
             >
               {label}
@@ -121,7 +121,7 @@ export default function Calendar() {
           ))}
         </div>
         {view !== "agenda" && (
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:flex">
             <button
               aria-label="Periodo precedente"
               onClick={() => move(-1)}
@@ -234,7 +234,8 @@ function MonthView({
     return Array.from({ length: 42 }, (_, i) => addDays(start, i));
   }, [cursor]);
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-x-auto">
+      <div className="min-w-[680px]">
       <div className="grid grid-cols-7 border-b border-sage-100 bg-sage-50">
         {days.map((d) => (
           <div
@@ -298,6 +299,7 @@ function MonthView({
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
@@ -451,7 +453,7 @@ function Agenda({
   }, {});
   return (
     <>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <h2 className="text-xl font-bold">Agenda</h2>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input
@@ -482,7 +484,7 @@ function Agenda({
                 {items.map((a) => (
                   <article
                     key={a.id}
-                    className="card flex flex-wrap items-center gap-4 p-4"
+                    className="card flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center"
                   >
                     <div className="min-w-24">
                       <b>{a.time}</b>
@@ -495,11 +497,11 @@ function Agenda({
                         {a.notes ? " · " + a.notes : ""}
                       </p>
                     </div>
-                    <button className="btn btn-quiet" onClick={() => onEdit(a)}>
+                    <button className="btn btn-quiet w-full sm:w-auto" onClick={() => onEdit(a)}>
                       Apri / modifica
                     </button>
                     <button
-                      className="btn text-red-600"
+                      className="btn w-full text-red-600 sm:w-auto"
                       onClick={() =>
                         confirm("Eliminare questo appuntamento?") &&
                         onDelete(a.id)

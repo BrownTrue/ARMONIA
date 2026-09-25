@@ -57,13 +57,13 @@ export default function PatientPage() {
       <Link href="/pazienti" className="text-sm font-bold text-sage-700">
         ← Tutti i pazienti
       </Link>
-      <header className="mt-5 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <header className="mt-5 flex flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <span className="grid h-16 w-16 place-items-center rounded-3xl bg-sage-100 text-lg font-bold">
             {initials(p)}
           </span>
-          <div>
-            <h1 className="text-3xl font-bold">{fullName(p)}</h1>
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-bold sm:text-3xl">{fullName(p)}</h1>
             <p className="mt-1 text-slate-500">
               {age(p.birthDate) || "—"} anni ·{" "}
               {p.status === "active"
@@ -74,8 +74,8 @@ export default function PatientPage() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setEdit(true)} className="btn btn-quiet">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <button onClick={() => setEdit(true)} className="btn btn-quiet w-full sm:w-auto">
             Modifica
           </button>
           <button
@@ -85,11 +85,11 @@ export default function PatientPage() {
                 router.push("/pazienti");
               }
             }}
-            className="btn text-red-600"
+            className="btn w-full text-red-600 sm:w-auto"
           >
             Elimina
           </button>
-          <Link href={"/sedute/nuova?p=" + p.id} className="btn btn-primary">
+          <Link href={"/sedute/nuova?p=" + p.id} className="btn btn-primary col-span-2 w-full sm:w-auto">
             Registra seduta
           </Link>
         </div>
@@ -175,7 +175,7 @@ export default function PatientPage() {
           ) : (
             <div className="mt-4 divide-y divide-sage-100">
               {timeline.map((item) => item.type === "session" ? (
-                <div className="flex flex-wrap items-center gap-3 py-4" key={item.id}>
+                <div className="flex flex-col items-stretch gap-3 py-4 sm:flex-row sm:flex-wrap sm:items-center" key={item.id}>
                   <div className="min-w-28">
                     <b>{new Date(item.occurredOn + "T12:00").toLocaleDateString("it-IT")}</b>
                     <p className="text-sm text-slate-500">
@@ -188,8 +188,8 @@ export default function PatientPage() {
                       Prossima volta: {item.session.nextPlan || "—"}
                     </p>
                   </div>
-                  <button onClick={() => setDetail(item.session)} className="btn btn-quiet">Apri / modifica</button>
-                  <button onClick={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} className="btn text-red-600">Elimina</button>
+                  <button onClick={() => setDetail(item.session)} className="btn btn-quiet w-full sm:w-auto">Apri / modifica</button>
+                  <button onClick={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} className="btn w-full text-red-600 sm:w-auto">Elimina</button>
                 </div>
               ) : <div className="flex flex-wrap items-center gap-3 py-4" key={item.id}><div className="min-w-28"><b>{new Date(item.occurredOn+"T12:00").toLocaleDateString("it-IT")}</b><p className="text-sm text-slate-500">Valutazione</p></div><div className="min-w-48 flex-1"><p className="font-bold">{item.title}</p><p className="mt-1 text-sm text-slate-500">{item.subtitle}</p></div><Link href={`/pazienti/${p.id}/percorso/${item.entityId}`} className="btn btn-quiet">{item.assessment.status==="completed"?"Apri":"Continua"}</Link>{item.assessment.status==="completed"&&<Link href={`/pazienti/${p.id}/percorso/${item.entityId}?print=1`} className="btn btn-quiet">Stampa</Link>}</div>)}
             </div>

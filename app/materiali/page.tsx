@@ -38,14 +38,14 @@ export default function Materials() {
     saveMaterial({ ...m, favorite: !m.favorite });
   return (
     <AppShell>
-      <header className="mb-8 flex items-center justify-between">
+      <header className="page-header mb-8">
         <div>
           <h1 className="text-3xl font-bold">Materiali</h1>
           <p className="mt-2 text-slate-500">
             {connection.kind === "cloud" ? "File privati sincronizzati in modo sicuro." : connection.kind === "error" ? "Sincronizzazione non disponibile: controlla lo stato nelle Impostazioni." : "File salvati in locale su questo dispositivo."}
           </p>
         </div>
-        <button onClick={() => setEdit("new")} className="btn btn-primary">
+        <button onClick={() => setEdit("new")} className="btn btn-primary w-full sm:w-auto">
           + Carica materiale
         </button>
       </header>
@@ -55,7 +55,7 @@ export default function Materials() {
         placeholder="Cerca materiali o tag…"
         className="mb-5 w-full rounded-xl border border-sage-100 bg-white px-4 py-3"
       />
-      <div className="mb-6 flex gap-2 overflow-auto">
+      <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
         {["tutti", "preferiti", ...cats].map((x) => (
           <button
             onClick={() => setFilter(x)}
@@ -301,7 +301,7 @@ function MaterialForm({
         />{" "}
         Preferito
       </label>
-      <div className="flex justify-end gap-2">
+      <div className="form-actions">
         <button type="button" onClick={onDone} className="btn btn-quiet">
           Annulla
         </button>

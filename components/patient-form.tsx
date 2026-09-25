@@ -20,6 +20,6 @@ export function PatientForm({ patient, onDone }: { patient?: Patient; onDone: ()
       <Field name="schoolClass" label="Classe" defaultValue={p.schoolClass}/><Select name="status" label="Stato" defaultValue={p.status}><option value="active">Attivo</option><option value="suspended">Sospeso</option><option value="completed">Concluso</option></Select>
       <div className="sm:col-span-2"><Textarea name="referralReason" label="Motivo dell’invio" defaultValue={p.referralReason}/></div><div className="sm:col-span-2"><Textarea name="notes" label="Note" defaultValue={p.notes}/></div>
     </div>
-    <div className="mt-6 flex justify-end gap-2"><button type="button" className="btn btn-quiet" onClick={onDone}>Annulla</button><button className="btn btn-primary">{patient?"Salva modifiche":"Crea paziente"}</button></div>
+    <div className="form-actions mt-6"><button type="button" className="btn btn-quiet" onClick={onDone}>Annulla</button><button className="btn btn-primary">{patient?"Salva modifiche":"Crea paziente"}</button></div>
   </form>;
 }
