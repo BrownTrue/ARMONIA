@@ -4,6 +4,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Collaudare manualmente con un account e appuntamenti sintetici la UI Calendario ARMONIA e il feed ICS dopo un futuro deploy esplicitamente autorizzato. Migration `013`, postflight e configurazione della chiave Production sono completati; UI e codice restano non pubblicati.
+
 - Preparare separatamente una futura migration `012` che attivi i trigger atomici soltanto insieme al cutover controllato; la `011` è già applicata in produzione ma resta passiva e senza trigger. Collaudare il processore con un singolo account sintetico prima di configurare il cron Supabase ogni 2 minuti o disattivare la coda browser cloud.
 - Completare in una fase successiva il rollout Google server-side: riconciliazione ultimi 90 giorni e appuntamenti futuri, transizione sicura della coda legacy, stato UI server-side e semantica conservativa di scollegamento. Il cron e il cutover non sono ancora implementati.
 

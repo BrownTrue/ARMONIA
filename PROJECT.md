@@ -82,6 +82,10 @@ OAuth richiede accesso offline e un refresh token. Viene usato un calendario sec
 
 In locale i token sono conservati nel token store di sviluppo. In cloud sono previsti token cifrati e link di sincronizzazione nelle tabelle dedicate, accessibili solo server-side.
 
+### Calendario ARMONIA sottoscrivibile
+
+Il backend espone un feed iCalendar privato, read-only e indipendente da Google per Apple Calendar, Outlook e altri client compatibili. Armonia resta la fonte autorevole: ogni appuntamento è un `VEVENT` autonomo, le occorrenze ricorrenti mantengono i propri ID e non viene usato `RRULE`. Il feed espone soltanto orari e il titolo configurato, esclude appuntamenti annullati e dati clinici e usa un bearer token casuale conservato nel database come hash e ciphertext server-side. La migration `013` è stata applicata e verificata manualmente in produzione; la UI locale delle Impostazioni consente attivazione, scelta del titolo, copia/apertura del link, rotazione e disattivazione, ma non è ancora stata pubblicata.
+
 ### Statistiche
 
 È presente una pagina con conteggi di sedute, pazienti attivi, obiettivi raggiunti e andamento recente.

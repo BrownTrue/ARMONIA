@@ -1,6 +1,6 @@
 # Stato corrente di Armonia
 
-Fotografia ricavata dal repository al 25 settembre 2026.
+Fotografia ricavata dal repository al 26 settembre 2026.
 
 ## Stato Git rilevato prima dell'intervento corrente
 
@@ -32,6 +32,7 @@ Fotografia ricavata dal repository al 25 settembre 2026.
 - In caso di errore OAuth terminale, le Impostazioni offrono una riconnessione conservativa distinta da “Scollega”. Il callback conserva `calendarId` e preferenze, verifica l'accesso al calendario esistente con le nuove credenziali e salva solo i nuovi token; non crea calendari sostitutivi, non cancella la coda e non avvia automaticamente la sincronizzazione.
 - La coda Google legacy mantiene la chiave e il formato esistenti, ma flush e mutazioni sono coordinati tra tab tramite Web Locks con lease locale di fallback. “Sincronizza ora” elabora soltanto le operazioni pendenti; la riaccodatura completa è un'azione secondaria confermata. Il runner single-flight esegue un passaggio successivo quando arriva nuovo lavoro e i parametri OAuth `connected`/`reconnected` vengono consumati una sola volta e rimossi dall'URL.
 - Preferenze Google per formato del titolo e reminder, con stato connessione nelle Impostazioni.
+- È implementato localmente il Calendario ARMONIA sottoscrivibile: API autenticate per stato, attivazione, formato titolo, rotazione e disattivazione; route pubblica ICS protetta da bearer token; generazione UTC con ETag e finestra ultimi 90 giorni + futuro. Nelle Impostazioni la nuova sezione Calendari affianca, senza modificarla, la card Google a un accordion ARMONIA con attivazione, privacy del titolo, copia link, apertura Apple Calendar, istruzioni sintetiche, rotazione e disattivazione. In modalità locale il feed resta inattivo e non viene interrogato. La UI è ancora soltanto locale e non è stata pubblicata.
 - L'infrastruttura dormiente per la futura outbox Google server-side è presente in produzione: la migration additiva `011`, applicata manualmente il 25/09/2026, estende i link evento con versionamento, retry e lease e aggiunge primitive server-only di claim/complete/retry/fail, ma non crea trigger sugli appuntamenti. I trigger atomici sono rimandati a una futura `012` da coordinare con il cutover; il worker server è disabilitato, il cron non è configurato e la sincronizzazione browser legacy resta attiva e autorevole.
 - Statistiche di base su sedute, pazienti e obiettivi.
 - Envelope locale `schemaVersion: 1`, con migrazione sicura del precedente `AppData` non versionato e protezione da JSON corrotti o versioni future.
@@ -84,6 +85,7 @@ Fotografia ricavata dal repository al 25 settembre 2026.
 - `009_professional_branding_storage.sql`: **creata ma non eseguita**; bucket privato per il logo professionale e policy Storage limitate al solo `{auth.uid()}/logo.webp`.
 - `010_clinical_assessments_v2.sql`: registrazione esatta della modifica applicata manualmente al database reale il 25/09/2026; rende `module_type` nullable e vincola in modo discriminato V1 (`language_communication`/`initial`) e V2 (`module_type = null`, quattro tipi di valutazione). Dopo l'applicazione risultavano 5 righe V1, 0 V2, nessun dato modificato e constraint validato.
 - `011_google_calendar_server_outbox.sql`: **applicata manualmente in produzione il 25/09/2026**; estende `google_calendar_event_links` con `operation_version`, pianificazione tentativi, lease e classificazione degli errori e aggiunge le quattro funzioni server-side di claim/complete/retry/fail. Le verifiche post-migration riportano 93 link totali, tutti con `google_event_id`: 90 `synced`, 3 errori legacy, 0 `pending` e 0 `syncing`. Su `public.appointments` non risultano trigger non interni, quindi l'infrastruttura resta dormiente; la registrazione atomica delle mutazioni è rimandata a una futura `012`, non ancora creata né applicata.
+- `013_calendar_feed_subscriptions.sql`: **applicata manualmente in produzione e verificata con postflight**; tabella presente con 0 subscription iniziali, RLS attiva, nessun `SELECT` per `anon`/`authenticated`, privilegi CRUD per `service_role`, indice `appointments_user_starts_at_idx` e constraint `title_format` presenti. Non ha modificato righe cliniche o Google. Il controllo preflight sui dati ha rilevato 0 collegamenti appointment/patient tra utenti diversi. `CALENDAR_FEED_ENCRYPTION_KEY` è configurata su Vercel Production; il valore non è registrato nel repository.
 
 La presenza delle migration nel repository non dimostra che siano state applicate a uno specifico ambiente Supabase. Prima di interventi cloud occorre verificare separatamente lo stato dell'ambiente interessato.
 
@@ -100,6 +102,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - Il README elenca le migration fino alla `003`, mentre nel repository sono presenti anche la `004` e la `005`; inoltre non documenta l'intera configurazione server-side Google per Vercel.
 - Il repository da solo non consente di verificare stato del deploy Vercel, variabili configurate o migration effettivamente applicate in produzione.
 - Il processore Google server-side è dormiente e disabilitato; non esiste ancora alcun cron, la migration `012` non è stata creata o applicata e non è stato effettuato il cutover dalla sincronizzazione browser legacy.
+- Il Calendario ARMONIA sottoscrivibile ha infrastruttura database e chiave server predisposte in produzione, ma la UI e il backend locali correnti non sono ancora stati pubblicati; non risultano subscription create al postflight della migration `013`.
 
 ## Ultime modifiche importanti
 
