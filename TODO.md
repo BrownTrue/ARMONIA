@@ -4,7 +4,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- Pubblicare la correzione locale emersa dal collaudo della Libreria terapeutica V2 e verificare manualmente con dati sintetici submit upload singolo, JPEG, delete legacy/V2/link, messaggi di errore e aggiornamento quota. Il primo deploy V2 è attivo e la `014` ha postflight positivo.
+- Proseguire il collaudo manuale della Libreria terapeutica V2 con dati sintetici, includendo delete legacy/V2/link, modifica metadati/associazioni e aggiornamento quota. Le migration `014` e `016` sono applicate con postflight positivo e il DELETE produzione è stato ritestato con successo.
 - Solo dopo il collaudo cloud del flusso V2, revisionare e applicare separatamente la migration `015` di enforcement. Fino ad allora le vecchie policy del bucket restano attive e `file_size_limit`/`allowed_mime_types` non sono configurati.
 - Collaudare manualmente con un account e appuntamenti sintetici la UI Calendario ARMONIA e il feed ICS dopo un futuro deploy esplicitamente autorizzato. Migration `013`, postflight e configurazione della chiave Production sono completati; UI e codice restano non pubblicati.
 
