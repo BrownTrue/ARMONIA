@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
@@ -7,6 +7,8 @@ import { Field, Select, Textarea } from "@/components/form-controls";
 import type { Material } from "@/lib/types";
 import { fullName, uid } from "@/lib/types";
 import { formatStorageBytes, materialUploadErrorMessage, STORAGE_QUOTA_BYTES, validateMaterialFileDeclaration } from "@/lib/therapeutic-library/files";
+import { materialDeleteErrorMessage } from "@/lib/therapeutic-library/material-api";
+import { acquireSingleFlight, releaseSingleFlight } from "@/lib/therapeutic-library/single-flight";
 const cats = [
   "articolazione",
   "fonologia",
@@ -26,9 +28,12 @@ export default function Materials() {
     [preview, setPreview] = useState<Material | null>(null),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("tutti"),
-    [storage, setStorage] = useState<{quotaBytes:number;usedBytes:number;reservedBytes:number;requiresReconciliation?:boolean}|null>(null);
-  const loadStorage=()=>{if(connection.kind!=="cloud")return;fetch("/api/materials/storage",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject()).then(setStorage).catch(()=>setStorage(null))};
-  useEffect(loadStorage,[connection.kind]);
+    [storage, setStorage] = useState<{quotaBytes:number;usedBytes:number;reservedBytes:number;requiresReconciliation?:boolean}|null>(null),
+    [deleteError, setDeleteError] = useState<string>(),
+    [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const deletingRef = useRef(new Set<string>());
+  const loadStorage=()=>{if(connection.kind!=="cloud")return Promise.resolve();return fetch("/api/materials/storage",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject()).then(setStorage).catch(()=>setStorage(null))};
+  useEffect(()=>{void loadStorage()},[connection.kind]);
   const list = data.materials.filter(
     (m) =>
       (m.title + " " + m.tags.join(" "))
@@ -54,6 +59,7 @@ export default function Materials() {
         </button>
       </header>
       {connection.kind === "cloud" && storage && <StorageUsage storage={storage}/>}
+      {deleteError && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{deleteError}</p>}
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -134,14 +140,27 @@ export default function Materials() {
                   Modifica
                 </button>
                 <button
-                  className="btn text-sm text-red-600"
+                  disabled={deletingIds.has(m.id)}
+                  className="btn text-sm text-red-600 disabled:cursor-wait disabled:opacity-50"
                   onClick={async () => {
+                    if (deletingRef.current.has(m.id)) return;
                     if (!confirm("Eliminare questo materiale e il relativo file?")) return;
-                    await deleteMaterial(m.id);
-                    loadStorage();
+                    if (deletingRef.current.has(m.id)) return;
+                    deletingRef.current.add(m.id);
+                    setDeletingIds(current => new Set(current).add(m.id));
+                    setDeleteError(undefined);
+                    try {
+                      await deleteMaterial(m.id);
+                      await loadStorage();
+                    } catch (cause) {
+                      setDeleteError(materialDeleteErrorMessage(cause));
+                    } finally {
+                      deletingRef.current.delete(m.id);
+                      setDeletingIds(current => { const next = new Set(current); next.delete(m.id); return next; });
+                    }
                   }}
                 >
-                  Elimina
+                  {deletingIds.has(m.id) ? "Eliminazione…" : "Elimina"}
                 </button>
               </div>
             </article>
@@ -190,7 +209,8 @@ function MaterialForm({
   onDone: () => void;
 }) {
   const { data, saveMaterial } = useData();
-  const [file, setFile] = useState<File>(),[mode,setMode]=useState<"file"|"link">(material?.externalUrl?"link":"file"),[fileError,setFileError]=useState<string>();
+  const [file, setFile] = useState<File>(),[mode,setMode]=useState<"file"|"link">(material?.externalUrl?"link":"file"),[fileError,setFileError]=useState<string>(),[uploading,setUploading]=useState(false);
+  const uploadGuard = useRef(false);
   const [v, setV] = useState<Material>(
     material || {
       id: uid(),
@@ -217,28 +237,49 @@ function MaterialForm({
       const value = e.target.value;
       setV((old) => ({ ...old, [k]: value }));
     };
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!acquireSingleFlight(uploadGuard)) return;
+    setUploading(true);
+    let completed = false;
+    try {
+      if (!material && mode === "file" && !file) {
+        setFileError("Seleziona un file oppure inserisci un link.");
+        return;
+      }
+      if (!material && mode === "link" && !v.externalUrl) {
+        setFileError("Inserisci un link.");
+        return;
+      }
+      if (!material && mode === "file" && file) {
+        validateMaterialFileDeclaration({ fileName: file.name, size: file.size, mimeType: file.type });
+        setFileError(undefined);
+      }
+      await saveMaterial({
+        ...v,
+        fileName: mode === "file" ? file?.name || v.fileName : "",
+        mimeType: mode === "file" ? file?.type || v.mimeType : "",
+        size: mode === "file" ? file?.size || v.size : 0,
+        externalUrl: mode === "link" ? v.externalUrl : undefined,
+        storagePath: mode === "link" ? undefined : v.storagePath,
+      }, mode === "file" ? file : undefined);
+      completed = true;
+    } catch (cause) {
+      const code = cause instanceof Error ? (cause.name || cause.message) : "";
+      setFileError(materialUploadErrorMessage(code));
+    } finally {
+      releaseSingleFlight(uploadGuard);
+      setUploading(false);
+    }
+    if (completed) {
+      setFile(undefined);
+      setFileError(undefined);
+      onDone();
+    }
+  };
   return (
     <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!material && mode==="file" && !file) {
-          alert("Seleziona un file oppure inserisci un link.");
-          return;
-        }
-        if (!material && mode==="link" && !v.externalUrl) { alert("Inserisci un link."); return; }
-        if (!material && mode==="file" && file) { try { validateMaterialFileDeclaration({fileName:file.name,size:file.size,mimeType:file.type}); setFileError(undefined); } catch(cause) { setFileError(cause instanceof Error?cause.message:"Questo formato non è supportato."); return; } }
-        try { await saveMaterial(
-          {
-            ...v,
-            fileName: mode==="file"?file?.name||v.fileName:"",
-            mimeType: mode==="file"?file?.type||v.mimeType:"",
-            size: mode==="file"?file?.size||v.size:0,
-            externalUrl: mode==="link"?v.externalUrl:undefined,
-            storagePath: mode==="link"?undefined:v.storagePath,
-          },
-          mode==="file"?file:undefined,
-        ); onDone(); } catch(cause) { const code=cause instanceof Error?(cause.name||cause.message):""; setFileError(materialUploadErrorMessage(code)); }
-      }}
+      onSubmit={submit}
       className="space-y-4"
     >
       <Field label="Titolo" required value={v.title} onChange={set("title")} />
@@ -267,7 +308,7 @@ function MaterialForm({
       </div>
       {!material && (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-sage-50 p-1"><button type="button" onClick={()=>{setMode("file");setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold ${mode==="file"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Carica file</button><button type="button" onClick={()=>{setMode("link");setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold ${mode==="link"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Aggiungi link</button></div>
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-sage-50 p-1"><button type="button" disabled={uploading} onClick={()=>{setMode("file");setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="file"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Carica file</button><button type="button" disabled={uploading} onClick={()=>{setMode("link");setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="link"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Aggiungi link</button></div>
           {mode==="link"?<><p className="text-sm font-bold text-sage-700">Non utilizza spazio ARMONIA</p><Field
             label="Link web (alternativa al file)"
             type="url"
@@ -279,7 +320,7 @@ function MaterialForm({
             <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,.mp3,.m4a,.wav,.docx"
-              disabled={quotaFull}
+              disabled={quotaFull || uploading}
               onChange={(e) => {const next=e.target.files?.[0];setFile(next);setFileError(undefined);if(next)try{validateMaterialFileDeclaration({fileName:next.name,size:next.size,mimeType:next.type})}catch(cause){setFileError(cause instanceof Error?cause.message:"Questo formato non è supportato.")}}}
               className="mt-2 block w-full rounded-xl border border-sage-100 p-3 font-normal"
             />
@@ -322,10 +363,10 @@ function MaterialForm({
         Preferito
       </label>
       <div className="form-actions">
-        <button type="button" onClick={onDone} className="btn btn-quiet">
+        <button type="button" disabled={uploading} onClick={onDone} className="btn btn-quiet disabled:cursor-wait disabled:opacity-50">
           Annulla
         </button>
-        <button className="btn btn-primary">Salva materiale</button>
+        <button disabled={uploading || (!material && mode === "file" && quotaFull)} className="btn btn-primary disabled:cursor-wait disabled:opacity-50">{uploading ? (material ? "Salvataggio…" : "Caricamento…") : "Salva materiale"}</button>
       </div>
     </form>
   );

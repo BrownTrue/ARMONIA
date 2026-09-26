@@ -24,7 +24,7 @@ export type MaterialFileDeclaration = { fileName: string; size: number; mimeType
 
 export class MaterialFileValidationError extends Error {
   readonly code: "file_too_large" | "unsupported_format" | "invalid_content";
-  constructor(code: "file_too_large" | "unsupported_format" | "invalid_content", message: string) { super(message); this.code = code; }
+  constructor(code: "file_too_large" | "unsupported_format" | "invalid_content", message: string) { super(message); this.name = code; this.code = code; }
 }
 
 export function materialExtension(fileName: string): AllowedMaterialExtension | null {

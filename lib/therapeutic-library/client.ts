@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Material } from "@/lib/types";
 import { validateMaterialFileDeclaration } from "./files";
+export { deleteTherapeuticMaterial, materialDeleteErrorMessage } from "./material-api";
 
 const apiError = async (response: Response) => {
   const body = await response.json().catch(() => ({})) as { error?: string };
