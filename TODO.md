@@ -4,6 +4,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Eseguire un deploy controllato del nuovo codice Libreria terapeutica V2, ora che la `014` è applicata e il postflight è positivo, quindi collaudare con dati sintetici idempotenza finalize, concorrenza quota, signed upload, download e delete contabilizzato. Il nuovo codice non è ancora pubblicato.
+- Solo dopo il collaudo cloud del flusso V2, revisionare e applicare separatamente la migration `015` di enforcement. Fino ad allora le vecchie policy del bucket restano attive e `file_size_limit`/`allowed_mime_types` non sono configurati.
 - Collaudare manualmente con un account e appuntamenti sintetici la UI Calendario ARMONIA e il feed ICS dopo un futuro deploy esplicitamente autorizzato. Migration `013`, postflight e configurazione della chiave Production sono completati; UI e codice restano non pubblicati.
 
 - Preparare separatamente una futura migration `012` che attivi i trigger atomici soltanto insieme al cutover controllato; la `011` è già applicata in produzione ma resta passiva e senza trigger. Collaudare il processore con un singolo account sintetico prima di configurare il cron Supabase ogni 2 minuti o disattivare la coda browser cloud.

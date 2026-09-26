@@ -72,7 +72,9 @@ La scheda paziente consente di avviare e chiudere percorsi clinici opzionali, co
 
 ### Materiali
 
-La libreria supporta upload, apertura, modifica dei metadati, eliminazione, ricerca, filtri e preferiti. I materiali possono essere associati a pazienti e sedute. In cloud i file sono privati e accessibili tramite URL temporanei firmati.
+La libreria supporta upload, apertura, modifica dei metadati, eliminazione, ricerca, filtri e preferiti. I materiali possono essere associati a pazienti e sedute. In locale i file restano in IndexedDB. La Libreria terapeutica V2 cloud usa file privati e URL temporanei, una quota configurabile per account (default 1 GB), un limite di 20 MB per file e una whitelist chiusa per PDF, PNG, JPEG, MP3, M4A, WAV e DOCX. Gli audio usano il player nativo; i DOCX sono solo scaricabili. I link esterni non usano Storage e non consumano quota.
+
+Il flusso V2 cloud separa preparazione autenticata, prenotazione atomica dei byte, upload diretto firmato a Supabase Storage e finalizzazione server idempotente con verifica del contenuto e commit transazionale di materiale e contatori. Un esito RPC ambiguo viene verificato rileggendo la reservation e non autorizza cleanup distruttivo. Le reservation scadute restano contabilizzate finché il backend non conferma l'assenza o la rimozione dell'oggetto. La fondazione additiva `014` è applicata in produzione; il nuovo codice non è ancora pubblicato e l'enforcement `015` resta separato e non applicato fino al collaudo cloud controllato.
 
 ### Google Calendar
 
@@ -92,7 +94,7 @@ Il backend espone un feed iCalendar privato, read-only e indipendente da Google 
 
 ## Supabase e deployment
 
-Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato.
+Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato. La `014` della Libreria terapeutica V2 è applicata con postflight positivo; la `015` non è applicata e le precedenti policy Storage restano attive durante il rollout intermedio.
 
 Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo stato effettivo del deployment e delle migration applicate nei singoli ambienti non è deducibile dal solo repository e deve essere verificato prima di interventi cloud.
 
@@ -103,4 +105,5 @@ Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo s
 - Persistenza locale completa per lo sviluppo senza Supabase.
 - Operazioni cloud protette da autenticazione, RLS e isolamento per utente.
 - File privati aperti tramite URL temporanei, non tramite link pubblici permanenti.
+- Quota cloud autorevole e prenotata atomicamente prima degli upload; il browser non riceve mai credenziali service role né sceglie liberamente path o utente.
 - Modifiche al database additive e retrocompatibili, applicate manualmente.
