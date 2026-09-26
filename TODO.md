@@ -4,9 +4,6 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- Proseguire il collaudo manuale della Libreria terapeutica V2 con dati sintetici, includendo delete legacy/V2/link, modifica metadati/associazioni e aggiornamento quota. Le migration `014` e `016` sono applicate con postflight positivo e il DELETE produzione è stato ritestato con successo.
-- Pubblicare con deploy controllato il nuovo codice atomico già supportato dalla migration `017` applicata e collaudare i bug reali: creazione/retry link, rimozione completa delle associazioni, apertura esterna e preview immagini con dati sintetici.
-- Solo dopo il collaudo cloud del flusso V2, revisionare e applicare separatamente la migration `015` di enforcement. Fino ad allora le vecchie policy del bucket restano attive e `file_size_limit`/`allowed_mime_types` non sono configurati.
 - Collaudare manualmente con un account e appuntamenti sintetici la UI Calendario ARMONIA e il feed ICS dopo un futuro deploy esplicitamente autorizzato. Migration `013`, postflight e configurazione della chiave Production sono completati; UI e codice restano non pubblicati.
 
 - Preparare separatamente una futura migration `012` che attivi i trigger atomici soltanto insieme al cutover controllato; la `011` è già applicata in produzione ma resta passiva e senza trigger. Collaudare il processore con un singolo account sintetico prima di configurare il cron Supabase ogni 2 minuti o disattivare la coda browser cloud.
