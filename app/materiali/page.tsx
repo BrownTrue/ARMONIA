@@ -7,7 +7,7 @@ import { Field, Select, Textarea } from "@/components/form-controls";
 import type { Material } from "@/lib/types";
 import { fullName, uid } from "@/lib/types";
 import { formatStorageBytes, materialUploadErrorMessage, STORAGE_QUOTA_BYTES, validateMaterialFileDeclaration } from "@/lib/therapeutic-library/files";
-import { materialDeleteErrorMessage } from "@/lib/therapeutic-library/material-api";
+import { materialDeleteErrorMessage, materialSaveErrorMessage } from "@/lib/therapeutic-library/material-api";
 import { acquireSingleFlight, releaseSingleFlight } from "@/lib/therapeutic-library/single-flight";
 const cats = [
   "articolazione",
@@ -23,7 +23,7 @@ const cats = [
   "altro",
 ];
 export default function Materials() {
-  const { data, connection, deleteMaterial, saveMaterial } = useData();
+  const { data, connection, deleteMaterial, openMaterial, saveMaterial } = useData();
   const [edit, setEdit] = useState<Material | null | "new">(null),
     [preview, setPreview] = useState<Material | null>(null),
     [query, setQuery] = useState(""),
@@ -129,9 +129,10 @@ export default function Materials() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   className="btn btn-primary text-sm"
-                  onClick={() => setPreview(m)}
+                  aria-label={m.externalUrl ? `Apri risorsa esterna ${m.title} in una nuova scheda` : `Apri ${m.title}`}
+                  onClick={() => m.externalUrl ? void openMaterial(m) : setPreview(m)}
                 >
-                  Apri
+                  {m.externalUrl ? "Apri link ↗" : "Apri"}
                 </button>
                 <button
                   className="btn btn-quiet text-sm"
@@ -188,8 +189,8 @@ function MaterialPreview({material,onDone}:{material:Material;onDone:()=>void}) 
   const {getMaterialFile}=useData();
   const [url,setUrl]=useState<string>();
   useEffect(()=>{let active=true;let created="";if(material.externalUrl){setUrl(material.externalUrl);return}getMaterialFile(material.id).then(blob=>{if(active&&blob){created=URL.createObjectURL(blob);setUrl(created)}});return()=>{active=false;if(created)URL.revokeObjectURL(created)}},[getMaterialFile,material]);
-  const visual=material.mimeType.startsWith("image/")||material.mimeType.includes("pdf"),audio=material.mimeType.startsWith("audio/"),docx=material.fileName.toLowerCase().endsWith(".docx");
-  return <Modal title={material.title} onClose={onDone}><p className="mb-4 text-sm text-slate-500">{material.fileName||material.externalUrl} · {material.mimeType||"link"} · {material.size?formatSize(material.size):"—"}</p>{!url?<div className="rounded-xl bg-sage-50 p-8 text-center">Caricamento anteprima…</div>:audio?<audio controls src={url} className="w-full">Il browser non supporta la riproduzione audio.</audio>:visual?<iframe title={`Anteprima ${material.title}`} src={url} className="h-[55vh] w-full rounded-xl border border-sage-100"/>:<div className="rounded-xl bg-sage-50 p-8 text-center"><p className="mb-4">{docx?"Apri il documento con Word, Pages o LibreOffice.":"Questo tipo di documento non ha un’anteprima nel browser."}</p><a href={url} download={material.fileName} className="btn btn-primary inline-block">{docx?"Scarica documento":"Scarica e apri il file"}</a></div>}</Modal>
+  const image=material.mimeType.startsWith("image/"),pdf=material.mimeType.includes("pdf"),audio=material.mimeType.startsWith("audio/"),docx=material.fileName.toLowerCase().endsWith(".docx");
+  return <Modal title={material.title} onClose={onDone}><p className="mb-4 text-sm text-slate-500">{material.fileName} · {material.mimeType} · {material.size?formatSize(material.size):"—"}</p>{!url?<div className="rounded-xl bg-sage-50 p-8 text-center">Caricamento anteprima…</div>:audio?<audio controls src={url} className="w-full">Il browser non supporta la riproduzione audio.</audio>:image?<div className="grid min-h-48 max-h-[65vh] place-items-center overflow-auto rounded-xl border border-sage-100 bg-slate-50 p-2"><img alt={`Anteprima ${material.title}`} src={url} className="max-h-[60vh] max-w-full object-contain"/></div>:pdf?<iframe title={`Anteprima ${material.title}`} src={url} className="h-[55vh] w-full rounded-xl border border-sage-100"/>:<div className="rounded-xl bg-sage-50 p-8 text-center"><p className="mb-4">{docx?"Apri il documento con Word, Pages o LibreOffice.":"Questo tipo di documento non ha un’anteprima nel browser."}</p><a href={url} download={material.fileName} className="btn btn-primary inline-block">{docx?"Scarica documento":"Scarica e apri il file"}</a></div>}</Modal>
 }
 function StorageUsage({storage}:{storage:{quotaBytes:number;usedBytes:number;reservedBytes:number;requiresReconciliation?:boolean}}){const used=storage.usedBytes+storage.reservedBytes,ratio=storage.quotaBytes?used/storage.quotaBytes:0,remaining=Math.max(0,storage.quotaBytes-used),tone=ratio>=1?"bg-red-600":ratio>=.95?"bg-red-500":ratio>=.8?"bg-amber-500":"bg-sage-600";return <div className="card mb-5 p-4"><div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-sm font-bold">Spazio utilizzato</p><p className="mt-1 text-sm text-slate-600">{storage.requiresReconciliation?"Utilizzo in verifica":`${formatStorageBytes(used)} di ${formatStorageBytes(storage.quotaBytes||STORAGE_QUOTA_BYTES)}`}</p></div>{!storage.requiresReconciliation&&<p className={`text-sm font-bold ${ratio>=.95?"text-red-700":ratio>=.8?"text-amber-800":"text-slate-500"}`}>{ratio>=1?"Spazio esaurito":`${formatStorageBytes(remaining)} disponibili`}</p>}</div><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`Spazio utilizzato ${Math.min(100,Math.round(ratio*100))}%`}><div className={`h-full rounded-full ${tone}`} style={{width:`${Math.min(100,ratio*100)}%`}}/></div></div>}
 function formatSize(n: number) {
@@ -266,7 +267,7 @@ function MaterialForm({
       completed = true;
     } catch (cause) {
       const code = cause instanceof Error ? (cause.name || cause.message) : "";
-      setFileError(materialUploadErrorMessage(code));
+      setFileError(mode === "file" && Boolean(file) ? materialUploadErrorMessage(code) : materialSaveErrorMessage(cause, mode === "link" ? "link" : "material"));
     } finally {
       releaseSingleFlight(uploadGuard);
       setUploading(false);
@@ -308,7 +309,7 @@ function MaterialForm({
       </div>
       {!material && (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-sage-50 p-1"><button type="button" disabled={uploading} onClick={()=>{setMode("file");setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="file"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Carica file</button><button type="button" disabled={uploading} onClick={()=>{setMode("link");setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="link"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Aggiungi link</button></div>
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-sage-50 p-1"><button type="button" disabled={uploading} onClick={()=>{setMode("file");setFileError(undefined);setV(old=>({...old,externalUrl:""}))}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="file"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Carica file</button><button type="button" disabled={uploading} onClick={()=>{setMode("link");setFile(undefined);setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="link"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Aggiungi link</button></div>
           {mode==="link"?<><p className="text-sm font-bold text-sage-700">Non utilizza spazio ARMONIA</p><Field
             label="Link web (alternativa al file)"
             type="url"
@@ -331,11 +332,12 @@ function MaterialForm({
               {formatSize(file.size)}
             </p>
           )}
-          <p className="text-sm text-slate-500">File troppo grande o non compatibile? <button type="button" onClick={()=>{setMode("link");setFileError(undefined)}} className="font-bold text-sage-700 underline">Aggiungi un link</button> invece.</p>
+          <p className="text-sm text-slate-500">File troppo grande o non compatibile? <button type="button" onClick={()=>{setMode("link");setFile(undefined);setFileError(undefined)}} className="font-bold text-sage-700 underline">Aggiungi un link</button> invece.</p>
           </>}
-          {fileError&&<div role="alert" className="text-sm text-red-700"><p className="font-bold">{fileError}</p><p className="mt-1">Puoi caricare PDF, immagini, audio e documenti DOCX fino a 20 MB.</p><p className="mt-1">Se la risorsa è disponibile online, puoi aggiungere il link senza utilizzare spazio ARMONIA.</p><button type="button" onClick={()=>{setMode("link");setFileError(undefined)}} className="btn btn-quiet mt-2">Aggiungi link</button></div>}
+          {fileError&&<div role="alert" className="text-sm text-red-700"><p className="font-bold">{fileError}</p>{mode==="file"&&<><p className="mt-1">Puoi caricare PDF, immagini, audio e documenti DOCX fino a 20 MB.</p><p className="mt-1">Se la risorsa è disponibile online, puoi aggiungere il link senza utilizzare spazio ARMONIA.</p><button type="button" onClick={()=>{setMode("link");setFile(undefined);setFileError(undefined)}} className="btn btn-quiet mt-2">Aggiungi link</button></>}</div>}
         </>
       )}
+      {material?.externalUrl && <Field label="Link web" type="url" value={v.externalUrl || ""} onChange={set("externalUrl")} />}
       <fieldset>
         <legend className="text-sm font-bold">Collega ai pazienti</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">

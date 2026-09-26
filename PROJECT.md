@@ -76,6 +76,8 @@ La libreria supporta upload, apertura, modifica dei metadati, eliminazione, rice
 
 Il flusso V2 cloud separa preparazione autenticata, prenotazione atomica dei byte, upload diretto firmato a Supabase Storage e finalizzazione server idempotente con verifica del contenuto e commit transazionale di materiale e contatori. Un esito RPC ambiguo viene verificato rileggendo la reservation e non autorizza cleanup distruttivo. Le reservation scadute restano contabilizzate finché il backend non conferma l'assenza o la rimozione dell'oggetto. La fondazione additiva `014`, il nuovo codice e i grant server minimi della `016` sono attivi in produzione con postflight positivo; upload, quota e DELETE risultano operativi. L'enforcement `015` resta separato e non applicato mentre prosegue il collaudo cloud.
 
+La migration additiva `017`, applicata manualmente in produzione con postflight positivo, rende atomico e idempotente per ID il salvataggio dei link, dei metadati e delle associazioni paziente. Il relativo codice applicativo non è ancora stato pubblicato ed è il prossimo blocco previsto per un deploy controllato e un collaudo con dati sintetici.
+
 ### Google Calendar
 
 La sincronizzazione è unidirezionale da Armonia a Google Calendar per creazione, modifica ed eliminazione degli appuntamenti. Ogni occorrenza di una serie viene sincronizzata come evento Google separato tramite il proprio appointment ID, non come evento ricorrente Google. Armonia rimane la fonte principale; le modifiche manuali su Google non vengono importate.
@@ -94,7 +96,7 @@ Il backend espone un feed iCalendar privato, read-only e indipendente da Google 
 
 ## Supabase e deployment
 
-Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato. La `014` della Libreria terapeutica V2 è applicata con postflight positivo; la `015` non è applicata e le precedenti policy Storage restano attive durante il rollout intermedio.
+Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato. Le migration `014`, `016` e `017` della Libreria terapeutica V2 sono applicate con postflight positivo; la `015` non è applicata e le precedenti policy Storage restano attive durante il rollout intermedio.
 
 Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo stato effettivo del deployment e delle migration applicate nei singoli ambienti non è deducibile dal solo repository e deve essere verificato prima di interventi cloud.
 
