@@ -26,6 +26,7 @@ Fotografia ricavata dal repository al 26 settembre 2026.
 - Libreria terapeutica V2 completata e collaudata in produzione: upload, apertura, modifica, eliminazione, ricerca, filtri, preferiti e associazioni; quota predefinita di 1 GB, limite di 20 MiB/file, whitelist PDF/PNG/JPEG/MP3/M4A/WAV/DOCX, controllo del contenuto reale, audio interno, DOCX download-only e link esterni quota-free. Il flusso cloud usa prepare autenticato, prenotazione atomica, signed upload diretto a Storage e finalize server; la modalità locale IndexedDB resta invariata.
 - Persistenza locale con `localStorage` e IndexedDB.
 - Persistenza cloud tramite repository Supabase e Storage privato con signed URL.
+- L'audit privacy/data-flow dell'architettura è completato. Tutte le route `/api/**` e `/calendar/**` dichiarano `Cache-Control: private, no-store`; il feed ICS conserva ETag e validazione condizionale senza consentire la conservazione della risposta. La diagnostica server-side di Google Calendar e Materiali registra soltanto `stage`, codice sicuro e retryability, senza includere intenzionalmente identificatori clinici, nomi, URL, path Storage, filename, token, request body o contenuti sanitari nei Runtime Logs.
 - Sincronizzazione unidirezionale Armonia → Google Calendar per creazione, modifica ed eliminazione.
 - La coda Google nel browser processa ogni elemento dello snapshot iniziale in modo indipendente: gli errori temporanei restano pendenti senza bloccare le operazioni successive. Gli `upsert` riferiti ad appuntamenti non più esistenti vengono riconciliati come cancellazioni idempotenti tramite l'eventuale mapping server-side.
 - Gli errori del token endpoint Google espongono soltanto il codice OAuth sicuro o lo status HTTP. Un fallimento globale di refresh interrompe gli ulteriori tentativi nello stesso flush senza rimuovere le operazioni pendenti; gli errori relativi a un singolo evento continuano invece a non bloccare gli altri elementi.
@@ -95,6 +96,8 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 
 ## Limiti noti e verificabili
 
+- La regione effettiva delle Vercel Functions e la sua collocazione UE restano un tema infrastrutturale separato da verificare/configurare sul progetto Vercel.
+- Alcuni flussi sanitari autenticati attraversano ancora le Vercel Functions per necessità delle route server correnti. Una loro eventuale riduzione richiede una valutazione architetturale futura separata; non è stata inclusa nell'hardening di cache e logging.
 - La sincronizzazione Google è volutamente solo Armonia → Google; le modifiche effettuate in Google non aggiornano Armonia.
 - La coda Google locale usa ancora una chiave legacy non associata allo user ID. Il namespace per utente è rimandato perché le operazioni già presenti non possono essere attribuite retroattivamente con certezza senza una strategia di migrazione esplicita.
 - Per le serie ricorrenti sono disponibili solo creazione settimanale e modifica/eliminazione della singola occorrenza; non sono ancora presenti operazioni “questo e successivi” o “intera serie”.
@@ -111,6 +114,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 
 ## Ultime modifiche importanti
 
+- Completato l'hardening conseguente all'audit privacy/data-flow: risposte API e calendario non memorizzabili, feed ICS compatibile con refresh condizionale e logging server sanitizzato privo di identificatori clinici intenzionali.
 - La migration `011` è stata applicata manualmente in produzione il 25/09/2026 e verificata senza trigger su `appointments`: colonne e primitive server-side sono presenti, mentre worker, cron e cutover restano disabilitati.
 - È stata registrata nel repository la migration `010`, già applicata manualmente in produzione il 25/09/2026. Il repository Supabase locale ora mappa e valida liste miste V1/V2; le nuove valutazioni cloud sono V2 e le V1 esistenti restano invariate, senza conversione.
 - La stampa delle valutazioni completate è stata ridisegnata come documento A4 e predisposta per ricevere in futuro un `logoSrc` professionale opzionale, senza modificare profilo o persistenza.

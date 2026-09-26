@@ -5,6 +5,7 @@ import {authenticatedUserId} from "@/lib/supabase/server";
 import {googleOAuthResponseError} from "@/lib/google-calendar/oauth-error";
 import {googleTokenStore} from "@/lib/google-calendar/token-store";
 import {GoogleReconnectError,reconnectGoogleConnection} from "@/lib/google-calendar/reconnect";
+import {logServerDiagnostic} from "@/lib/privacy/server-diagnostics";
 
 const settingsUrl = (request: NextRequest, value: string) =>
   new URL(`/impostazioni?google=${value}`, request.url);
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     await ensureArmoniaCalendar(userId,record);
     return oauthRedirect(request,"connected");
   } catch (error) {
-    console.error("Google Calendar OAuth:", error);
+    logServerDiagnostic("google_calendar", {stage:mode==="reconnect"?"reconnect_callback":"connect_callback",cause:error,retryable:false});
     if(mode==="reconnect"&&error instanceof GoogleReconnectError)return oauthRedirect(request,`reconnect-${error.code.replaceAll("_","-")}`);
     return oauthRedirect(request,mode==="reconnect"?"reconnect-error":"error");
   }

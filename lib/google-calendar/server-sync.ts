@@ -11,6 +11,7 @@ import {
   runIfGoogleServerSyncEnabled,
 } from "./server-sync-policy";
 import { googleTokenStore } from "./token-store";
+import { logServerDiagnostic } from "@/lib/privacy/server-diagnostics";
 
 type ClaimedGoogleOperation = {
   user_id: string;
@@ -89,9 +90,11 @@ export async function processGoogleCalendarServerOutbox() {
           const legacyMatches = await findGoogleEventsByAppointmentId(operation.user_id, operation.appointment_id);
           eventId = legacyMatches.sort()[0];
           if (legacyMatches.length > 1) {
-            console.warn("Più eventi Google corrispondono allo stesso appointment", {
-              appointmentId: operation.appointment_id,
-              count: legacyMatches.length,
+            logServerDiagnostic("google_calendar", {
+              stage: "legacy_event_lookup",
+              code: "duplicate_event_mapping",
+              retryable: false,
+              level: "warn",
             });
           }
         }
@@ -150,4 +153,3 @@ export async function processGoogleCalendarServerOutbox() {
     return summary;
   });
 }
-

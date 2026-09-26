@@ -4,6 +4,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Verificare e documentare separatamente la regione effettiva delle Vercel Functions e valutare la configurazione in una regione UE coerente con i requisiti privacy del progetto.
+- Valutare in una fase architetturale dedicata quali flussi sanitari oggi processati dalle Vercel Functions possano essere ridotti, mantenendo sicurezza, autenticazione e funzionalità server-only. L'audit data-flow e l'hardening cache/logging sono completati.
 - Collaudare manualmente con un account e appuntamenti sintetici la UI Calendario ARMONIA e il feed ICS dopo un futuro deploy esplicitamente autorizzato. Migration `013`, postflight e configurazione della chiave Production sono completati; UI e codice restano non pubblicati.
 
 - Preparare separatamente una futura migration `012` che attivi i trigger atomici soltanto insieme al cutover controllato; la `011` è già applicata in produzione ma resta passiva e senza trigger. Collaudare il processore con un singolo account sintetico prima di configurare il cron Supabase ogni 2 minuti o disattivare la coda browser cloud.

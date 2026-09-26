@@ -130,7 +130,7 @@ export function calendarFeedEtag(content: string) {
 export function calendarFeedHttpResponse(content: string, ifNoneMatch?: string | null) {
   const etag = calendarFeedEtag(content);
   const headers = {
-    "Cache-Control": "private, max-age=300, must-revalidate",
+    "Cache-Control": "private, no-store",
     "Content-Disposition": 'inline; filename="armonia.ics"',
     "Content-Type": "text/calendar; charset=utf-8",
     ETag: etag,
@@ -139,4 +139,3 @@ export function calendarFeedHttpResponse(content: string, ifNoneMatch?: string |
   const matches = ifNoneMatch?.split(",").some(value => value.trim().replace(/^W\//, "") === etag) ?? false;
   return matches ? new Response(null, { status: 304, headers }) : new Response(content, { status: 200, headers });
 }
-

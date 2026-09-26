@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticatedUserId } from "@/lib/supabase/server";
 import { googleServerSyncConfiguration } from "@/lib/google-calendar/server-sync-policy";
 import { processGoogleCalendarServerOutbox } from "@/lib/google-calendar/server-sync";
+import { logServerDiagnostic } from "@/lib/privacy/server-diagnostics";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     return NextResponse.json(await processGoogleCalendarServerOutbox());
   } catch (cause) {
-    console.error("Processore Google Calendar server-side:", cause);
+    logServerDiagnostic("google_calendar", { stage: "process_outbox", cause, retryable: true });
     return NextResponse.json({ error: "Processore Google Calendar non disponibile" }, { status: 500 });
   }
 }
-

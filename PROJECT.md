@@ -22,6 +22,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 - `lib/data/`: lettura, normalizzazione e versionamento dello stato locale.
 - `lib/clinical/`: tipi, payload versionati, validazione runtime e operazioni locali del dominio clinico.
 - `lib/google-calendar/`: configurazione, API Google, sincronizzazione e token store.
+- `lib/privacy/`: diagnostica server-side sanitizzata e verifiche automatiche delle policy privacy applicative.
 - `lib/today-dashboard.ts`: classificazione degli appuntamenti odierni in da fare e completati.
 - `supabase/migrations/`: schema e modifiche additive del database.
 
@@ -100,6 +101,12 @@ Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali 
 
 Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo stato effettivo del deployment e delle migration applicate nei singoli ambienti non è deducibile dal solo repository e deve essere verificato prima di interventi cloud.
 
+## Privacy e flussi server
+
+L'audit privacy/data-flow è completato. Le risposte delle route `/api/**` e `/calendar/**`, incluse quelle autenticate o collegate a pazienti, usano esplicitamente `Cache-Control: private, no-store`. Il feed ICS conserva ETag e supporto `304`, ma non autorizza cache persistenti o condivise.
+
+I log server di Google Calendar e della Libreria terapeutica usano una diagnostica ristretta a `stage`, codice sicuro e indicazione di retry. Non vengono intenzionalmente registrati nomi o identificatori di pazienti/appuntamenti/eventi, URL, path Storage, filename, token, request body, note o contenuti clinici. La regione UE delle Vercel Functions e l'eventuale riduzione futura dei flussi sanitari che attraversano Vercel restano valutazioni infrastrutturali separate.
+
 ## Principi architetturali
 
 - Una sola API dati condivisa dalla UI, con implementazioni locale e Supabase.
@@ -109,3 +116,4 @@ Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo s
 - File privati aperti tramite URL temporanei, non tramite link pubblici permanenti.
 - Quota cloud autorevole e prenotata atomicamente prima degli upload; il browser non riceve mai credenziali service role né sceglie liberamente path o utente.
 - Modifiche al database additive e retrocompatibili, applicate manualmente.
+- Risposte server sensibili non memorizzabili e diagnostica priva di identificatori clinici intenzionali.

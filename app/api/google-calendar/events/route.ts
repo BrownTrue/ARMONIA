@@ -5,6 +5,7 @@ import {authenticatedUserId,supabaseServiceClient} from "@/lib/supabase/server";
 import {removeLinkedGoogleEvent} from "@/lib/google-calendar/event-link-cleanup";
 import {isGoogleOAuthError} from "@/lib/google-calendar/oauth-error";
 import {googleEventTitle,romeAppointmentDateTime} from "@/lib/google-calendar/event-details";
+import {logServerDiagnostic} from "@/lib/privacy/server-diagnostics";
 
 type Payload={action:"delete";appointmentId?:string;eventId?:string}|{action:"upsert";appointmentId:string;eventId?:string;title?:string;date?:string;time?:string;duration?:number;reminderMinutes?:number};
 const localMode=process.env.NEXT_PUBLIC_DATA_MODE==="local";
@@ -22,7 +23,7 @@ async function cloudRequest(userId:string,payload:Payload){
   markSyncing:async attemptCount=>{const {error}=await service.from("google_calendar_event_links").update({desired_action:"delete",sync_status:"syncing",attempt_count:attemptCount,last_error:null,updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)throw error},
   deleteGoogleEvent:eventId=>deleteGoogleEvent(userId,eventId),
   remove:async()=>{const {error}=await service.from("google_calendar_event_links").delete().eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)throw error},
-  markError:async message=>{const {error}=await service.from("google_calendar_event_links").update({sync_status:"error",last_error:message,updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)console.error("Aggiornamento errore Google Calendar:",error)},
+  markError:async message=>{const {error}=await service.from("google_calendar_event_links").update({sync_status:"error",last_error:message,updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);if(error)logServerDiagnostic("google_calendar",{stage:"persist_sync_error",cause:error,retryable:true})},
  });
  if(payload.action==="delete"){
   if(!payload.appointmentId)throw new Error("ID appuntamento mancante");
@@ -38,4 +39,4 @@ async function cloudRequest(userId:string,payload:Payload){
  catch(error){await service.from("google_calendar_event_links").update({sync_status:"error",last_error:error instanceof Error?error.message:"Sincronizzazione non riuscita",updated_at:new Date().toISOString()}).eq("user_id",userId).eq("appointment_id",payload.appointmentId);throw error}
 }
 
-export async function POST(request:NextRequest){try{const userId=await authenticatedUserId(),payload=await request.json() as Payload;if(!payload||!['upsert','delete'].includes(payload.action)||!payload.appointmentId&&payload.action==="upsert")return NextResponse.json({error:"Richiesta non valida"},{status:400});return NextResponse.json(localMode?await localRequest(userId,payload):await cloudRequest(userId,payload))}catch(error){console.error("Sincronizzazione Google Calendar:",error);const message=error instanceof Error?error.message:"Sincronizzazione non riuscita";return NextResponse.json({error:message,errorType:isGoogleOAuthError(error)?"google_oauth":undefined},{status:message.includes("Sessione Supabase")?401:500})}}
+export async function POST(request:NextRequest){try{const userId=await authenticatedUserId(),payload=await request.json() as Payload;if(!payload||!['upsert','delete'].includes(payload.action)||!payload.appointmentId&&payload.action==="upsert")return NextResponse.json({error:"Richiesta non valida"},{status:400});return NextResponse.json(localMode?await localRequest(userId,payload):await cloudRequest(userId,payload))}catch(error){logServerDiagnostic("google_calendar",{stage:"event_sync",cause:error,retryable:!isGoogleOAuthError(error)});const message=error instanceof Error?error.message:"Sincronizzazione non riuscita";return NextResponse.json({error:message,errorType:isGoogleOAuthError(error)?"google_oauth":undefined},{status:message.includes("Sessione Supabase")?401:500})}}
