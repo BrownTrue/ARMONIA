@@ -4,7 +4,6 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- Valutare in una fase visuale successiva l'uso leggero del colore sede nelle viste calendario, come accento/bordo e non come riempimento saturo.
 
 - Verificare e documentare separatamente la regione effettiva delle Vercel Functions e valutare la configurazione in una regione UE coerente con i requisiti privacy del progetto.
 - Valutare in una fase architetturale dedicata quali flussi sanitari oggi processati dalle Vercel Functions possano essere ridotti, mantenendo sicurezza, autenticazione e funzionalità server-only. L'audit data-flow e l'hardening cache/logging sono completati.

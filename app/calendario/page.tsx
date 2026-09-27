@@ -9,6 +9,8 @@ import { CalendarSettingsPanel } from "@/components/calendar-settings-panel";
 import type { Appointment } from "@/lib/types";
 import { fullName, today } from "@/lib/types";
 import { formatEuroCents } from "@/lib/calendar-v2";
+import { MonthView as CalendarMonthView, WeekView as CalendarWeekView, addDays, weekStart } from "@/components/calendar-views";
+import { appointmentLocationColor, calendarEventColors } from "@/lib/calendar-visual";
 
 type View = "month" | "week" | "agenda";
 type Editor = {
@@ -24,21 +26,8 @@ const labels = {
   checkup: "Controllo",
   cancelled: "Annullato",
 };
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const atNoon = (s: string) => new Date(s + "T12:00:00");
-const addDays = (d: Date, n: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-};
-const weekStart = (d: Date) => {
-  const x = new Date(d),
-    day = (x.getDay() + 6) % 7;
-  x.setDate(x.getDate() - day);
-  x.setHours(12, 0, 0, 0);
-  return x;
-};
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const patientName = (
   a: Appointment,
   patients: ReturnType<typeof useData>["data"]["patients"],
@@ -82,30 +71,30 @@ export default function Calendar() {
         : "Agenda";
   return (
     <AppShell>
-      <header className="page-header mb-5">
+      <header className="page-header mb-3 sm:mb-5">
         <div>
-          <h1 className="text-3xl font-bold">Calendario</h1>
-          <p className="mt-2 text-slate-500">
+          <h1 className="text-2xl font-bold sm:text-3xl">Calendario</h1>
+          <p className="mt-1 text-sm text-slate-500 sm:mt-2 sm:text-base">
             Organizza appuntamenti e giornate di lavoro.
           </p>
         </div>
-        <div className="page-header-actions">
-          <button type="button" onClick={() => setSettingsOpen(true)} className="btn btn-quiet" aria-label="Apri impostazioni calendario"><span aria-hidden="true">⚙</span> Impostazioni calendario</button>
-          <Link href="/sedute/nuova" aria-disabled={!data.patients.length} title={!data.patients.length ? "Crea prima un paziente" : undefined} className={`btn btn-quiet ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}>Registra seduta</Link>
+        <div className="grid w-full grid-cols-[1fr_44px_44px] gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <button
             onClick={() => setEditor({ date: today() })}
             disabled={!data.patients.length}
             title={!data.patients.length ? "Crea prima un paziente" : undefined}
-            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn btn-primary order-first min-h-11 disabled:cursor-not-allowed disabled:opacity-50 sm:order-none sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:text-sm"
           >
-            + Nuovo appuntamento
+            <span className="sm:hidden">+ Nuovo</span><span className="hidden sm:inline">+ Nuovo appuntamento</span>
           </button>
+          <Link href="/sedute/nuova" aria-label="Registra seduta" aria-disabled={!data.patients.length} title={!data.patients.length ? "Crea prima un paziente" : "Registra seduta"} className={`btn btn-quiet grid min-h-11 place-items-center px-0 sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:bg-transparent sm:text-sm sm:text-slate-600 sm:hover:bg-sage-50 ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}><span aria-hidden="true" className="sm:hidden">✎</span><span className="hidden sm:inline">Registra seduta</span></Link>
+          <button type="button" onClick={() => setSettingsOpen(true)} className="btn btn-quiet grid min-h-11 place-items-center px-0 sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:bg-transparent sm:text-sm sm:text-slate-600 sm:hover:bg-sage-50" aria-label="Apri impostazioni calendario" title="Impostazioni calendario"><span aria-hidden="true">⚙</span><span className="ml-1 hidden sm:inline">Impostazioni calendario</span></button>
         </div>
       </header>
-      <div className="mb-5 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mb-3 flex flex-row items-center justify-between gap-2 sm:mb-5 sm:flex-wrap">
         <div
           aria-label="Vista calendario"
-          className="grid grid-cols-3 rounded-xl bg-sage-100 p-1"
+          className="grid min-w-0 flex-1 grid-cols-3 rounded-xl bg-sage-100 p-1 sm:flex-none"
         >
           {(
             [
@@ -117,7 +106,7 @@ export default function Calendar() {
             <button
               aria-pressed={view === key}
               onClick={() => choose(key)}
-              className={`min-h-11 rounded-lg px-2 py-2 text-sm font-bold sm:px-4 ${view === key ? "bg-white text-sage-700 shadow-sm" : "text-slate-500"}`}
+              className={`min-h-9 rounded-lg px-1.5 py-1.5 text-xs font-bold sm:min-h-11 sm:px-4 sm:py-2 sm:text-sm ${view === key ? "bg-white text-sage-700 shadow-sm" : "text-slate-500"}`}
               key={key}
             >
               {label}
@@ -125,24 +114,24 @@ export default function Calendar() {
           ))}
         </div>
         {view !== "agenda" && (
-          <div className="grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:flex">
+          <div className="grid shrink-0 grid-cols-[34px_42px_34px] items-center gap-1 sm:flex sm:gap-2">
             <button
               aria-label="Periodo precedente"
               onClick={() => move(-1)}
-              className="btn btn-quiet"
+              className="btn btn-quiet !min-h-9 !px-2 !py-1"
             >
               ‹
             </button>
             <button
               onClick={() => setCursor(atNoon(today()))}
-              className="btn btn-quiet"
+              className="btn btn-quiet !min-h-9 !px-2 !py-1 text-xs sm:text-sm"
             >
               Oggi
             </button>
             <button
               aria-label="Periodo successivo"
               onClick={() => move(1)}
-              className="btn btn-quiet"
+              className="btn btn-quiet !min-h-9 !px-2 !py-1"
             >
               ›
             </button>
@@ -150,21 +139,23 @@ export default function Calendar() {
         )}
       </div>
       {view !== "agenda" && (
-        <h2 className="mb-4 text-xl font-bold capitalize">{title}</h2>
+        <h2 className="mb-2 text-base font-bold capitalize sm:mb-4 sm:text-xl">{title}</h2>
       )}
       {view === "month" ? (
-        <MonthView
+        <CalendarMonthView
           cursor={cursor}
           appointments={data.appointments}
           patients={data.patients}
+          locations={data.locations}
           onCreate={(date) => setEditor({ date })}
           onEdit={(appointment) => setEditor({ appointment })}
         />
       ) : view === "week" ? (
-        <WeekView
+        <CalendarWeekView
           cursor={cursor}
           appointments={data.appointments}
           patients={data.patients}
+          locations={data.locations}
           onCreate={(date, time) => setEditor({ date, time })}
           onEdit={(appointment) => setEditor({ appointment })}
         />
@@ -172,12 +163,14 @@ export default function Calendar() {
         <Agenda
           appointments={data.appointments}
           patients={data.patients}
+          locations={data.locations}
           showPast={showPast}
           setShowPast={setShowPast}
           onEdit={(appointment) => setEditor({ appointment })}
           onDelete={deleteAppointment}
         />
       )}{" "}
+      <div aria-hidden="true" className="h-[calc(4.5rem+env(safe-area-inset-bottom))] md:hidden" />
       {editor && (
         <Modal
           title={
@@ -230,7 +223,7 @@ function AppointmentSummary({appointment}:{appointment:Appointment}) {
   </dl>;
 }
 
-function MonthView({
+function LegacyMonthView({
   cursor,
   appointments,
   patients,
@@ -320,7 +313,7 @@ function MonthView({
   );
 }
 
-function WeekView({
+function LegacyWeekView({
   cursor,
   appointments,
   patients,
@@ -446,6 +439,7 @@ function WeekView({
 function Agenda({
   appointments,
   patients,
+  locations,
   showPast,
   setShowPast,
   onEdit,
@@ -453,6 +447,7 @@ function Agenda({
 }: {
   appointments: Appointment[];
   patients: ReturnType<typeof useData>["data"]["patients"];
+  locations: ReturnType<typeof useData>["data"]["locations"];
   showPast: boolean;
   setShowPast: (v: boolean) => void;
   onEdit: (a: Appointment) => void;
@@ -496,36 +491,40 @@ function Agenda({
                 })}
               </h3>
               <div className="space-y-2">
-                {items.map((a) => (
+                {items.map((a) => {
+                  const location=locations.find(item=>item.id===a.locationId);
+                  const colors=calendarEventColors(appointmentLocationColor(a,locations));
+                  return (
                   <article
                     key={a.id}
-                    className="card flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Apri ${patientName(a,patients)}, ${a.time}`}
+                    onClick={()=>onEdit(a)}
+                    onKeyDown={event=>{if(event.key==="Enter"||event.key===" ")onEdit(a);}}
+                    className={`card flex cursor-pointer items-center gap-3 border-l-[3px] p-3 outline-none transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-sage-600 sm:p-3.5 ${a.type==="cancelled"?"opacity-70":""}`}
+                    style={{borderLeftColor:a.type==="cancelled"?"#94A3B8":colors.accent,backgroundColor:a.type==="cancelled"?"#F8FAFC":colors.background}}
                   >
-                    <div className="min-w-24">
-                      <b>{a.time}</b>
-                      <p className="text-sm text-sage-700">{a.duration} min</p>
+                    <div className="min-w-20 self-start sm:min-w-24">
+                      <b className="text-sm sm:text-base">{a.time}</b>
+                      <p className="text-xs text-sage-700 sm:text-sm">{a.duration} min</p>
                     </div>
                     <div className="min-w-44 flex-1">
-                      <h4 className="font-bold">{patientName(a, patients)}</h4>
-                      <p className="text-sm text-slate-500">
-                        {labels[a.type]}
-                        {a.notes ? " · " + a.notes : ""}
-                      </p>
+                      <h4 className={`font-bold ${a.type==="cancelled"?"line-through":""}`}>{patientName(a, patients)}</h4>
+                      <p className="truncate text-xs text-slate-500 sm:text-sm">{a.serviceNameSnapshot||labels[a.type]}{location?` · ${location.name}`:""}</p>
                     </div>
-                    <button className="btn btn-quiet w-full sm:w-auto" onClick={() => onEdit(a)}>
-                      Apri / modifica
-                    </button>
                     <button
-                      className="btn w-full text-red-600 sm:w-auto"
-                      onClick={() =>
+                      aria-label={`Elimina appuntamento di ${patientName(a,patients)}`}
+                      title="Elimina appuntamento"
+                      className="ml-auto rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600 focus-visible:ring-2 focus-visible:ring-red-500"
+                      onClick={event=>{event.stopPropagation();
                         confirm("Eliminare questo appuntamento?") &&
-                        onDelete(a.id)
-                      }
+                        onDelete(a.id);}}
                     >
-                      Elimina
+                      <span aria-hidden="true">⋯</span>
                     </button>
                   </article>
-                ))}
+                );})}
               </div>
             </section>
           ))}
