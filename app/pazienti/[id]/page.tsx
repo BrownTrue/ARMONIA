@@ -11,7 +11,9 @@ import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/time
 import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
 import { clinicalAssessmentTypeLabel, getPatientOverview } from "@/lib/patient-overview";
 import type { PatientOverview } from "@/lib/patient-overview";
-import type { Goal, Material, Session } from "@/lib/types";
+import { getFuturePatientAppointments, getPatientMaterials, getRecentPatientMaterials } from "@/lib/patient-resources";
+import type { RecentPatientMaterial } from "@/lib/patient-resources";
+import type { Appointment, Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
 export default function PatientPage() {
@@ -61,7 +63,9 @@ export default function PatientPage() {
   const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments, data.goals, data.materials, data.appointments);
   const visibleTimeline = filterPatientTimeline(timeline, activityFilter);
   const overview = getPatientOverview(data, id);
-  const patientMaterials = data.materials.filter((material) => material.patientIds.includes(id));
+  const patientMaterials = getPatientMaterials(data.materials, id);
+  const recentMaterials = getRecentPatientMaterials(data.sessions, data.materials, id);
+  const futureAppointments = getFuturePatientAppointments(data.appointments, id);
   const recentActivity = timeline.slice(0, 3);
   return (
     <AppShell>
@@ -133,6 +137,7 @@ export default function PatientPage() {
           {goals.some((goal) => goal.status === "achieved" || goal.status === "suspended") && <details className="mt-5 border-t border-sage-100 pt-4"><summary className="cursor-pointer text-sm font-bold text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Obiettivi raggiunti o sospesi</summary><div className="mt-3 space-y-2">{goals.filter((goal) => goal.status === "achieved" || goal.status === "suspended").map((goal) => <div key={goal.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><span className="text-sm font-medium">{goal.title}</span><div className="flex gap-3"><button onClick={() => setGoalEdit(goal)} className="text-xs font-bold text-sage-700">Modifica</button><button onClick={() => confirm("Eliminare questo obiettivo?") && deleteGoal(goal.id)} className="text-xs font-bold text-red-600">Elimina</button></div></div>)}</div></details>}
         </section>
         <section className="card p-5"><h2 className="font-bold">Attività recenti</h2>{recentActivity.length ? <div className="mt-3 divide-y divide-sage-100">{recentActivity.map((item) => <div key={item.id} className="py-3 first:pt-0"><p className="text-xs font-bold text-slate-400">{formatDate(item.occurredOn)}</p><p className="mt-1 text-sm font-bold">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p>{item.subtitle && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.subtitle}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}<button onClick={() => selectTab("activity")} className="mt-3 text-sm font-bold text-sage-700">Vedi attività</button></section>
+        <details className="rounded-2xl border border-sage-100 bg-white px-4 py-2 lg:col-span-3 sm:px-5"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300"><span>Appuntamenti futuri ({futureAppointments.length})</span><span aria-hidden="true" className="text-slate-400">⌄</span></summary><div className="border-t border-sage-100 pb-2 pt-2">{futureAppointments.length ? <div className="divide-y divide-sage-100">{futureAppointments.slice(0, 5).map((appointment) => <FutureAppointmentRow key={appointment.id} appointment={appointment} />)}</div> : <p className="py-2 text-sm text-slate-500">Nessun appuntamento futuro.</p>}<Link href="/calendario" className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-sage-700">{futureAppointments.length > 5 ? "Vedi tutti nel calendario" : "Apri calendario"}</Link></div></details>
         <details className="card p-5 lg:col-span-3"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>}
       {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onOpenGoals={openGoals} /></div>}
@@ -153,7 +158,7 @@ export default function PatientPage() {
           )}
         </section>
       </div>}
-      {tab === "resources" && <div className="mt-5"><section className="card p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-bold">Risorse</h2><p className="mt-2 text-sm text-slate-500">Materiali già associati a questo paziente nella Libreria terapeutica.</p></div><Link href="/materiali" className="btn btn-quiet">Apri Libreria</Link></div>{patientMaterials.length ? <div className="mt-5 space-y-2">{patientMaterials.map((material) => <div key={material.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sage-100 p-3"><div><p className="text-sm font-bold">{material.title}</p><p className="mt-1 text-xs text-slate-500">{material.category}</p></div><Link href="/materiali" className="text-sm font-bold text-sage-700">Apri in Libreria</Link></div>)}</div> : <p className="mt-5 text-sm text-slate-500">Nessun materiale associato al paziente.</p>}</section></div>}
+      {tab === "resources" && <div className="mt-5 space-y-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">Risorse</h2><p className="mt-1 text-sm text-slate-500">Materiali collegati al paziente o utilizzati nelle sedute.</p></div><Link href="/materiali" className="inline-flex min-h-10 items-center text-sm font-bold text-sage-700">Gestisci nella Libreria</Link></div><div className="grid gap-4 lg:grid-cols-2"><ResourceSection title="Materiali del paziente">{patientMaterials.length ? <div className="space-y-2">{patientMaterials.map((material) => <PatientMaterialRow key={material.id} material={material} onOpen={() => void openMaterial(material,{newTab:true})} />)}</div> : <div><p className="text-sm text-slate-500">Nessun materiale associato a questo paziente.</p><Link href="/materiali" className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-sage-700">Apri Libreria</Link></div>}</ResourceSection><ResourceSection title="Usati recentemente">{recentMaterials.length ? <div className="space-y-2">{recentMaterials.map((entry) => <RecentMaterialRow key={entry.materialId} entry={entry} onOpen={entry.material ? () => void openMaterial(entry.material!,{newTab:true}) : undefined} />)}</div> : <p className="text-sm text-slate-500">Nessun materiale utilizzato nelle sedute.</p>}</ResourceSection></div></div>}
       {edit && (
         <Modal title="Modifica paziente" onClose={() => setEdit(false)}>
           <PatientForm patient={p} onDone={() => setEdit(false)} />
@@ -178,6 +183,41 @@ export default function PatientPage() {
 
 type SessionTimelineItem = Extract<PatientTimelineItem, { type: "session" }>;
 type AssessmentTimelineItem = Extract<PatientTimelineItem, { type: "clinical_assessment" }>;
+
+function FutureAppointmentRow({ appointment }: { appointment: Appointment }) {
+  return <div className="flex flex-col gap-1 py-3 first:pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <p className="text-sm font-bold text-slate-700">{formatDate(appointment.date)} · {appointment.time}</p>
+    <p className="text-sm text-slate-500">{[appointment.serviceNameSnapshot, appointment.locationNameSnapshot, `${appointment.duration} min`].filter(Boolean).join(" · ")}</p>
+  </div>;
+}
+
+function ResourceSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="card p-4 sm:p-5"><h3 className="mb-4 font-bold">{title}</h3>{children}</section>;
+}
+
+function PatientMaterialRow({ material, onOpen }: { material: Material; onOpen: () => void }) {
+  return <div className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-sage-100 p-3">
+    <div className="min-w-0"><p className="break-words text-sm font-bold">{material.title}</p><p className="mt-1 text-xs text-slate-500">{materialFormatLabel(material)}</p>{material.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{material.tags.map((tag) => <span key={tag} className="rounded-full bg-sage-50 px-2 py-0.5 text-[11px] text-sage-700">{tag}</span>)}</div>}</div>
+    <button type="button" onClick={onOpen} className="min-h-10 shrink-0 rounded-lg px-2.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Apri</button>
+  </div>;
+}
+
+function RecentMaterialRow({ entry, onOpen }: { entry: RecentPatientMaterial; onOpen?: () => void }) {
+  return <div className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-sage-100 p-3">
+    <div className="min-w-0"><p className={`break-words text-sm font-bold ${entry.material ? "" : "text-slate-500"}`}>{entry.material?.title || "Materiale non più disponibile"}</p><p className="mt-1 text-xs text-slate-500">Ultimo utilizzo: {formatDate(entry.lastUsedOn)}{entry.material ? ` · ${materialFormatLabel(entry.material)}` : ""}</p></div>
+    {onOpen && <button type="button" onClick={onOpen} className="min-h-10 shrink-0 rounded-lg px-2.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Apri</button>}
+  </div>;
+}
+
+function materialFormatLabel(material: Material) {
+  if (material.externalUrl) return "Link esterno";
+  if (material.mimeType === "application/pdf") return "PDF";
+  if (material.mimeType.startsWith("image/")) return "Immagine";
+  if (material.mimeType.startsWith("audio/")) return "Audio";
+  if (material.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return "DOCX";
+  const extension = material.fileName.split(".").pop()?.toUpperCase();
+  return extension && extension !== material.fileName.toUpperCase() ? extension : "File";
+}
 
 function SessionTimelineCard({ item, onEdit, onDelete, onOpenMaterial }: { item: SessionTimelineItem; onEdit: () => void; onDelete: () => void; onOpenMaterial: (material: Material) => void }) {
   const { session } = item;

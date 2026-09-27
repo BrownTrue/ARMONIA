@@ -4,7 +4,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- Collaudare manualmente la P2 locale del blocco Paziente/Percorso clinico: filtri della timeline, dettaglio progressivo di sedute e valutazioni, apertura materiali e resa mobile. P3 approfondirà la proiezione delle risorse; P4 integrerà maggiormente percorso, obiettivi, sedute e valutazioni. P2 non richiede migration e non modifica il dominio clinico.
+- Collaudare manualmente la P3 locale del blocco Paziente/Percorso clinico: materiali associati, materiali usati recentemente, apertura esplicita, fallback per materiali mancanti, disclosure degli appuntamenti futuri e resa mobile. P4 integrerà maggiormente percorso, obiettivi, sedute e valutazioni. P3 non richiede migration e non duplica la gestione di Libreria o Calendario.
 
 
 - Verificare e documentare separatamente la regione effettiva delle Vercel Functions e valutare la configurazione in una regione UE coerente con i requisiti privacy del progetto.
