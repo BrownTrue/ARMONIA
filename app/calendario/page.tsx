@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { AppointmentForm } from "@/components/appointment-form";
 import { Modal } from "@/components/modal";
+import { CalendarSettingsPanel } from "@/components/calendar-settings-panel";
 import type { Appointment } from "@/lib/types";
 import { fullName, today } from "@/lib/types";
 
@@ -50,7 +51,8 @@ export default function Calendar() {
   const [view, setView] = useState<View>("agenda"),
     [cursor, setCursor] = useState(() => atNoon(today())),
     [editor, setEditor] = useState<Editor>(null),
-    [showPast, setShowPast] = useState(false);
+    [showPast, setShowPast] = useState(false),
+    [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY) as View | null;
     setView(
@@ -87,6 +89,7 @@ export default function Calendar() {
           </p>
         </div>
         <div className="page-header-actions">
+          <button type="button" onClick={() => setSettingsOpen(true)} className="btn btn-quiet" aria-label="Apri impostazioni calendario"><span aria-hidden="true">⚙</span> Impostazioni calendario</button>
           <Link href="/sedute/nuova" aria-disabled={!data.patients.length} title={!data.patients.length ? "Crea prima un paziente" : undefined} className={`btn btn-quiet ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}>Registra seduta</Link>
           <button
             onClick={() => setEditor({ date: today() })}
@@ -211,6 +214,7 @@ export default function Calendar() {
           )}
         </Modal>
       )}
+      {settingsOpen && <CalendarSettingsPanel onClose={() => setSettingsOpen(false)}/>}
     </AppShell>
   );
 }

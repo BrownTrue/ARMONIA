@@ -26,6 +26,8 @@ export function normalizeAppData(value: unknown): AppData {
   return {
     patients: arrayOrEmpty(source.patients),
     appointments: arrayOrEmpty(source.appointments),
+    locations: arrayOrEmpty(source.locations),
+    services: arrayOrEmpty(source.services),
     sessions: arrayOrEmpty(source.sessions),
     goals: arrayOrEmpty(source.goals),
     materials: arrayOrEmpty(source.materials),
@@ -60,8 +62,11 @@ export function readLocalData(raw: string | null, whenMissing: () => AppData): L
       return { data: normalizeAppData({}), writable: false, migrated: false, error: "L'archivio locale versionato non contiene dati validi ed è stato conservato." };
     }
     const normalized = normalizeAppData(parsed.data);
-    const missingClinicalCollections = !Array.isArray(parsed.data.clinicalPathways) || !Array.isArray(parsed.data.clinicalAssessments);
-    return { data: normalized, writable: true, migrated: missingClinicalCollections };
+    const missingCollections = !Array.isArray(parsed.data.clinicalPathways)
+      || !Array.isArray(parsed.data.clinicalAssessments)
+      || !Array.isArray(parsed.data.locations)
+      || !Array.isArray(parsed.data.services);
+    return { data: normalized, writable: true, migrated: missingCollections };
   }
   return { data: normalizeAppData(parsed), writable: true, migrated: true };
 }

@@ -1,6 +1,6 @@
 # Stato corrente di Armonia
 
-Fotografia ricavata dal repository al 26 settembre 2026.
+Fotografia ricavata dal repository al 27 settembre 2026.
 
 ## Stato Git rilevato prima dell'intervento corrente
 
@@ -16,6 +16,8 @@ Fotografia ricavata dal repository al 26 settembre 2026.
 - Logo professionale configurabile dalle Impostazioni, con anteprima, sostituzione sicura, rimozione confermata e fallback Armonia. PNG/JPEG/WebP fino a 2 MB vengono ridimensionati proporzionalmente entro 1200×1200 e normalizzati in WebP.
 - CRUD pazienti e scheda con appuntamenti, obiettivi, materiali e timeline.
 - Calendario interattivo con viste Mese, Settimana e Agenda, navigazione e CRUD appuntamenti.
+- Le fondamenta del Calendario V2 comprendono cataloghi utente di sedi e prestazioni, campi appointment nullable e snapshot storici di nome/prezzo. La migration additiva `018` è applicata in produzione con postflight PASS e senza backfill. La Fase B aggiunge nel contesto della pagina Calendario un pannello responsive per gestire sedi e prestazioni tramite il `DataProvider`, senza modificare il calendario visuale o il form appuntamento; le Impostazioni generali non duplicano queste funzioni.
+- Per la futura UI Calendario V2 sono definite due decisioni di prodotto: le sedi usano una palette controllata di dodici colori pastello moderatamente saturi e distinguibili, destinati a futuri accenti leggeri; le prestazioni non hanno listini o prezzi precompilati e il prezzo predefinito resta facoltativo, scelto dal professionista (`NULL` non specificato, `0` gratuito).
 - Creazione di appuntamenti ricorrenti settimanali con data finale inclusiva, occorrenze autonome e modifica/eliminazione individuale.
 - Dashboard Oggi aggiornata dallo stato condiviso del `DataProvider`.
 - Separazione degli appuntamenti odierni in “Da fare oggi” e “Completati oggi” tramite `Session.appointmentId`.
@@ -61,6 +63,7 @@ Fotografia ricavata dal repository al 26 settembre 2026.
 - `lib/supabase/repository.ts` traduce fra tipi applicativi e righe Supabase, incluse le relazioni.
 - `Session.appointmentId` corrisponde a `sessions.appointment_id` ed è la fonte dello stato completato di un appuntamento.
 - `Appointment.recurrenceSeriesId` corrisponde a `appointments.recurrence_series_id`; è nullable per gli appuntamenti storici e raggruppa occorrenze che mantengono ID autonomi.
+- `Appointment.locationId`/`serviceId` sono riferimenti opzionali ai cataloghi Calendario V2; i relativi snapshot e `effectivePriceCents` restano valori dell'appuntamento e non vengono aggiornati quando cambia il catalogo. `NULL` indica prezzo non impostato, mentre `0` indica una prestazione gratuita.
 - `lib/recurrence.ts` genera le date settimanali con aritmetica UTC sulla sola data, evitando slittamenti dovuti al cambio di fuso o ora legale.
 - La Dashboard Oggi usa `lib/today-dashboard.ts` per partizionare gli appuntamenti odierni non annullati.
 - La sincronizzazione Google è avviata dalle mutazioni degli appuntamenti; in modalità cloud token e operazioni sensibili restano server-side.
@@ -91,6 +94,7 @@ Fotografia ricavata dal repository al 26 settembre 2026.
 - `015_therapeutic_library_storage_enforcement.sql`: **applicata manualmente in produzione con postflight PASS**; conclude il cutover rendendo privato `therapy-materials`, imposta `file_size_limit = 20971520` e la whitelist MIME prevista, conserva `private material read`, rimuove le policy browser legacy di write/update/delete e lascia ad `authenticated` soltanto `SELECT` su `materials`. I grant `service_role` della `016` e le funzioni protette della `014`/`017` sono rimasti invariati.
 - `016_therapeutic_library_server_grants.sql`: **applicata manualmente in produzione con postflight PASS**; ha corretto il `42501 permission denied for table materials` concedendo a `service_role` soltanto `SELECT/INSERT/UPDATE` su `materials`, `INSERT/DELETE` su `patient_materials` e `SELECT` su `patients`. Non concede `DELETE` diretto su `materials`, privilegi browser o accesso aggiuntivo a `session_materials`. Il DELETE è stato ritestato con successo in produzione.
 - `017_therapeutic_library_atomic_metadata.sql`: **applicata manualmente in produzione con postflight PASS**; la funzione `save_therapeutic_material_metadata` è `SECURITY DEFINER`, usa `search_path = pg_catalog, public` ed è eseguibile soltanto da `service_role`. Salva in una transazione metadati/link e sostituzione completa delle associazioni paziente, riutilizza l'ID materiale come chiave idempotente, verifica proprietario e pazienti e non modifica quota o Storage. Al postflight risultavano 6 materiali, 5 oggetti nel bucket `therapy-materials` e una relazione `patient_materials`.
+- `018_calendar_locations_services_foundation.sql`: **applicata in produzione con postflight PASS**; aggiunge cataloghi per-utente di sedi e prestazioni, riferimenti/snapshot nullable sugli appuntamenti, FK composite owner-safe con `ON DELETE RESTRICT`, RLS, grant e indici. Non modifica né backfilla gli appuntamenti esistenti.
 
 La presenza delle migration nel repository non dimostra che siano state applicate a uno specifico ambiente Supabase. Prima di interventi cloud occorre verificare separatamente lo stato dell'ambiente interessato.
 
@@ -101,6 +105,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - La sincronizzazione Google è volutamente solo Armonia → Google; le modifiche effettuate in Google non aggiornano Armonia.
 - La coda Google locale usa ancora una chiave legacy non associata allo user ID. Il namespace per utente è rimandato perché le operazioni già presenti non possono essere attribuite retroattivamente con certezza senza una strategia di migrazione esplicita.
 - Per le serie ricorrenti sono disponibili solo creazione settimanale e modifica/eliminazione della singola occorrenza; non sono ancora presenti operazioni “questo e successivi” o “intera serie”.
+- Le sedi e le prestazioni sono gestibili nel pannello “Impostazioni calendario”, ma non sono ancora selezionabili dal form appuntamento e non influenzano ancora la resa visuale del calendario; questi interventi appartengono alla successiva Fase C.
 - La copertura automatica è limitata ai casi della ricorrenza, alle operazioni individuali e alla relazione appuntamento/seduta nella Dashboard; non è presente una suite completa dei flussi applicativi.
 - Il supporto V2 cloud è implementato soltanto nel codice locale e richiede ancora un collaudo manuale con dati sintetici; la produzione Vercel continua a eseguire il codice precedente finché non avverrà un push/deploy esplicitamente autorizzato.
 - Lo stato della migration `008` deve essere verificato separatamente prima di collaudare in cloud l'associazione Goal/percorso.
