@@ -23,7 +23,9 @@ export default function PatientPage() {
   const [edit, setEdit] = useState(false),
     [detail, setDetail] = useState<Session | null>(null),
     [goalEdit, setGoalEdit] = useState<Goal | "new" | null>(null),
+    [newGoalPathwayId, setNewGoalPathwayId] = useState<string | undefined>(),
     [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
+    [activityQuery, setActivityQuery] = useState(""),
     [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview");
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("tab");
@@ -61,7 +63,7 @@ export default function PatientPage() {
     .sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
   const goals = data.goals.filter((g) => g.patientId === id);
   const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments, data.goals, data.materials, data.appointments);
-  const visibleTimeline = filterPatientTimeline(timeline, activityFilter);
+  const visibleTimeline = filterPatientTimeline(timeline, activityFilter, activityQuery);
   const overview = getPatientOverview(data, id);
   const patientMaterials = getPatientMaterials(data.materials, id);
   const recentMaterials = getRecentPatientMaterials(data.sessions, data.materials, id);
@@ -72,14 +74,14 @@ export default function PatientPage() {
       <Link href="/pazienti" className="text-sm font-bold text-sage-700">
         ← Tutti i pazienti
       </Link>
-      <header className="mt-5 flex flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <header className="mt-4 flex flex-col items-stretch gap-4 sm:mt-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-sage-100 text-lg font-bold sm:h-16 sm:w-16 sm:rounded-3xl">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sage-100 text-base font-bold text-sage-800 sm:h-14 sm:w-14 sm:text-lg">
             {initials(p)}
           </span>
           <div className="min-w-0">
-            <h1 className="break-words text-2xl font-bold sm:text-3xl">{fullName(p)}</h1>
-            <p className="mt-1 text-slate-500">
+            <h1 className="break-words text-2xl font-bold sm:text-[1.75rem]">{fullName(p)}</h1>
+            <p className="mt-0.5 text-sm text-slate-500">
               {age(p.birthDate) ? `${age(p.birthDate)} anni · ` : ""}
               {p.status === "active"
                 ? "Attivo"
@@ -87,7 +89,7 @@ export default function PatientPage() {
                   ? "Sospeso"
                   : "Concluso"}
             </p>
-            {p.referralReason && <p className="mt-1 line-clamp-2 max-w-2xl text-sm text-slate-600">{p.referralReason}</p>}
+            {p.referralReason && <p className="mt-1 line-clamp-1 max-w-2xl text-sm text-slate-600">{p.referralReason}</p>}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -97,68 +99,67 @@ export default function PatientPage() {
           <button onClick={() => setEdit(true)} className="btn btn-quiet w-full px-3 text-sm sm:w-auto">
             Modifica paziente
           </button>
-          <details className="relative"><summary className="grid min-h-11 cursor-pointer list-none place-items-center rounded-xl px-3 text-sm font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Altre azioni</summary><div className="absolute right-0 z-10 mt-2 min-w-44 rounded-xl border border-sage-100 bg-white p-2 shadow-lg"><button onClick={() => { if (confirm("Eliminare il paziente e tutti i dati collegati?")) { deletePatient(p.id); router.push("/pazienti"); } }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina paziente</button></div></details>
+          <details className="relative"><summary aria-label="Altre azioni paziente" className="grid min-h-11 cursor-pointer list-none place-items-center rounded-xl px-4 text-xl font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">•••</summary><div className="absolute right-0 z-10 mt-2 min-w-44 rounded-xl border border-sage-100 bg-white p-2 shadow-lg"><button onClick={() => { if (confirm("Eliminare il paziente e tutti i dati collegati?")) { deletePatient(p.id); router.push("/pazienti"); } }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina paziente</button></div></details>
         </div>
       </header>
-      <PatientStatusPanel patientId={p.id} overview={overview} onOpenGoals={openGoals} />
-      <nav aria-label="Sezioni paziente" className="mt-6 flex gap-2 overflow-x-auto rounded-2xl border border-sage-100 bg-white p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-8">
-        {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} onClick={() => selectTab(value)} className={`min-w-max flex-1 rounded-xl px-3 py-2.5 text-sm font-bold transition sm:px-4 ${tab === value ? "bg-sage-100 text-sage-700" : "text-slate-500 hover:bg-sage-50"}`}>{label}</button>)}
+      <nav aria-label="Sezioni paziente" className="mt-5 grid grid-cols-4 gap-0 border-b border-slate-200 sm:mt-7 sm:flex sm:gap-3">
+        {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} aria-current={tab === value ? "page" : undefined} onClick={() => selectTab(value)} className={`min-h-11 min-w-0 border-b-2 px-1 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 sm:min-w-max sm:flex-1 sm:px-5 sm:py-2.5 sm:text-sm ${tab === value ? "border-sage-600 text-sage-800" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>{label}</button>)}
       </nav>
-      {tab === "overview" && <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <section id="patient-goals" className="card scroll-mt-5 p-5 lg:col-span-2">
+      {tab === "overview" && <div className="mt-4 grid gap-4 sm:mt-5 lg:grid-cols-12">
+        <div className="lg:col-span-12"><PatientStatusPanel patientId={p.id} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} onOpenGoals={openGoals} /></div>
+        <section id="patient-goals" className="card scroll-mt-5 p-4 sm:p-5 lg:col-span-7">
           <div className="flex items-center justify-between gap-3">
             <div><h2 className="font-bold">Obiettivi</h2><p className="mt-1 text-sm text-slate-500">Focus attivi e gestione degli obiettivi del paziente.</p></div>
-            <button onClick={() => setGoalEdit("new")} className="btn btn-quiet text-sm">+ Nuovo obiettivo</button>
+            <button onClick={() => { setNewGoalPathwayId(undefined); setGoalEdit("new"); }} className="text-sm font-bold text-sage-700">+ Nuovo obiettivo</button>
           </div>
           {overview.activeGoals.length ? (
-            <div className="mt-5 space-y-4">
-              {overview.activeGoals.map((g) => (
-                <div key={g.id} className="rounded-xl border border-sage-100 p-3">
+            <div className="mt-3 space-y-2.5 sm:mt-5 sm:space-y-4">
+              {overview.activeGoals.slice(0,3).map((g) => (
+                <div key={g.id} className="rounded-xl bg-slate-50 p-3">
                   <div className="mb-2 flex justify-between text-sm">
                     <span>{g.title}</span>
                     <b>{g.progress}%</b>
                   </div>
-                  <div className="h-2 rounded-full bg-sage-100">
+                  <div className="h-1.5 rounded-full bg-slate-200" aria-label={`Progresso registrato ${g.progress}%`}>
                     <div
-                      className="h-2 rounded-full bg-sage-500"
+                      className="h-1.5 rounded-full bg-sage-500"
                       style={{ width: g.progress + "%" }}
                     />
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <button onClick={() => setGoalEdit(g)} className="text-xs font-bold text-sage-700">Modifica</button>
-                    <button onClick={() => confirm("Eliminare questo obiettivo?") && deleteGoal(g.id)} className="text-xs font-bold text-red-600">Elimina</button>
-                  </div>
+                  <button onClick={() => setGoalEdit(g)} className="mt-2 text-xs font-bold text-sage-700">Modifica</button>
+                  <button onClick={() => confirm("Eliminare questo obiettivo?") && deleteGoal(g.id)} className="ml-3 mt-2 text-xs font-bold text-red-600">Elimina</button>
                 </div>
               ))}
+              {overview.activeGoals.length > 3 && <p className="text-sm text-slate-500">+{overview.activeGoals.length - 3} altri obiettivi attivi</p>}
             </div>
           ) : (
             <p className="mt-3 text-sm text-slate-500">Nessun obiettivo attivo.</p>
           )}
-          {goals.some((goal) => goal.status === "achieved" || goal.status === "suspended") && <details className="mt-5 border-t border-sage-100 pt-4"><summary className="cursor-pointer text-sm font-bold text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Obiettivi raggiunti o sospesi</summary><div className="mt-3 space-y-2">{goals.filter((goal) => goal.status === "achieved" || goal.status === "suspended").map((goal) => <div key={goal.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><span className="text-sm font-medium">{goal.title}</span><div className="flex gap-3"><button onClick={() => setGoalEdit(goal)} className="text-xs font-bold text-sage-700">Modifica</button><button onClick={() => confirm("Eliminare questo obiettivo?") && deleteGoal(goal.id)} className="text-xs font-bold text-red-600">Elimina</button></div></div>)}</div></details>}
         </section>
-        <section className="card p-5"><h2 className="font-bold">Attività recenti</h2>{recentActivity.length ? <div className="mt-3 divide-y divide-sage-100">{recentActivity.map((item) => <div key={item.id} className="py-3 first:pt-0"><p className="text-xs font-bold text-slate-400">{formatDate(item.occurredOn)}</p><p className="mt-1 text-sm font-bold">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p>{item.subtitle && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.subtitle}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}<button onClick={() => selectTab("activity")} className="mt-3 text-sm font-bold text-sage-700">Vedi attività</button></section>
-        <details className="rounded-2xl border border-sage-100 bg-white px-4 py-2 lg:col-span-3 sm:px-5"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300"><span>Appuntamenti futuri ({futureAppointments.length})</span><span aria-hidden="true" className="text-slate-400">⌄</span></summary><div className="border-t border-sage-100 pb-2 pt-2">{futureAppointments.length ? <div className="divide-y divide-sage-100">{futureAppointments.slice(0, 5).map((appointment) => <FutureAppointmentRow key={appointment.id} appointment={appointment} />)}</div> : <p className="py-2 text-sm text-slate-500">Nessun appuntamento futuro.</p>}<Link href="/calendario" className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-sage-700">{futureAppointments.length > 5 ? "Vedi tutti nel calendario" : "Apri calendario"}</Link></div></details>
-        <details className="card p-5 lg:col-span-3"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
+        <section className="card p-4 sm:p-5 lg:col-span-5"><div className="flex items-center justify-between gap-3"><h2 className="font-bold">Attività recenti</h2><button onClick={() => selectTab("activity")} className="text-sm font-bold text-sage-700">Vedi tutte</button></div>{recentActivity.length ? <div className="mt-2 divide-y divide-slate-100 sm:mt-3">{recentActivity.map((item) => <div key={item.id} className="flex gap-2.5 py-2.5 first:pt-0 sm:gap-3 sm:py-3"><span aria-hidden="true" className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.type === "session" ? "bg-sky-300" : item.assessment.status === "draft" ? "bg-amber-300" : "bg-violet-300"}`} /><div className="min-w-0"><p className="text-[11px] font-bold text-slate-400 sm:text-xs">{formatDate(item.occurredOn)}</p><p className="text-sm font-bold sm:mt-0.5">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p>{item.subtitle && <p className="line-clamp-1 text-sm text-slate-600 sm:mt-0.5">{item.subtitle}</p>}</div></div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}</section>
+        <section className="card p-4 sm:p-5 lg:col-span-12"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">Prossimi appuntamenti</h2><p className="mt-1 text-sm text-slate-500">I prossimi impegni già pianificati.</p></div><Link href="/calendario" className="text-sm font-bold text-sage-700">Apri calendario</Link></div>{futureAppointments.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{futureAppointments.slice(0, 3).map((appointment) => <FutureAppointmentRow key={appointment.id} appointment={appointment} />)}</div> : <p className="mt-3 text-sm text-slate-500">Nessun appuntamento futuro.</p>}</section>
+        <details className="card p-4 sm:p-5 lg:col-span-12"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>}
-      {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onOpenGoals={openGoals} /></div>}
-      {tab === "activity" && <div className="mt-5 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Attività</h2><p className="mt-1 text-sm text-slate-500">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary">Registra seduta</Link></div>
-        <section className="card p-4 sm:p-5">
-          <div className="flex justify-end">
-            <div aria-label="Filtra la storia clinica" className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-50 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {([['all','Tutte'],['sessions','Sedute'],['assessments','Valutazioni']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={activityFilter === value} onClick={() => setActivityFilter(value)} className={`min-h-9 min-w-max rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 ${activityFilter === value ? "bg-sage-100 text-sage-800" : "text-slate-500 hover:bg-white hover:text-slate-700"}`}>{label}</button>)}
+      {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onOpenActivity={() => selectTab("activity")} /></div>}
+      {tab === "activity" && <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3"><div className="min-w-0"><h2 className="text-xl font-bold">Attività</h2><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary px-3 text-sm sm:px-4 sm:text-base">Registra seduta</Link></div>
+        <section className="card p-3 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="relative block sm:max-w-xs sm:flex-1"><span className="sr-only">Cerca nelle attività</span><input type="search" value={activityQuery} onChange={(event) => setActivityQuery(event.target.value)} placeholder="Cerca nelle attività…" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-sage-400 focus-visible:ring-2 focus-visible:ring-sage-300" /></label>
+            <div aria-label="Filtra la storia clinica" className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {([['all','Tutte'],['sessions','Sedute'],['assessments','Valutazioni']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={activityFilter === value} onClick={() => setActivityFilter(value)} className={`min-h-11 min-w-0 flex-1 rounded-lg px-2 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 sm:min-h-9 sm:min-w-max sm:flex-none sm:px-3 ${activityFilter === value ? "bg-sage-100 text-sage-800" : "text-slate-500 hover:bg-white hover:text-slate-700"}`}>{label}</button>)}
             </div>
           </div>
           {visibleTimeline.length === 0 ? (
             <p className="mt-4 text-sm text-slate-500">{timeline.length === 0 ? "Nessuna seduta o valutazione registrata." : "Nessuna attività corrisponde al filtro selezionato."}</p>
           ) : (
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-3 sm:space-y-2">
               {visibleTimeline.map((item) => item.type === "session" ? <SessionTimelineCard key={item.id} item={item} onEdit={() => setDetail(item.session)} onDelete={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} onOpenMaterial={(material) => void openMaterial(material)} /> : <AssessmentTimelineCard key={item.id} item={item} patientId={p.id} />)}
             </div>
           )}
         </section>
       </div>}
-      {tab === "resources" && <div className="mt-5 space-y-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">Risorse</h2><p className="mt-1 text-sm text-slate-500">Materiali collegati al paziente o utilizzati nelle sedute.</p></div><Link href="/materiali" className="inline-flex min-h-10 items-center text-sm font-bold text-sage-700">Gestisci nella Libreria</Link></div><div className="grid gap-4 lg:grid-cols-2"><ResourceSection title="Materiali del paziente">{patientMaterials.length ? <div className="space-y-2">{patientMaterials.map((material) => <PatientMaterialRow key={material.id} material={material} onOpen={() => void openMaterial(material,{newTab:true})} />)}</div> : <div><p className="text-sm text-slate-500">Nessun materiale associato a questo paziente.</p><Link href="/materiali" className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-sage-700">Apri Libreria</Link></div>}</ResourceSection><ResourceSection title="Usati recentemente">{recentMaterials.length ? <div className="space-y-2">{recentMaterials.map((entry) => <RecentMaterialRow key={entry.materialId} entry={entry} onOpen={entry.material ? () => void openMaterial(entry.material!,{newTab:true}) : undefined} />)}</div> : <p className="text-sm text-slate-500">Nessun materiale utilizzato nelle sedute.</p>}</ResourceSection></div></div>}
+      {tab === "resources" && <div className="mt-4 space-y-4 sm:mt-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">Risorse</h2><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">I materiali associati e quelli usati nel lavoro recente.</p></div><Link href="/materiali" className="btn btn-quiet hidden text-sm sm:inline-flex">Apri Libreria</Link></div><div className="grid gap-4 lg:grid-cols-2"><ResourceSection title="Materiali del paziente">{patientMaterials.length ? <div className="space-y-2">{patientMaterials.map((material) => <PatientMaterialRow key={material.id} material={material} onOpen={() => void openMaterial(material,{newTab:true})} />)}</div> : <div><p className="text-sm text-slate-500">Nessun materiale associato.</p><Link href="/materiali" className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-sage-700">Gestisci nella Libreria</Link></div>}</ResourceSection><ResourceSection title="Usati recentemente">{recentMaterials.length ? <div className="space-y-2">{recentMaterials.map((entry) => <RecentMaterialRow key={entry.materialId} entry={entry} onOpen={entry.material ? () => void openMaterial(entry.material!,{newTab:true}) : undefined} />)}</div> : <p className="text-sm text-slate-500">Nessun materiale utilizzato nelle sedute.</p>}</ResourceSection></div><aside className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><div><p className="font-bold">Libreria terapeutica</p><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">Sfoglia e gestisci i materiali terapeutici.</p></div><Link href="/materiali" className="text-sm font-bold text-sage-700">Apri Libreria →</Link></aside></div>}
       {edit && (
         <Modal title="Modifica paziente" onClose={() => setEdit(false)}>
           <PatientForm patient={p} onDone={() => setEdit(false)} />
@@ -170,10 +171,10 @@ export default function PatientPage() {
         </Modal>
       )}
       {goalEdit && (
-        <Modal title={goalEdit === "new" ? "Nuovo obiettivo" : "Modifica obiettivo"} onClose={() => setGoalEdit(null)}>
+        <Modal title={goalEdit === "new" ? "Nuovo obiettivo" : "Modifica obiettivo"} onClose={() => { setGoalEdit(null); setNewGoalPathwayId(undefined); }}>
           <GoalEditor
-            goal={goalEdit === "new" ? {id:uid(),patientId:p.id,title:"",description:"",priority:2,status:"not_started",progress:0,createdAt:new Date().toISOString()} : goalEdit}
-            onDone={() => setGoalEdit(null)}
+            goal={goalEdit === "new" ? {id:uid(),patientId:p.id,clinicalPathwayId:newGoalPathwayId,title:"",description:"",priority:2,status:"not_started",progress:0,createdAt:new Date().toISOString()} : goalEdit}
+            onDone={() => { setGoalEdit(null); setNewGoalPathwayId(undefined); }}
           />
         </Modal>
       )}
@@ -185,25 +186,25 @@ type SessionTimelineItem = Extract<PatientTimelineItem, { type: "session" }>;
 type AssessmentTimelineItem = Extract<PatientTimelineItem, { type: "clinical_assessment" }>;
 
 function FutureAppointmentRow({ appointment }: { appointment: Appointment }) {
-  return <div className="flex flex-col gap-1 py-3 first:pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+  return <div className="flex flex-col gap-0.5 rounded-xl bg-slate-50 p-2.5 sm:justify-between sm:gap-1 sm:p-3">
     <p className="text-sm font-bold text-slate-700">{formatDate(appointment.date)} · {appointment.time}</p>
     <p className="text-sm text-slate-500">{[appointment.serviceNameSnapshot, appointment.locationNameSnapshot, `${appointment.duration} min`].filter(Boolean).join(" · ")}</p>
   </div>;
 }
 
 function ResourceSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="card p-4 sm:p-5"><h3 className="mb-4 font-bold">{title}</h3>{children}</section>;
+  return <section className="card p-4 sm:p-5"><h3 className="mb-3 font-bold sm:mb-4">{title}</h3>{children}</section>;
 }
 
 function PatientMaterialRow({ material, onOpen }: { material: Material; onOpen: () => void }) {
-  return <div className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-sage-100 p-3">
+  return <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl bg-slate-50 p-2.5 sm:gap-3 sm:p-3">
     <div className="min-w-0"><p className="break-words text-sm font-bold">{material.title}</p><p className="mt-1 text-xs text-slate-500">{materialFormatLabel(material)}</p>{material.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{material.tags.map((tag) => <span key={tag} className="rounded-full bg-sage-50 px-2 py-0.5 text-[11px] text-sage-700">{tag}</span>)}</div>}</div>
     <button type="button" onClick={onOpen} className="min-h-10 shrink-0 rounded-lg px-2.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Apri</button>
   </div>;
 }
 
 function RecentMaterialRow({ entry, onOpen }: { entry: RecentPatientMaterial; onOpen?: () => void }) {
-  return <div className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-sage-100 p-3">
+  return <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl bg-slate-50 p-2.5 sm:gap-3 sm:p-3">
     <div className="min-w-0"><p className={`break-words text-sm font-bold ${entry.material ? "" : "text-slate-500"}`}>{entry.material?.title || "Materiale non più disponibile"}</p><p className="mt-1 text-xs text-slate-500">Ultimo utilizzo: {formatDate(entry.lastUsedOn)}{entry.material ? ` · ${materialFormatLabel(entry.material)}` : ""}</p></div>
     {onOpen && <button type="button" onClick={onOpen} className="min-h-10 shrink-0 rounded-lg px-2.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Apri</button>}
   </div>;
@@ -229,19 +230,19 @@ function SessionTimelineCard({ item, onEdit, onDelete, onOpenMaterial }: { item:
     session.homework ? "Compiti" : null,
     session.nextPlan ? "Prossima volta" : null,
   ].filter((value): value is string => Boolean(value));
-  return <article className="rounded-2xl border border-sage-100 bg-white p-4 sm:p-5">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+  return <article className="rounded-xl border border-slate-200 border-l-4 border-l-sky-300 bg-white p-3 sm:rounded-2xl sm:p-5">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2"><time dateTime={item.occurredOn} className="text-sm font-bold text-slate-700">{formatDate(item.occurredOn)}</time><span className="text-xs text-slate-400">Seduta · {session.duration} min</span></div>
         {activityPreview && <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-slate-700"><span className="font-bold">Attività:</span> {activityPreview}</p>}
         {resultPreview && <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-slate-600"><span className="font-bold">Risultato:</span> {resultPreview}</p>}
-        {indicators.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{indicators.map((indicator) => <span key={indicator} className="rounded-full bg-sage-50 px-2.5 py-1 text-[11px] font-bold text-sage-700">{indicator}</span>)}</div>}
+        {indicators.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{indicators.map((indicator) => <span key={indicator} className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-800">{indicator}</span>)}</div>}
       </div>
       <button onClick={onEdit} className="self-start rounded-lg px-2 py-1.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:min-h-11 sm:rounded-xl sm:bg-sage-50 sm:px-4 sm:py-3">Apri / modifica</button>
     </div>
-    <details className="mt-3 border-t border-sage-100 pt-3">
-      <summary className="-mx-1 block min-h-11 cursor-pointer list-none rounded-lg px-1 py-3 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dettagli seduta <span aria-hidden="true" className="ml-1 text-slate-400">⌄</span></summary>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+    <details className="mt-2 border-t border-sage-100 pt-2 sm:mt-3 sm:pt-3">
+      <summary className="-mx-1 block min-h-11 cursor-pointer list-none rounded-lg px-1 py-2.5 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:py-3">Dettagli seduta <span aria-hidden="true" className="ml-1 text-slate-400">⌄</span></summary>
+      <div className="mt-3 grid gap-3 sm:mt-4 sm:grid-cols-2 sm:gap-4">
         <TimelineField label="Attività" value={session.activities} />
         <TimelineField label="Risposta" value={session.response} />
         <TimelineField label="Livello di aiuto" value={session.helpLevel} />
@@ -260,12 +261,12 @@ function SessionTimelineCard({ item, onEdit, onDelete, onOpenMaterial }: { item:
 
 function AssessmentTimelineCard({ item, patientId }: { item: AssessmentTimelineItem; patientId: string }) {
   const completed = item.assessment.status === "completed";
-  return <article className="rounded-2xl border border-sage-100 bg-white p-4 sm:p-5">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+  return <article className={`rounded-xl border border-slate-200 border-l-4 bg-white p-3 sm:rounded-2xl sm:p-5 ${completed ? "border-l-violet-200" : "border-l-amber-300"}`}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
       <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><time dateTime={item.occurredOn} className="text-sm font-bold text-slate-700">{formatDate(item.occurredOn)}</time><span className="text-xs text-slate-400">Valutazione</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${completed ? "bg-sage-50 text-sage-700" : "bg-amber-50 text-amber-800"}`}>{completed ? "Completata" : "Bozza"}</span></div><h3 className="mt-2 font-bold">{item.title}</h3>{item.moduleLabels.length > 0 && <p className="mt-1 text-sm text-slate-500">{item.moduleLabels.join(" · ")}</p>}</div>
       <div className="flex flex-wrap gap-3 sm:w-auto sm:gap-2"><Link href={`/pazienti/${patientId}/percorso/${item.entityId}`} className="rounded-lg px-2 py-1.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:min-h-11 sm:rounded-xl sm:bg-sage-50 sm:px-4 sm:py-3">{completed ? "Apri" : "Continua"}</Link>{completed && <Link href={`/pazienti/${patientId}/percorso/${item.entityId}?print=1`} className="rounded-lg px-2 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:min-h-11 sm:rounded-xl sm:bg-sage-50 sm:px-4 sm:py-3 sm:text-sage-700">Stampa</Link>}</div>
     </div>
-    <details className="mt-3 border-t border-sage-100 pt-3"><summary className="-mx-1 block min-h-11 cursor-pointer list-none rounded-lg px-1 py-3 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dettagli valutazione <span aria-hidden="true" className="ml-1 text-slate-400">⌄</span></summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><TimelineField label="Tipo" value={item.title} /><TimelineField label="Stato" value={completed ? "Completata" : "Bozza"} />{item.moduleLabels.length > 0 && <TimelineField label="Moduli" value={item.moduleLabels.join(" · ")} />}<TimelineField label="Ultimo aggiornamento" value={new Date(item.assessment.updatedAt).toLocaleDateString("it-IT")} /></div></details>
+    <details className="mt-2 border-t border-sage-100 pt-2 sm:mt-3 sm:pt-3"><summary className="-mx-1 block min-h-11 cursor-pointer list-none rounded-lg px-1 py-2.5 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:py-3">Dettagli valutazione <span aria-hidden="true" className="ml-1 text-slate-400">⌄</span></summary><div className="mt-3 grid gap-3 sm:mt-4 sm:grid-cols-2 sm:gap-4"><TimelineField label="Tipo" value={item.title} /><TimelineField label="Stato" value={completed ? "Completata" : "Bozza"} />{item.moduleLabels.length > 0 && <TimelineField label="Moduli" value={item.moduleLabels.join(" · ")} />}<TimelineField label="Ultimo aggiornamento" value={new Date(item.assessment.updatedAt).toLocaleDateString("it-IT")} /></div></details>
   </article>;
 }
 
@@ -279,18 +280,15 @@ function compactTimelineText(value: string) {
   return trimmed && !/^(?:-{1,3}|n\/?a|non indicato)$/i.test(trimmed) ? trimmed : undefined;
 }
 
-function PatientStatusPanel({ patientId, overview, onOpenGoals }: { patientId: string; overview: PatientOverview; onOpenGoals: () => void }) {
+function PatientStatusPanel({ patientId, overview, hasHistoricalPathways, onOpenGoals }: { patientId: string; overview: PatientOverview; hasHistoricalPathways: boolean; onOpenGoals: () => void }) {
   const assessment = overview.latestAssessment;
-  const appointment = overview.nextAppointment;
-  return <section aria-labelledby="patient-status-title" className="mt-5 rounded-3xl border border-sage-100 bg-gradient-to-br from-white to-sage-50 p-4 sm:mt-6 sm:p-6">
-    <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3"><div><p className="text-[10px] font-bold tracking-wide text-sage-700 sm:text-xs">PANORAMICA CLINICA</p><h2 id="patient-status-title" className="mt-0.5 text-lg font-bold sm:mt-1 sm:text-xl">Dove siamo?</h2></div>{overview.workflowNotice && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 sm:px-3 sm:py-1.5 sm:text-xs">{overview.workflowNotice.label}</span>}</div>
-    <dl className="mt-4 grid gap-x-8 gap-y-3.5 sm:mt-5 sm:grid-cols-2 sm:gap-y-5 lg:grid-cols-3">
-      {overview.activePathway && <StatusDatum label="Percorso attivo"><p className="text-sm"><span className="font-bold">{overview.activePathway.title || "Percorso clinico"}</span><span className="text-slate-500"> · dal {formatDate(overview.activePathway.startedOn)}</span></p></StatusDatum>}
+  return <section aria-labelledby="patient-status-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+    <div><p className="text-[10px] font-bold tracking-wide text-sage-700 sm:text-xs">PANORAMICA CLINICA</p><h2 id="patient-status-title" className="mt-0.5 text-lg font-bold">Dove siamo adesso?</h2></div>
+    <dl className="mt-3 grid gap-x-8 gap-y-3 sm:mt-4 sm:grid-cols-2 sm:gap-y-4 lg:grid-cols-4">
+      <StatusDatum label="Percorso"><p className="text-sm">{overview.activePathway ? <><span className="font-bold">{overview.activePathway.title || "Percorso clinico"}</span><span className="text-slate-500"> · dal {formatDate(overview.activePathway.startedOn)}</span></> : <span className="text-slate-500">{hasHistoricalPathways ? "Nessun percorso attivo" : "Percorso clinico non ancora creato"}</span>}</p></StatusDatum>
       {assessment && <StatusDatum label="Ultima valutazione"><div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"><p className="text-sm"><span className="font-bold">{clinicalAssessmentTypeLabel(assessment)}</span><span className="text-slate-500"> · {assessment.clinicalDate ? formatDate(assessment.clinicalDate) : "Data non indicata"} · {assessment.status === "completed" ? "Completata" : "Bozza"}</span></p><Link href={`/pazienti/${patientId}/percorso/${assessment.id}`} className="text-xs font-bold text-sage-700">{assessment.status === "completed" ? "Apri" : "Continua"}</Link></div></StatusDatum>}
       {overview.focusGoals.length > 0 && <StatusDatum label="Focus attuale"><ul className="space-y-1.5">{overview.focusGoals.map((goal) => <li key={goal.id} className="text-sm font-medium">• {goal.title}</li>)}</ul>{overview.activeGoals.length > overview.focusGoals.length && <button onClick={onOpenGoals} className="mt-2 text-sm font-bold text-sage-700">Vedi tutti</button>}</StatusDatum>}
       {overview.latestSession && <StatusDatum label="Ultima seduta"><p className="text-sm"><span className="font-bold">{formatDate(overview.latestSession.date)}</span>{overview.latestSession.result && <span className="text-slate-600"> · {overview.latestSession.result}</span>}</p></StatusDatum>}
-      {overview.latestNextPlan && <StatusDatum label="Prossima azione"><p className="line-clamp-3 text-sm leading-6 text-slate-700">{overview.latestNextPlan}</p></StatusDatum>}
-      {appointment && <StatusDatum label="Prossimo appuntamento"><div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"><p className="text-sm font-bold">{formatDate(appointment.date)} · {appointment.time}{appointment.locationNameSnapshot && <span className="font-normal text-slate-500"> · {appointment.locationNameSnapshot}</span>}</p><Link href="/calendario" className="text-xs font-bold text-sage-700">Apri calendario</Link></div></StatusDatum>}
     </dl>
   </section>;
 }

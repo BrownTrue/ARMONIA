@@ -1,6 +1,6 @@
 # Stato corrente di Armonia
 
-Fotografia ricavata dal repository al 27 settembre 2026.
+Fotografia ricavata dal repository al 28 settembre 2026.
 
 ## Stato Git rilevato prima dell'intervento corrente
 
@@ -14,7 +14,7 @@ Fotografia ricavata dal repository al 27 settembre 2026.
 - La shell applicativa ha una navigazione mobile completa: la barra rapida conserva le cinque aree quotidiane e un menu laterale accessibile espone tutte le sezioni, incluse Impostazioni, account e logout. I layout condivisi adottano touch target, intestazioni, azioni form e modali adattive per viewport da 360 px, senza creare una seconda app mobile.
 - Profilo modificabile e persistente.
 - Logo professionale configurabile dalle Impostazioni, con anteprima, sostituzione sicura, rimozione confermata e fallback Armonia. PNG/JPEG/WebP fino a 2 MB vengono ridimensionati proporzionalmente entro 1200×1200 e normalizzati in WebP.
-- CRUD pazienti e scheda mobile-first con Panoramica, Percorso, Attività e Risorse. Le P1/P2/P3 del nuovo blocco Paziente/Percorso clinico sono implementate localmente: “Dove siamo?” usa selector puri sui dati già presenti nel `DataProvider`, mostra soltanto fatti registrati e non produce inferenze cliniche automatiche. Il prossimo appuntamento esclude eventi passati e annullati; una disclosure read-only elenca fino a cinque appuntamenti futuri e rimanda al Calendario. La tab Attività offre una timeline clinica read-only, filtrabile e a disclosure progressiva con sedute, obiettivi, materiali, compiti, piano successivo e valutazioni V1/V2 correttamente etichettate. La tab Risorse proietta separatamente i materiali associati tramite `patient_materials` e gli ultimi cinque materiali unici usati tramite `session_materials`, rimandando ogni gestione alla Libreria.
+- CRUD pazienti e workspace mobile-first con Panoramica, Percorso, Attività e Risorse. Le fasi P1–P4, incluso il pass responsive a 360–390 px, sono completate e collaudate manualmente. Panoramica risponde a “Dove siamo adesso?” con fatti registrati, obiettivi attivi, attività recenti e appuntamenti futuri. Percorso presenta l'episodio terapeutico come contenitore di valutazioni, obiettivi e sintesi delle attività pertinenti, senza struttura a wizard né inferenze cliniche. Una seduta è inclusa nella sintesi soltanto quando `Session.goalIds` contiene un obiettivo collegato esattamente al percorso target; non è stato aggiunto un `clinical_pathway_id` alle sedute. Attività conserva la timeline dettagliata e aggiunge ricerca esclusivamente locale; Risorse conserva materiali associati e usati di recente con apertura in una nuova scheda. Le versioni tecniche V1/V2 delle valutazioni restano interne e non sono esposte nel workspace.
 - Calendario interattivo con viste Mese, Settimana e Agenda, navigazione e CRUD appuntamenti.
 - Le fondamenta del Calendario V2 comprendono cataloghi utente di sedi e prestazioni, campi appointment nullable e snapshot storici di nome/prezzo. La migration additiva `018` è applicata in produzione con postflight PASS e senza backfill. Le Fasi B/B2 aggiungono il pannello responsive di gestione; la Fase C, collaudata manualmente con esito PASS, integra sede, prestazione, durata e prezzo facoltativi nel form e nel dettaglio appuntamento, incluse le ricorrenze. Le Impostazioni generali non duplicano queste funzioni.
 - Il Calendario V2 usa una palette controllata di dodici colori pastello moderatamente saturi e distinguibili; le prestazioni non hanno listini o prezzi precompilati e il prezzo predefinito resta facoltativo, scelto dal professionista (`NULL` non specificato, `0` gratuito).
@@ -79,6 +79,7 @@ Fotografia ricavata dal repository al 27 settembre 2026.
 - `components/clinical/assessment-summary.tsx` genera il riepilogo leggibile usato esclusivamente per la stampa delle valutazioni completate; le regole `@media print` nascondono la shell e i controlli applicativi.
 - Le correzioni di una valutazione completata usano un’operazione locale distinta dall’autosave delle bozze, mantengono `status: completed`, `patientId`, `clinicalPathwayId`, `schemaVersion` e `createdAt`, e aggiornano `updatedAt`.
 - `lib/clinical/goals.ts` applica le regole locali di associazione Goal/percorso; `lib/clinical/timeline.ts` costruisce e filtra una proiezione discriminata ed estendibile di sedute e valutazioni, risolvendo esclusivamente relazioni già caricate nel `DataProvider`.
+- `lib/clinical/pathway-overview.ts` costruisce la sintesi deterministica di un singolo percorso: tutte le valutazioni collegate, assessment iniziale e successivi, obiettivi attivi/storici e sedute pertinenti tramite `session_goals`. Non muta gli input, non associa sedute senza obiettivi e non formula valutazioni cliniche; la UI non espone nomi o versioni tecniche del modello.
 
 ## Stato dello schema e migration presenti
 
@@ -103,6 +104,8 @@ Fotografia ricavata dal repository al 27 settembre 2026.
 La presenza delle migration nel repository non dimostra che siano state applicate a uno specifico ambiente Supabase. Prima di interventi cloud occorre verificare separatamente lo stato dell'ambiente interessato.
 
 ## Limiti noti e verificabili
+
+- Il restyling UX/UI generale pre-lancio resta una fase separata. Eventuali rifiniture trasversali di tipografia, densità, dimensioni delle card, spacing, header, avatar, sistema colori e micro-interazioni non fanno parte del blocco P1–P4 concluso.
 
 - La regione effettiva delle Vercel Functions e la sua collocazione UE restano un tema infrastrutturale separato da verificare/configurare sul progetto Vercel.
 - Alcuni flussi sanitari autenticati attraversano ancora le Vercel Functions per necessità delle route server correnti. Una loro eventuale riduzione richiede una valutazione architetturale futura separata; non è stata inclusa nell'hardening di cache e logging.

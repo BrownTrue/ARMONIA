@@ -95,8 +95,18 @@ export function buildPatientTimeline(
     b.occurredOn.localeCompare(a.occurredOn) || b.createdAt.localeCompare(a.createdAt));
 }
 
-export function filterPatientTimeline(items: PatientTimelineItem[], filter: PatientTimelineFilter) {
-  if (filter === "sessions") return items.filter((item) => item.type === "session");
-  if (filter === "assessments") return items.filter((item) => item.type === "clinical_assessment");
-  return items.slice();
+export function filterPatientTimeline(items: PatientTimelineItem[], filter: PatientTimelineFilter, query = "") {
+  const filtered = filter === "sessions"
+    ? items.filter((item) => item.type === "session")
+    : filter === "assessments"
+      ? items.filter((item) => item.type === "clinical_assessment")
+      : items.slice();
+  const normalizedQuery = query.trim().toLocaleLowerCase("it-IT");
+  if (!normalizedQuery) return filtered;
+  return filtered.filter((item) => {
+    const searchable = item.type === "session"
+      ? [item.title, item.session.activities, item.session.result, ...item.goals.map((goal) => goal.title)]
+      : [item.title, ...item.moduleLabels];
+    return searchable.some((value) => value.toLocaleLowerCase("it-IT").includes(normalizedQuery));
+  });
 }
