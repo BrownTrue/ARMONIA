@@ -8,6 +8,7 @@ import { Modal } from "@/components/modal";
 import { CalendarSettingsPanel } from "@/components/calendar-settings-panel";
 import type { Appointment } from "@/lib/types";
 import { fullName, today } from "@/lib/types";
+import { formatEuroCents } from "@/lib/calendar-v2";
 
 type View = "month" | "week" | "agenda";
 type Editor = {
@@ -184,6 +185,7 @@ export default function Calendar() {
           }
           onClose={() => setEditor(null)}
         >
+          {editor.appointment && <AppointmentSummary appointment={editor.appointment}/>}
           <AppointmentForm
             appointment={editor.appointment}
             initialDate={editor.date}
@@ -217,6 +219,15 @@ export default function Calendar() {
       {settingsOpen && <CalendarSettingsPanel onClose={() => setSettingsOpen(false)}/>}
     </AppShell>
   );
+}
+
+function AppointmentSummary({appointment}:{appointment:Appointment}) {
+  return <dl className="mb-5 grid gap-3 rounded-xl border border-sage-100 bg-sage-50/60 p-4 text-sm sm:grid-cols-2">
+    {appointment.locationNameSnapshot&&<div><dt className="text-slate-500">Sede</dt><dd className="font-bold">{appointment.locationNameSnapshot}</dd></div>}
+    {appointment.serviceNameSnapshot&&<div><dt className="text-slate-500">Prestazione</dt><dd className="font-bold">{appointment.serviceNameSnapshot}</dd></div>}
+    <div><dt className="text-slate-500">Durata</dt><dd className="font-bold">{appointment.duration} minuti</dd></div>
+    {appointment.effectivePriceCents!==undefined&&<div><dt className="text-slate-500">Prezzo</dt><dd className="font-bold">{appointment.effectivePriceCents===0?"Gratuito":formatEuroCents(appointment.effectivePriceCents)}</dd></div>}
+  </dl>;
 }
 
 function MonthView({

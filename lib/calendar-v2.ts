@@ -85,13 +85,28 @@ export function withAppointmentLocation(appointment: Appointment, location: Appo
 }
 
 export function withAppointmentService(appointment: Appointment, service: AppointmentService | null): Appointment {
+  if (!service) {
+    return {
+      ...appointment,
+      serviceId: undefined,
+      serviceNameSnapshot: undefined,
+    };
+  }
   return {
     ...appointment,
-    serviceId: service?.id,
-    serviceNameSnapshot: service?.name,
-    duration: service?.defaultDurationMinutes ?? appointment.duration,
-    effectivePriceCents: service?.defaultPriceCents,
+    serviceId: service.id,
+    serviceNameSnapshot: service.name,
+    duration: service.defaultDurationMinutes,
+    effectivePriceCents: service.defaultPriceCents,
   };
+}
+
+export function selectableAppointmentLocations(locations: AppointmentLocation[], currentId?: string): AppointmentLocation[] {
+  return locations.filter((location) => location.isActive || location.id === currentId);
+}
+
+export function selectableAppointmentServices(services: AppointmentService[], currentId?: string): AppointmentService[] {
+  return services.filter((service) => service.isActive || service.id === currentId);
 }
 
 export function buildWeeklyAppointmentOccurrences(
