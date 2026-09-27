@@ -9,6 +9,8 @@ import { Modal } from "@/components/modal";
 import { PatientForm } from "@/components/patient-form";
 import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/timeline";
 import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
+import { centsToEuroInput, euroInputToCents, formatEuroCents, selectableAppointmentServices } from "@/lib/calendar-v2";
+import { sessionWithService } from "@/lib/economy";
 import { clinicalAssessmentTypeLabel, getPatientOverview } from "@/lib/patient-overview";
 import type { PatientOverview } from "@/lib/patient-overview";
 import { getFuturePatientAppointments, getPatientMaterials, getRecentPatientMaterials } from "@/lib/patient-resources";
@@ -247,6 +249,8 @@ function SessionTimelineCard({ item, onEdit, onDelete, onOpenMaterial }: { item:
         <TimelineField label="Risposta" value={session.response} />
         <TimelineField label="Livello di aiuto" value={session.helpLevel} />
         <TimelineField label="Risultato" value={session.result} />
+        <TimelineField label="Prestazione" value={session.serviceNameSnapshot} />
+        {session.effectivePriceCents !== undefined && <TimelineField label="Prezzo" value={session.effectivePriceCents === 0 ? "Gratuita" : formatEuroCents(session.effectivePriceCents)} />}
         {item.goals.length > 0 && <TimelineField label="Obiettivi"><ul className="space-y-1">{item.goals.map((goal) => <li key={goal.id} className={goal.available ? "" : "text-slate-400"}>• {goal.title}</li>)}</ul></TimelineField>}
         {item.materials.length > 0 && <TimelineField label="Materiali"><div className="flex flex-wrap gap-2">{item.materials.map((entry) => entry.material ? <button key={entry.id} type="button" onClick={() => onOpenMaterial(entry.material!)} className="rounded-lg border border-sage-100 px-2.5 py-1.5 text-left text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">{entry.title}</button> : <span key={entry.id} className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm text-slate-400">{entry.title}</span>)}</div></TimelineField>}
         <TimelineField label="Compiti" value={session.homework} />
@@ -321,13 +325,18 @@ function SessionEditor({
   session: Session;
   onDone: () => void;
 }) {
-  const { saveSession } = useData();
+  const { data, saveSession } = useData();
   const [v, setV] = useState(session);
+  const [price, setPrice] = useState(centsToEuroInput(session.effectivePriceCents));
+  const [error, setError] = useState("");
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-        await saveSession(v);
+        setError("");
+        let effectivePriceCents: number | undefined;
+        try { effectivePriceCents = euroInputToCents(price); } catch (cause) { setError(cause instanceof Error ? cause.message : "Inserisci un prezzo valido."); return; }
+        await saveSession({ ...v, effectivePriceCents });
         onDone();
       }}
       className="space-y-4"
@@ -341,6 +350,10 @@ function SessionEditor({
           className="mt-2 w-full rounded-xl border p-3 font-normal"
         />
       </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-bold">Prestazione<select value={v.serviceId || ""} onChange={(event)=>{const service=data.services.find((item)=>item.id===event.target.value)||null;setV((old)=>sessionWithService(old,service));if(service)setPrice(centsToEuroInput(service.defaultPriceCents));}} className="mt-2 w-full rounded-xl border p-3 font-normal"><option value="">Nessuna prestazione</option>{v.serviceId&&!data.services.some((item)=>item.id===v.serviceId)&&<option value={v.serviceId}>{v.serviceNameSnapshot||"Prestazione non disponibile"} — Non disponibile</option>}{selectableAppointmentServices(data.services,v.serviceId).map((service)=><option value={service.id} key={service.id}>{service.name}{!service.isActive?" — Non attiva":""}</option>)}</select></label>
+        <label className="block text-sm font-bold">Prezzo (facoltativo)<input inputMode="decimal" value={price} onChange={(event)=>setPrice(event.target.value)} className="mt-2 w-full rounded-xl border p-3 font-normal"/><span className="mt-1 block text-xs font-normal text-slate-500">Vuoto = non specificato · 0 = gratuita</span></label>
+      </div>
       <label className="block text-sm font-bold">
         Attività
         <textarea
@@ -366,6 +379,7 @@ function SessionEditor({
         />
       </label>
       <div className="flex justify-end gap-2">
+        {error && <p role="alert" className="mr-auto self-center text-sm font-bold text-red-700">{error}</p>}
         <button type="button" onClick={onDone} className="btn btn-quiet">
           Annulla
         </button>

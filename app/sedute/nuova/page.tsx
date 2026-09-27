@@ -1,36 +1,41 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
+import { centsToEuroInput, euroInputToCents, selectableAppointmentServices } from "@/lib/calendar-v2";
+import { resolveNewSessionDraft, sessionWithAppointmentSnapshot, sessionWithService } from "@/lib/economy";
 import { fullName, today, uid } from "@/lib/types";
 import type { Session } from "@/lib/types";
 function Form() {
   const q = useSearchParams(),
     router = useRouter(),
-    { data, saveSession } = useData();
-  const requestedAppointment = data.appointments.find((x) => x.id === q.get("a"));
-  const requestedPatientId = requestedAppointment?.patientId || q.get("p") || "";
-  const [v, setV] = useState<Session>({
-    id: uid(),
-    patientId: requestedPatientId,
-    appointmentId: requestedAppointment?.id,
-    date: requestedAppointment?.date || q.get("date") || today(),
-    duration: requestedAppointment?.duration || 45,
-    goalIds: [],
-    activities: "",
-    response: "Buona",
-    helpLevel: "Minimo",
-    result: "",
-    nextPlan: "",
-    homework: "",
-    notes: "",
-    materialIds: [],
-    createdAt: new Date().toISOString(),
-  });
+    { data, ready, saveSession } = useData();
+  const requestedAppointmentId = q.get("a") || undefined;
+  const [v, setV] = useState<Session | null>(null);
+  const [price, setPrice] = useState("");
+  const [error, setError] = useState("");
+  const [appointmentMissing, setAppointmentMissing] = useState(false);
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (!v.patientId && data.patients[0]) setV((old) => ({ ...old, patientId: data.patients[0].id }));
-  }, [data.patients, v.patientId]);
+    if (initializedRef.current || !ready) return;
+    const resolution = resolveNewSessionDraft(null, {
+      dataReady: ready,
+      appointmentId: requestedAppointmentId,
+      appointments: data.appointments,
+      fallbackPatientId: q.get("p") || data.patients[0]?.id || "",
+      fallbackDate: q.get("date") || today(),
+      createId: uid,
+      createdAt: () => new Date().toISOString(),
+    });
+    if (!resolution.session) return;
+    initializedRef.current = true;
+    setV(resolution.session);
+    setPrice(centsToEuroInput(resolution.session.effectivePriceCents));
+    setAppointmentMissing(resolution.appointmentMissing);
+  }, [data.appointments, data.patients, q, ready, requestedAppointmentId]);
+  if (!v) return <AppShell><p className="text-sm text-slate-500">Caricamento seduta…</p></AppShell>;
+  const updateSession = (update: (current: Session) => Session) => setV((current) => current ? update(current) : current);
   const p = data.patients.find((x) => x.id === v.patientId);
   const previous = p
     ? data.sessions
@@ -56,7 +61,7 @@ function Form() {
       {labels.map((x) => (
         <button
           type="button"
-          onClick={() => setV((old) => ({ ...old, [key]: x }))}
+          onClick={() => updateSession((old) => ({ ...old, [key]: x }))}
           className={"chip " + (v[key] === x ? "!bg-sage-700 !text-white" : "")}
           key={x}
         >
@@ -77,6 +82,7 @@ function Form() {
             <b>Dalla seduta precedente:</b> {previous.nextPlan}
           </p>
         )}
+        {appointmentMissing && <p role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">L’appuntamento richiesto non è disponibile. Puoi continuare registrando una seduta manuale.</p>}
       </header>
       <form
         className="mx-auto max-w-3xl space-y-5"
@@ -84,16 +90,27 @@ function Form() {
           e.preventDefault();
           if (v.appointmentId && data.sessions.some((s) => s.appointmentId === v.appointmentId && s.id !== v.id)) { alert("Seduta già registrata per questo appuntamento."); return; }
           const f=new FormData(e.currentTarget);
-          await saveSession({...v,activities:String(f.get('activities')||''),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')});
+          setError("");
+          let effectivePriceCents: number | undefined;
+          try { effectivePriceCents = euroInputToCents(price); } catch (cause) { setError(cause instanceof Error ? cause.message : "Inserisci un prezzo valido."); return; }
+          await saveSession({...v,effectivePriceCents,activities:String(f.get('activities')||''),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')});
           router.push("/pazienti/" + p.id);
         }}
       >
         <section className="card p-5">
           <h2 className="text-sm font-bold">Data e paziente</h2>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-bold">Paziente<select value={v.patientId} onChange={(e) => setV((old) => ({...old,patientId:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal">{data.patients.map((patient) => <option value={patient.id} key={patient.id}>{fullName(patient)}</option>)}</select></label>
-            <label className="block text-sm font-bold">Data effettiva<input type="date" max={today()} required value={v.date} onChange={(e) => setV((old) => ({...old,date:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal" /></label>
-            <label className="block text-sm font-bold sm:col-span-2">Appuntamento collegato<select value={v.appointmentId || ""} onChange={(e) => { const id=e.target.value||undefined; const appointment=data.appointments.find((a)=>a.id===id); setV((old)=>({...old,appointmentId:id,duration:appointment?.duration||old.duration})); }} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessun appuntamento</option>{appointmentsForDate.map((a)=><option value={a.id} key={a.id}>{a.time} · {a.duration} min</option>)}</select></label>
+            <label className="block text-sm font-bold">Paziente<select value={v.patientId} onChange={(e) => updateSession((old) => ({...old,patientId:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal">{data.patients.map((patient) => <option value={patient.id} key={patient.id}>{fullName(patient)}</option>)}</select></label>
+            <label className="block text-sm font-bold">Data effettiva<input type="date" max={today()} required value={v.date} onChange={(e) => updateSession((old) => ({...old,date:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal" /></label>
+            <label className="block text-sm font-bold sm:col-span-2">Appuntamento collegato<select value={v.appointmentId || ""} onChange={(e) => { const appointment=data.appointments.find((a)=>a.id===e.target.value); if (!appointment) { updateSession((old)=>({...old,appointmentId:undefined})); return; } updateSession((old)=>sessionWithAppointmentSnapshot(old,appointment)); setPrice(centsToEuroInput(appointment.effectivePriceCents)); }} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessun appuntamento</option>{appointmentsForDate.map((a)=><option value={a.id} key={a.id}>{a.time} · {a.duration} min</option>)}</select></label>
+          </div>
+        </section>
+        <section className="card p-5">
+          <h2 className="text-sm font-bold">Prestazione</h2>
+          <p className="mt-1 text-sm text-slate-500">Questi dati diventano lo storico economico della seduta.</p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-bold">Prestazione<select value={v.serviceId || ""} onChange={(event)=>{const service=data.services.find((item)=>item.id===event.target.value)||null;updateSession((old)=>sessionWithService(old,service));if(service)setPrice(centsToEuroInput(service.defaultPriceCents));}} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessuna prestazione</option>{v.serviceId&&!data.services.some((item)=>item.id===v.serviceId)&&<option value={v.serviceId}>{v.serviceNameSnapshot||"Prestazione non disponibile"} — Non disponibile</option>}{selectableAppointmentServices(data.services,v.serviceId).map((service)=><option value={service.id} key={service.id}>{service.name}{!service.isActive?" — Non attiva":""}</option>)}</select></label>
+            <label className="block text-sm font-bold">Prezzo (facoltativo)<input inputMode="decimal" placeholder="es. 45,00" value={price} onChange={(event)=>setPrice(event.target.value)} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"/><span className="mt-1 block text-xs font-normal text-slate-500">Vuoto = non specificato · 0 = gratuita</span></label>
           </div>
         </section>
         <section className="card p-5">
@@ -134,13 +151,13 @@ function Form() {
                 title="OBIETTIVI DEL PERCORSO ATTIVO"
                 goals={pathwayGoals}
                 selected={v.goalIds}
-                onToggle={(goalId,checked)=>setV((old)=>({...old,goalIds:checked?[...old.goalIds,goalId]:old.goalIds.filter((id)=>id!==goalId)}))}
+                onToggle={(goalId,checked)=>updateSession((old)=>({...old,goalIds:checked?[...old.goalIds,goalId]:old.goalIds.filter((id)=>id!==goalId)}))}
               />}
               {otherGoals.length > 0 && <GoalChoices
                 title={activePathway?"ALTRI OBIETTIVI ATTIVI":"OBIETTIVI ATTIVI"}
                 goals={otherGoals}
                 selected={v.goalIds}
-                onToggle={(goalId,checked)=>setV((old)=>({...old,goalIds:checked?[...old.goalIds,goalId]:old.goalIds.filter((id)=>id!==goalId)}))}
+                onToggle={(goalId,checked)=>updateSession((old)=>({...old,goalIds:checked?[...old.goalIds,goalId]:old.goalIds.filter((id)=>id!==goalId)}))}
               />}
             </div>
           )}
@@ -158,7 +175,7 @@ function Form() {
                   <input
                     type="checkbox"
                     checked={v.materialIds.includes(m.id)}
-                    onChange={(e) => { const checked=e.target.checked; setV((old) => ({
+                    onChange={(e) => { const checked=e.target.checked; updateSession((old) => ({
                         ...old,
                         materialIds: checked ? [...old.materialIds, m.id] : old.materialIds.filter((x) => x !== m.id),
                       })) }}
@@ -195,6 +212,7 @@ function Form() {
             />
           </label>
         </section>
+        {error&&<p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
         <button className="btn btn-primary w-full py-4 text-base">
           Concludi e salva seduta
         </button>

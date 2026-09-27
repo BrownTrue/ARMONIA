@@ -15,7 +15,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 
 ## Struttura principale
 
-- `app/`: pagine, layout e route API; include Oggi, Pazienti, Calendario, Sedute, Materiali, Statistiche, Impostazioni, Login e le pagine pubbliche Informazioni e Privacy.
+- `app/`: pagine, layout e route API; include Oggi, Pazienti, Calendario, Sedute, Materiali, Economia, Statistiche, Impostazioni, Login e le pagine pubbliche Informazioni e Privacy.
 - `components/data-provider.tsx`: API dati condivisa dalla UI e selezione fra provider locale e Supabase.
 - `components/`: shell applicativa e moduli riutilizzabili per form, modali, autenticazione e appuntamenti.
 - `lib/supabase/`: client browser/server e repository Supabase.
@@ -67,6 +67,12 @@ Le sedute possono essere create manualmente o a partire da un appuntamento, poi 
 
 La registrazione retroattiva conserva la data effettiva scelta. Il collegamento `appointmentId` impedisce di creare due sedute per lo stesso appuntamento e permette di modificare quella già registrata.
 
+La fondazione economica E1 considera la `Session` come fonte storica della prestazione realmente erogata. Quando nasce da un appuntamento, servizio, nome e prezzo vengono copiati una sola volta; una seduta manuale o retrodatata può impostarli direttamente. Gli snapshot restano indipendenti da appuntamento e catalogo. Il prezzo nullable distingue dato non specificato (`NULL`) e gratuità (`0`), senza backfill delle sedute storiche.
+
+### Economia
+
+La pagina `/economia` mostra esclusivamente dati supportati dalle sedute: valore erogato nel mese, numero di prestazioni, prezzi mancanti e righe delle prestazioni svolte, con filtri locali per periodo, paziente e prestazione. Riusa il catalogo `appointment_services` in sola lettura e rimanda alla gestione già presente nel Calendario. E1 non gestisce pagamenti, crediti, incassi, fatture, proforma, dati fiscali o spese.
+
 ### Dashboard Oggi
 
 La dashboard usa il collegamento reale tra appuntamenti e sedute. Gli appuntamenti odierni senza seduta sono mostrati in “Da fare oggi”; quelli con una seduta collegata in “Completati oggi”. L'appuntamento resta nello storico e nel calendario.
@@ -105,7 +111,7 @@ Il backend espone un feed iCalendar privato, read-only e indipendente da Google 
 
 ## Supabase e deployment
 
-Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato. Le migration `014`, `015`, `016` e `017` della Libreria terapeutica V2 sono applicate in produzione; reconciliation pre-cutover, postflight e collaudo reale post-cutover hanno avuto esito positivo.
+Lo schema include profili, pazienti, appuntamenti, sedute, obiettivi, materiali e tabelle di relazione. Le migration `006` e `007` introducono percorsi e valutazioni cliniche; la `010`, applicata manualmente all'ambiente reale il 25/09/2026 e registrata nel repository, abilita in modo retrocompatibile la coesistenza V1/V2 senza convertire i record storici. La `008` prepara il collegamento opzionale degli obiettivi e va verificata separatamente nell'ambiente interessato. RLS e policy isolano i dati per utente. Il bucket `therapy-materials` è privato. Le migration `014`, `015`, `016` e `017` della Libreria terapeutica V2 sono applicate in produzione; reconciliation pre-cutover, postflight e collaudo reale post-cutover hanno avuto esito positivo. La migration additiva `019` è applicata in produzione con preflight/postflight PASS: 23 sedute prima e dopo, nessun backfill e fondazione database E1 attiva. Il codice applicativo E1 ha superato il collaudo manuale desktop/mobile e dei flussi seduta prima della pubblicazione.
 
 Il repository contiene configurazione e istruzioni per il deploy su Vercel. Lo stato effettivo del deployment e delle migration applicate nei singoli ambienti non è deducibile dal solo repository e deve essere verificato prima di interventi cloud.
 
@@ -124,5 +130,6 @@ I log server di Google Calendar e della Libreria terapeutica usano una diagnosti
 - File privati aperti tramite URL temporanei, non tramite link pubblici permanenti.
 - Quota cloud autorevole e prenotata atomicamente prima degli upload; il browser non riceve mai credenziali service role né sceglie liberamente path o utente.
 - Modifiche al database additive e retrocompatibili, applicate manualmente.
+- La prestazione erogata e il relativo valore storico appartengono alla seduta; appuntamento e catalogo sono soltanto fonti iniziali e non restano collegati in modo live.
 - Risposte server sensibili non memorizzabili e diagnostica priva di identificatori clinici intenzionali.
 - Il restyling UX/UI trasversale dell'app è pianificato come fase pre-lancio separata dai blocchi funzionali già conclusi.

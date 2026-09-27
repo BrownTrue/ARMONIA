@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useData } from "./data-provider";
 
-const items = [["◷", "Oggi", "/oggi"], ["□", "Calendario", "/calendario"], ["◎", "Pazienti", "/pazienti"], ["▧", "Materiali", "/materiali"], ["◔", "Statistiche", "/statistiche"], ["⚙", "Impostazioni", "/impostazioni"]] as const;
+const items = [["◷", "Oggi", "/oggi"], ["□", "Calendario", "/calendario"], ["◎", "Pazienti", "/pazienti"], ["▧", "Materiali", "/materiali"], ["◔", "Statistiche", "/statistiche"], ["€", "Economia", "/economia"], ["⚙", "Impostazioni", "/impostazioni"]] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname(), router = useRouter();

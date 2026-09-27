@@ -4,6 +4,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Eseguire in un intervento separato l'hardening dei privilegi non necessari `TRUNCATE`, `REFERENCES` e `TRIGGER` rilevati su `public.sessions`, dopo aver completato l'audit ACL; non fa parte del collaudo funzionale E1.
+
 - Verificare e documentare separatamente la regione effettiva delle Vercel Functions e valutare la configurazione in una regione UE coerente con i requisiti privacy del progetto.
 - Valutare in una fase architetturale dedicata quali flussi sanitari oggi processati dalle Vercel Functions possano essere ridotti, mantenendo sicurezza, autenticazione e funzionalità server-only. L'audit data-flow e l'hardening cache/logging sono completati.
 - Collaudare manualmente con un account e appuntamenti sintetici la UI Calendario ARMONIA e il feed ICS dopo un futuro deploy esplicitamente autorizzato. Migration `013`, postflight e configurazione della chiave Production sono completati; UI e codice restano non pubblicati.
@@ -22,12 +24,17 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Miglioramenti
 
+- Valutare una chiara azione “Elimina seduta” nella scheda paziente, protetta da conferma e con gestione sicura delle relazioni; non fa parte di E1.
+- Progettare E2 separatamente: pagamenti, crediti, allocazioni e metriche realmente basate su incassato/da incassare, senza dedurle dal solo valore erogato.
+
 - Pianificare il restyling UX/UI generale pre-lancio, includendo tipografia, densità, dimensioni delle card, spacing, header, avatar, sistema colori definitivo e micro-interazioni. Il workspace paziente P1–P4 è concluso e non richiede ulteriori rifiniture nel blocco corrente.
 - Introdurre un namespace per utente per coda, mapping e stato Google conservati nel browser, definendo prima una migrazione esplicita e non distruttiva della coda legacy già esistente.
 - Estendere i test automatici oltre la copertura attuale di ricorrenze, operazioni individuali e partizione Dashboard: CRUD principali, registrazione retroattiva e flussi UI completi.
 - Ampliare i test UI automatici del Percorso clinico; i test sintetici attuali coprono versionamento locale, vincoli dei percorsi, test multipli e ciclo draft/completed, mentre i flussi UI sono stati verificati manualmente in locale.
 
 ## Idee future
+
+- Progettare E3 separatamente: dati fiscali e generazione di proforma/fatture; valutare le spese soltanto in un blocco successivo dedicato.
 
 - Aggiungere, dopo una progettazione completa e sicura, le operazioni sulle serie “questo e successivi” e “intera serie”.
 - Valutare uno storico revisioni delle valutazioni cliniche completate, con audit log, autore e confronto tra versioni; l’MVP attuale sovrascrive la versione precedente durante una correzione esplicita.
