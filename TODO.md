@@ -4,6 +4,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Proseguire il blocco Paziente/Percorso clinico dopo il collaudo manuale della P1: P2 completerà timeline e dettaglio delle attività; P3 approfondirà la proiezione delle risorse; P4 integrerà maggiormente percorso, obiettivi, sedute e valutazioni. La P1 locale non richiede migration e non modifica il dominio clinico.
+
 
 - Verificare e documentare separatamente la regione effettiva delle Vercel Functions e valutare la configurazione in una regione UE coerente con i requisiti privacy del progetto.
 - Valutare in una fase architetturale dedicata quali flussi sanitari oggi processati dalle Vercel Functions possano essere ridotti, mantenendo sicurezza, autenticazione e funzionalità server-only. L'audit data-flow e l'hardening cache/logging sono completati.
