@@ -47,7 +47,7 @@ Ogni professionista può usare un logo personale nelle stampe. L'immagine viene 
 
 ### Pazienti
 
-Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente è organizzata nelle sezioni Panoramica, Percorso, Attività e Risorse. Un pannello “Dove siamo?” costruisce una proiezione read-only e deterministica dei dati già caricati: percorso attivo, ultima valutazione, obiettivi attivi, ultima seduta, piano successivo e prossimo appuntamento realmente futuro. Non formula diagnosi o inferenze cliniche. I dati meno frequenti e sensibili sono raccolti in una sezione espandibile. La timeline applicativa aggrega sedute e valutazioni cliniche senza una tabella database dedicata.
+Creazione, ricerca, consultazione, modifica ed eliminazione. La scheda paziente è organizzata nelle sezioni Panoramica, Percorso, Attività e Risorse. Un pannello “Dove siamo?” costruisce una proiezione read-only e deterministica dei dati già caricati: percorso attivo, ultima valutazione, obiettivi attivi, ultima seduta, piano successivo e prossimo appuntamento realmente futuro. Non formula diagnosi o inferenze cliniche. I dati meno frequenti e sensibili sono raccolti in una sezione espandibile. La timeline applicativa aggrega sedute e valutazioni cliniche senza una tabella database dedicata; consente filtri per tipo e mostra a richiesta i dettagli realmente registrati, incluse le relazioni già esistenti con obiettivi, materiali e appuntamenti.
 
 ### Appuntamenti e calendario
 

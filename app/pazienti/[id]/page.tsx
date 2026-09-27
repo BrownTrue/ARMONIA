@@ -7,19 +7,21 @@ import { PatientClinicalPathway } from "@/components/clinical/patient-clinical-p
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { PatientForm } from "@/components/patient-form";
-import { buildPatientTimeline } from "@/lib/clinical/timeline";
+import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/timeline";
+import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
 import { clinicalAssessmentTypeLabel, getPatientOverview } from "@/lib/patient-overview";
 import type { PatientOverview } from "@/lib/patient-overview";
-import type { Goal, Session } from "@/lib/types";
+import type { Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
 export default function PatientPage() {
   const { id } = useParams<{ id: string }>(),
     router = useRouter();
-  const { data, ready, deletePatient, deleteSession, deleteGoal } = useData();
+  const { data, ready, deletePatient, deleteSession, deleteGoal, openMaterial } = useData();
   const [edit, setEdit] = useState(false),
     [detail, setDetail] = useState<Session | null>(null),
     [goalEdit, setGoalEdit] = useState<Goal | "new" | null>(null),
+    [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
     [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview");
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("tab");
@@ -56,7 +58,8 @@ export default function PatientPage() {
     .filter((s) => s.patientId === id)
     .sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
   const goals = data.goals.filter((g) => g.patientId === id);
-  const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments);
+  const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments, data.goals, data.materials, data.appointments);
+  const visibleTimeline = filterPatientTimeline(timeline, activityFilter);
   const overview = getPatientOverview(data, id);
   const patientMaterials = data.materials.filter((material) => material.patientIds.includes(id));
   const recentActivity = timeline.slice(0, 3);
@@ -129,38 +132,23 @@ export default function PatientPage() {
           )}
           {goals.some((goal) => goal.status === "achieved" || goal.status === "suspended") && <details className="mt-5 border-t border-sage-100 pt-4"><summary className="cursor-pointer text-sm font-bold text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Obiettivi raggiunti o sospesi</summary><div className="mt-3 space-y-2">{goals.filter((goal) => goal.status === "achieved" || goal.status === "suspended").map((goal) => <div key={goal.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><span className="text-sm font-medium">{goal.title}</span><div className="flex gap-3"><button onClick={() => setGoalEdit(goal)} className="text-xs font-bold text-sage-700">Modifica</button><button onClick={() => confirm("Eliminare questo obiettivo?") && deleteGoal(goal.id)} className="text-xs font-bold text-red-600">Elimina</button></div></div>)}</div></details>}
         </section>
-        <section className="card p-5"><h2 className="font-bold">Attività recenti</h2>{recentActivity.length ? <div className="mt-3 divide-y divide-sage-100">{recentActivity.map((item) => <div key={item.id} className="py-3 first:pt-0"><p className="text-xs font-bold text-slate-400">{formatDate(item.occurredOn)}</p><p className="mt-1 text-sm font-bold">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p><p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.subtitle}</p></div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}<button onClick={() => selectTab("activity")} className="mt-3 text-sm font-bold text-sage-700">Vedi attività</button></section>
+        <section className="card p-5"><h2 className="font-bold">Attività recenti</h2>{recentActivity.length ? <div className="mt-3 divide-y divide-sage-100">{recentActivity.map((item) => <div key={item.id} className="py-3 first:pt-0"><p className="text-xs font-bold text-slate-400">{formatDate(item.occurredOn)}</p><p className="mt-1 text-sm font-bold">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p>{item.subtitle && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.subtitle}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}<button onClick={() => selectTab("activity")} className="mt-3 text-sm font-bold text-sage-700">Vedi attività</button></section>
         <details className="card p-5 lg:col-span-3"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>}
       {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onOpenGoals={openGoals} /></div>}
       {tab === "activity" && <div className="mt-5 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Attività</h2><p className="mt-1 text-sm text-slate-500">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary">Registra seduta</Link></div>
-        <section className="card p-5">
-          <h2 className="font-bold">Storia clinica</h2>
-          {timeline.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">
-              Nessuna seduta o valutazione registrata.
-            </p>
+        <section className="card p-4 sm:p-5">
+          <div className="flex justify-end">
+            <div aria-label="Filtra la storia clinica" className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-50 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {([['all','Tutte'],['sessions','Sedute'],['assessments','Valutazioni']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={activityFilter === value} onClick={() => setActivityFilter(value)} className={`min-h-9 min-w-max rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 ${activityFilter === value ? "bg-sage-100 text-sage-800" : "text-slate-500 hover:bg-white hover:text-slate-700"}`}>{label}</button>)}
+            </div>
+          </div>
+          {visibleTimeline.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500">{timeline.length === 0 ? "Nessuna seduta o valutazione registrata." : "Nessuna attività corrisponde al filtro selezionato."}</p>
           ) : (
-            <div className="mt-4 divide-y divide-sage-100">
-              {timeline.map((item) => item.type === "session" ? (
-                <div className="flex flex-col items-stretch gap-3 py-4 sm:flex-row sm:flex-wrap sm:items-center" key={item.id}>
-                  <div className="min-w-28">
-                    <b>{new Date(item.occurredOn + "T12:00").toLocaleDateString("it-IT")}</b>
-                    <p className="text-sm text-slate-500">
-                      {item.session.duration} minuti
-                    </p>
-                  </div>
-                  <div className="min-w-48 flex-1">
-                    <p className="font-bold">{item.title}</p><p className="mt-1 text-sm">{item.subtitle}</p>
-                    <p className="mt-1 text-sm text-sage-700">
-                      Prossima volta: {item.session.nextPlan || "—"}
-                    </p>
-                  </div>
-                  <button onClick={() => setDetail(item.session)} className="btn btn-quiet w-full sm:w-auto">Apri / modifica</button>
-                  <button onClick={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} className="btn w-full text-red-600 sm:w-auto">Elimina</button>
-                </div>
-              ) : <div className="flex flex-wrap items-center gap-3 py-4" key={item.id}><div className="min-w-28"><b>{new Date(item.occurredOn+"T12:00").toLocaleDateString("it-IT")}</b><p className="text-sm text-slate-500">Valutazione</p></div><div className="min-w-48 flex-1"><p className="font-bold">{item.title}</p><p className="mt-1 text-sm text-slate-500">{item.subtitle}</p></div><Link href={`/pazienti/${p.id}/percorso/${item.entityId}`} className="btn btn-quiet">{item.assessment.status==="completed"?"Apri":"Continua"}</Link>{item.assessment.status==="completed"&&<Link href={`/pazienti/${p.id}/percorso/${item.entityId}?print=1`} className="btn btn-quiet">Stampa</Link>}</div>)}
+            <div className="mt-4 space-y-3">
+              {visibleTimeline.map((item) => item.type === "session" ? <SessionTimelineCard key={item.id} item={item} onEdit={() => setDetail(item.session)} onDelete={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} onOpenMaterial={(material) => void openMaterial(material)} /> : <AssessmentTimelineCard key={item.id} item={item} patientId={p.id} />)}
             </div>
           )}
         </section>
@@ -186,6 +174,69 @@ export default function PatientPage() {
       )}
     </AppShell>
   );
+}
+
+type SessionTimelineItem = Extract<PatientTimelineItem, { type: "session" }>;
+type AssessmentTimelineItem = Extract<PatientTimelineItem, { type: "clinical_assessment" }>;
+
+function SessionTimelineCard({ item, onEdit, onDelete, onOpenMaterial }: { item: SessionTimelineItem; onEdit: () => void; onDelete: () => void; onOpenMaterial: (material: Material) => void }) {
+  const { session } = item;
+  const activityPreview = compactTimelineText(session.activities);
+  const resultPreview = compactTimelineText(session.result);
+  const indicators = [
+    item.goals.length ? `${item.goals.length} ${item.goals.length === 1 ? "obiettivo" : "obiettivi"}` : null,
+    item.materials.length ? `${item.materials.length} ${item.materials.length === 1 ? "materiale" : "materiali"}` : null,
+    session.homework ? "Compiti" : null,
+    session.nextPlan ? "Prossima volta" : null,
+  ].filter((value): value is string => Boolean(value));
+  return <article className="rounded-2xl border border-sage-100 bg-white p-4 sm:p-5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2"><time dateTime={item.occurredOn} className="text-sm font-bold text-slate-700">{formatDate(item.occurredOn)}</time><span className="text-xs text-slate-400">Seduta · {session.duration} min</span></div>
+        {activityPreview && <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-slate-700"><span className="font-bold">Attività:</span> {activityPreview}</p>}
+        {resultPreview && <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-slate-600"><span className="font-bold">Risultato:</span> {resultPreview}</p>}
+        {indicators.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{indicators.map((indicator) => <span key={indicator} className="rounded-full bg-sage-50 px-2.5 py-1 text-[11px] font-bold text-sage-700">{indicator}</span>)}</div>}
+      </div>
+      <button onClick={onEdit} className="self-start rounded-lg px-2 py-1.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:min-h-11 sm:rounded-xl sm:bg-sage-50 sm:px-4 sm:py-3">Apri / modifica</button>
+    </div>
+    <details className="mt-3 border-t border-sage-100 pt-3">
+      <summary className="-mx-1 block min-h-11 cursor-pointer list-none rounded-lg px-1 py-3 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dettagli seduta <span aria-hidden="true" className="ml-1 text-slate-400">⌄</span></summary>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <TimelineField label="Attività" value={session.activities} />
+        <TimelineField label="Risposta" value={session.response} />
+        <TimelineField label="Livello di aiuto" value={session.helpLevel} />
+        <TimelineField label="Risultato" value={session.result} />
+        {item.goals.length > 0 && <TimelineField label="Obiettivi"><ul className="space-y-1">{item.goals.map((goal) => <li key={goal.id} className={goal.available ? "" : "text-slate-400"}>• {goal.title}</li>)}</ul></TimelineField>}
+        {item.materials.length > 0 && <TimelineField label="Materiali"><div className="flex flex-wrap gap-2">{item.materials.map((entry) => entry.material ? <button key={entry.id} type="button" onClick={() => onOpenMaterial(entry.material!)} className="rounded-lg border border-sage-100 px-2.5 py-1.5 text-left text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">{entry.title}</button> : <span key={entry.id} className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm text-slate-400">{entry.title}</span>)}</div></TimelineField>}
+        <TimelineField label="Compiti" value={session.homework} />
+        <TimelineField label="Prossima volta" value={session.nextPlan} />
+        <TimelineField label="Note" value={session.notes} />
+        {item.appointment && <TimelineField label="Appuntamento collegato" value={`${formatDate(item.appointment.date)} · ${item.appointment.time}${item.appointment.serviceNameSnapshot ? ` · ${item.appointment.serviceNameSnapshot}` : ""}${item.appointment.locationNameSnapshot ? ` · ${item.appointment.locationNameSnapshot}` : ""}`} />}
+      </div>
+      <div className="mt-4 flex justify-end border-t border-sage-100 pt-3"><button type="button" onClick={onDelete} className="rounded-lg px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina seduta</button></div>
+    </details>
+  </article>;
+}
+
+function AssessmentTimelineCard({ item, patientId }: { item: AssessmentTimelineItem; patientId: string }) {
+  const completed = item.assessment.status === "completed";
+  return <article className="rounded-2xl border border-sage-100 bg-white p-4 sm:p-5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><time dateTime={item.occurredOn} className="text-sm font-bold text-slate-700">{formatDate(item.occurredOn)}</time><span className="text-xs text-slate-400">Valutazione</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${completed ? "bg-sage-50 text-sage-700" : "bg-amber-50 text-amber-800"}`}>{completed ? "Completata" : "Bozza"}</span></div><h3 className="mt-2 font-bold">{item.title}</h3>{item.moduleLabels.length > 0 && <p className="mt-1 text-sm text-slate-500">{item.moduleLabels.join(" · ")}</p>}</div>
+      <div className="flex flex-wrap gap-3 sm:w-auto sm:gap-2"><Link href={`/pazienti/${patientId}/percorso/${item.entityId}`} className="rounded-lg px-2 py-1.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:min-h-11 sm:rounded-xl sm:bg-sage-50 sm:px-4 sm:py-3">{completed ? "Apri" : "Continua"}</Link>{completed && <Link href={`/pazienti/${patientId}/percorso/${item.entityId}?print=1`} className="rounded-lg px-2 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300 sm:min-h-11 sm:rounded-xl sm:bg-sage-50 sm:px-4 sm:py-3 sm:text-sage-700">Stampa</Link>}</div>
+    </div>
+    <details className="mt-3 border-t border-sage-100 pt-3"><summary className="-mx-1 block min-h-11 cursor-pointer list-none rounded-lg px-1 py-3 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dettagli valutazione <span aria-hidden="true" className="ml-1 text-slate-400">⌄</span></summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><TimelineField label="Tipo" value={item.title} /><TimelineField label="Stato" value={completed ? "Completata" : "Bozza"} />{item.moduleLabels.length > 0 && <TimelineField label="Moduli" value={item.moduleLabels.join(" · ")} />}<TimelineField label="Ultimo aggiornamento" value={new Date(item.assessment.updatedAt).toLocaleDateString("it-IT")} /></div></details>
+  </article>;
+}
+
+function TimelineField({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {
+  if (!children && !value?.trim()) return null;
+  return <div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</p><div className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{children || value}</div></div>;
+}
+
+function compactTimelineText(value: string) {
+  const trimmed = value.trim();
+  return trimmed && !/^(?:-{1,3}|n\/?a|non indicato)$/i.test(trimmed) ? trimmed : undefined;
 }
 
 function PatientStatusPanel({ patientId, overview, onOpenGoals }: { patientId: string; overview: PatientOverview; onOpenGoals: () => void }) {
