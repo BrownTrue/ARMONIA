@@ -29,6 +29,8 @@ export function normalizeAppData(value: unknown): AppData {
     locations: arrayOrEmpty(source.locations),
     services: arrayOrEmpty(source.services),
     sessions: arrayOrEmpty(source.sessions),
+    payments: arrayOrEmpty(source.payments),
+    paymentAllocations: arrayOrEmpty(source.paymentAllocations),
     goals: arrayOrEmpty(source.goals),
     materials: arrayOrEmpty(source.materials),
     clinicalPathways: arrayOrEmpty(source.clinicalPathways),
@@ -65,7 +67,9 @@ export function readLocalData(raw: string | null, whenMissing: () => AppData): L
     const missingCollections = !Array.isArray(parsed.data.clinicalPathways)
       || !Array.isArray(parsed.data.clinicalAssessments)
       || !Array.isArray(parsed.data.locations)
-      || !Array.isArray(parsed.data.services);
+      || !Array.isArray(parsed.data.services)
+      || !Array.isArray(parsed.data.payments)
+      || !Array.isArray(parsed.data.paymentAllocations);
     return { data: normalized, writable: true, migrated: missingCollections };
   }
   return { data: normalizeAppData(parsed), writable: true, migrated: true };

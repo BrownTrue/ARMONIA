@@ -1,5 +1,6 @@
 import type {SupabaseClient,User} from "@supabase/supabase-js";
-import type {AppData,Appointment,AppointmentLocation,AppointmentService,Goal,Material,Patient,Profile,Session} from "../types.ts";
+import type {AppData,Appointment,AppointmentLocation,AppointmentService,Goal,Material,Patient,Payment,PaymentAllocation,Profile,Session} from "../types.ts";
+import type {CreatePaymentInput} from "../payments.ts";
 import {loadCloudClinicalData} from "./clinical-repository.ts";
 
 const splitDate=(value:string)=>{const d=new Date(value);return {date:d.toLocaleDateString("sv-SE"),time:d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit",hour12:false})}};
@@ -7,13 +8,15 @@ const joinDate=(date:string,time:string)=>new Date(`${date}T${time}:00`).toISOSt
 const check=<T extends {error:unknown}>(result:T)=>{if(result.error)throw result.error;return result};
 
 export async function loadCloudData(client:SupabaseClient,user:User):Promise<AppData>{
-  const [profiles,patients,appointments,locations,services,sessions,goals,materials,patientMaterials,sessionMaterials,sessionGoals,clinical]=await Promise.all([
+  const [profiles,patients,appointments,locations,services,sessions,payments,paymentAllocations,goals,materials,patientMaterials,sessionMaterials,sessionGoals,clinical]=await Promise.all([
     client.from("profiles").select("*").eq("id",user.id).maybeSingle(),
     client.from("patients").select("*").order("created_at",{ascending:false}),
     client.from("appointments").select("*").order("starts_at"),
     client.from("appointment_locations").select("*").eq("user_id",user.id).order("display_order").order("name"),
     client.from("appointment_services").select("*").eq("user_id",user.id).order("display_order").order("name"),
     client.from("sessions").select("*").order("occurred_at",{ascending:false}),
+    client.from("payments").select("*").eq("user_id",user.id).order("paid_at",{ascending:false}),
+    client.from("payment_allocations").select("user_id,patient_id,payment_id,session_id,amount_cents,created_at").eq("user_id",user.id),
     client.from("goals").select("*").order("created_at",{ascending:false}),
     client.from("materials").select("*").order("created_at",{ascending:false}),
     client.from("patient_materials").select("patient_id,material_id"),
@@ -21,7 +24,7 @@ export async function loadCloudData(client:SupabaseClient,user:User):Promise<App
     client.from("session_goals").select("session_id,goal_id"),
     loadCloudClinicalData(client,user.id),
   ]);
-  [profiles,patients,appointments,locations,services,sessions,goals,materials,patientMaterials,sessionMaterials,sessionGoals].forEach(check);
+  [profiles,patients,appointments,locations,services,sessions,payments,paymentAllocations,goals,materials,patientMaterials,sessionMaterials,sessionGoals].forEach(check);
   const profileRow=profiles.data;
   const profile:Profile={firstName:profileRow?.first_name||"",lastName:profileRow?.last_name||"",profession:profileRow?.profession||"Logopedista",email:profileRow?.email||user.email||"",studio:profileRow?.studio||""};
   return {
@@ -31,6 +34,8 @@ export async function loadCloudData(client:SupabaseClient,user:User):Promise<App
     locations:(locations.data||[]).map(appointmentLocationFromRow),
     services:(services.data||[]).map(appointmentServiceFromRow),
     sessions:(sessions.data||[]).map((s):Session=>sessionFromRow(s,(sessionGoals.data||[]).filter(x=>x.session_id===s.id).map(x=>x.goal_id),(sessionMaterials.data||[]).filter(x=>x.session_id===s.id).map(x=>x.material_id))),
+    payments:(payments.data||[]).map(paymentFromRow),
+    paymentAllocations:(paymentAllocations.data||[]).map(paymentAllocationFromRow),
     goals:(goals.data||[]).map(goalFromRow),
     materials:(materials.data||[]).map((m):Material=>({id:m.id,title:m.title,description:m.description||"",category:m.category||"altro",tags:m.tags||[],fileName:m.file_name||"",storagePath:m.storage_path||undefined,mimeType:m.mime_type||"",size:Number(m.file_size||0),externalUrl:m.external_url||undefined,favorite:m.is_favorite||false,patientIds:(patientMaterials.data||[]).filter(x=>x.material_id===m.id).map(x=>x.patient_id),createdAt:m.created_at})),
     clinicalPathways:clinical.clinicalPathways,
@@ -51,6 +56,10 @@ export async function saveAppointmentService(client:SupabaseClient,userId:string
 export async function deleteAppointmentService(client:SupabaseClient,userId:string,id:string){check(await client.from("appointment_services").delete().eq("id",id).eq("user_id",userId).select("id").single())}
 export const sessionFromRow=(s:{id:string;patient_id:string;appointment_id?:string|null;service_id?:string|null;service_name_snapshot?:string|null;effective_price_cents?:number|null;occurred_at:string;duration_minutes?:number|null;activities?:string|null;patient_response?:string|null;help_level?:string|null;result?:string|null;next_session_plan?:string|null;homework?:string|null;notes?:string|null;created_at:string},goalIds:string[]=[],materialIds:string[]=[]):Session=>({id:s.id,patientId:s.patient_id,appointmentId:s.appointment_id||undefined,serviceId:s.service_id||undefined,serviceNameSnapshot:s.service_name_snapshot||undefined,effectivePriceCents:s.effective_price_cents??undefined,date:splitDate(s.occurred_at).date,duration:s.duration_minutes||45,goalIds,activities:s.activities||"",response:s.patient_response||"",helpLevel:s.help_level||"",result:s.result||"",nextPlan:s.next_session_plan||"",homework:s.homework||"",notes:s.notes||"",materialIds,createdAt:s.created_at});
 export const sessionRow=(s:Session,userId:string)=>({id:s.id,user_id:userId,patient_id:s.patientId,appointment_id:s.appointmentId||null,service_id:s.serviceId||null,service_name_snapshot:s.serviceNameSnapshot||null,effective_price_cents:s.effectivePriceCents??null,occurred_at:joinDate(s.date,"12:00"),duration_minutes:s.duration,activities:s.activities||null,patient_response:s.response||null,help_level:s.helpLevel||null,result:s.result||null,next_session_plan:s.nextPlan||null,homework:s.homework||null,notes:s.notes||null,updated_at:new Date().toISOString()});
+export const paymentFromRow=(row:{id:string;patient_id:string;amount_cents:number;paid_at:string;method:Payment["method"];note?:string|null;status:Payment["status"];voided_at?:string|null;created_at:string;updated_at:string}):Payment=>({id:row.id,patientId:row.patient_id,amountCents:row.amount_cents,paidAt:row.paid_at,method:row.method,note:row.note||"",status:row.status,voidedAt:row.voided_at||undefined,createdAt:row.created_at,updatedAt:row.updated_at});
+export const paymentAllocationFromRow=(row:{patient_id:string;payment_id:string;session_id:string;amount_cents:number;created_at:string}):PaymentAllocation=>({patientId:row.patient_id,paymentId:row.payment_id,sessionId:row.session_id,amountCents:row.amount_cents,createdAt:row.created_at});
+export async function createPayment(client:SupabaseClient,input:CreatePaymentInput){check(await client.rpc("create_economic_payment",{p_payment_id:input.id,p_patient_id:input.patientId,p_amount_cents:input.amountCents,p_paid_at:input.paidAt,p_method:input.method,p_note:input.note?.trim()||null,p_allocations:input.allocations}))}
+export async function voidPayment(client:SupabaseClient,paymentId:string){check(await client.rpc("void_economic_payment",{p_payment_id:paymentId}))}
 export const goalFromRow=(g:{id:string;patient_id:string;clinical_pathway_id?:string|null;title:string;description?:string|null;priority?:number|null;status:string;progress?:number|null;created_at:string}):Goal=>({id:g.id,patientId:g.patient_id,clinicalPathwayId:g.clinical_pathway_id||undefined,title:g.title,description:g.description||"",priority:g.priority||2,status:g.status,progress:g.progress||0,createdAt:g.created_at});
 export const goalRow=(g:Goal,userId:string)=>({id:g.id,user_id:userId,patient_id:g.patientId,clinical_pathway_id:g.clinicalPathwayId||null,title:g.title,description:g.description||null,priority:g.priority,status:g.status,progress:g.progress,updated_at:new Date().toISOString()});
 export const profileRow=(p:Profile,userId:string)=>({id:userId,full_name:`${p.firstName} ${p.lastName}`.trim(),first_name:p.firstName,last_name:p.lastName,profession:p.profession,email:p.email,studio:p.studio,updated_at:new Date().toISOString()});
