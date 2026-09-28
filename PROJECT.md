@@ -26,6 +26,8 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 - `lib/today-dashboard.ts`: classificazione degli appuntamenti odierni in da fare e completati.
 - `supabase/migrations/`: schema e modifiche additive del database.
 
+Su mobile la navigazione primaria usa una bottom bar con Oggi, Calendario, Pazienti, Materiali e Altro. “Altro” apre un bottom sheet con le sole destinazioni secondarie reali — Economia, Statistiche e Impostazioni — insieme alle azioni account; la navigazione desktop resta separata e completa.
+
 ## Modalità dati
 
 Armonia supporta due modalità tramite `NEXT_PUBLIC_DATA_MODE`:
