@@ -14,6 +14,7 @@ import { sessionWithService } from "@/lib/economy";
 import { clinicalAssessmentTypeLabel, getPatientOverview } from "@/lib/patient-overview";
 import type { PatientOverview } from "@/lib/patient-overview";
 import { getFuturePatientAppointments, getPatientMaterials, getRecentPatientMaterials } from "@/lib/patient-resources";
+import { patientEconomicSummary } from "@/lib/payments";
 import type { RecentPatientMaterial } from "@/lib/patient-resources";
 import type { Appointment, Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
@@ -71,6 +72,7 @@ export default function PatientPage() {
   const recentMaterials = getRecentPatientMaterials(data.sessions, data.materials, id);
   const futureAppointments = getFuturePatientAppointments(data.appointments, id);
   const recentActivity = timeline.slice(0, 3);
+  const economySummary = patientEconomicSummary(id, data.sessions, data.payments, data.paymentAllocations);
   return (
     <AppShell>
       <Link href="/pazienti" className="text-sm font-bold text-sage-700">
@@ -140,6 +142,7 @@ export default function PatientPage() {
         </section>
         <section className="card p-4 sm:p-5 lg:col-span-5"><div className="flex items-center justify-between gap-3"><h2 className="font-bold">Attività recenti</h2><button onClick={() => selectTab("activity")} className="text-sm font-bold text-sage-700">Vedi tutte</button></div>{recentActivity.length ? <div className="mt-2 divide-y divide-slate-100 sm:mt-3">{recentActivity.map((item) => <div key={item.id} className="flex gap-2.5 py-2.5 first:pt-0 sm:gap-3 sm:py-3"><span aria-hidden="true" className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.type === "session" ? "bg-sky-300" : item.assessment.status === "draft" ? "bg-amber-300" : "bg-violet-300"}`} /><div className="min-w-0"><p className="text-[11px] font-bold text-slate-400 sm:text-xs">{formatDate(item.occurredOn)}</p><p className="text-sm font-bold sm:mt-0.5">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p>{item.subtitle && <p className="line-clamp-1 text-sm text-slate-600 sm:mt-0.5">{item.subtitle}</p>}</div></div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}</section>
         <section className="card p-4 sm:p-5 lg:col-span-12"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">Prossimi appuntamenti</h2><p className="mt-1 text-sm text-slate-500">I prossimi impegni già pianificati.</p></div><Link href="/calendario" className="text-sm font-bold text-sage-700">Apri calendario</Link></div>{futureAppointments.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{futureAppointments.slice(0, 3).map((appointment) => <FutureAppointmentRow key={appointment.id} appointment={appointment} />)}</div> : <p className="mt-3 text-sm text-slate-500">Nessun appuntamento futuro.</p>}</section>
+        <section className="card p-4 sm:p-5 lg:col-span-12" aria-labelledby="patient-economy-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="patient-economy-title" className="font-bold">Situazione economica</h2><p className="mt-1 text-sm text-slate-500">Sintesi dei pagamenti registrati per il paziente.</p></div><Link href={`/economia?patient=${p.id}`} className="text-sm font-bold text-sage-700">Apri in Economia</Link></div><div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-sm"><PatientEconomyDatum label="Da incassare" value={new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(economySummary.outstandingCents/100)}/><PatientEconomyDatum label="Credito disponibile" value={new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(economySummary.availableCreditCents/100)}/><PatientEconomyDatum label="Prestazioni da saldare" value={String(economySummary.unpaidSessions)}/></div></section>
         <details className="card p-4 sm:p-5 lg:col-span-12"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>}
       {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onOpenActivity={() => selectTab("activity")} /></div>}
@@ -183,6 +186,8 @@ export default function PatientPage() {
     </AppShell>
   );
 }
+
+function PatientEconomyDatum({label,value}:{label:string;value:string}) { return <div className="min-w-0"><p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-400">{label}</p><p className="mt-1 break-words font-bold text-slate-800">{value}</p></div>; }
 
 type SessionTimelineItem = Extract<PatientTimelineItem, { type: "session" }>;
 type AssessmentTimelineItem = Extract<PatientTimelineItem, { type: "clinical_assessment" }>;

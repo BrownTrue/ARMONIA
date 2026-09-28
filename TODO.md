@@ -26,7 +26,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 - Valutare una chiara azione “Elimina seduta” nella scheda paziente, protetta da conferma e con gestione sicura delle relazioni; non fa parte di E1.
 - E2A è chiusa: migration `020_payments_allocations_foundation.sql` applicata manualmente in produzione con preflight e postflight PASS, senza backfill. Mantenere separato l'eventuale hardening dei privilegi ereditati dai default privileges Supabase.
-- Implementare E2B dopo il rollout sicuro di E2A: UI per registrare o annullare pagamenti, scorciatoia “Segna pagato”, distribuzione cumulativa, metriche incassato/da incassare e riepilogo paziente. Nessuna funzione fiscale deve entrare in E2B.
+- E2B è implementata e collaudata manualmente in locale: “Incassa” opera sulla singola prestazione, mentre “Registra incasso” resta il flusso generale per anticipi, entrate extra o pagamenti cumulativi e non crea automaticamente una Session. Nessuna funzione fiscale fa parte di E2B.
 - Definire prima del lancio il flusso esplicito di cancellazione completa o anonimizzazione di un account con storico economico. E2A blocca intenzionalmente l'hard delete dell'utente Auth quando esistono Payment e non implementa ancora tale workflow.
 
 - Pianificare il restyling UX/UI generale pre-lancio, includendo tipografia, densità, dimensioni delle card, spacing, header, avatar, sistema colori definitivo e micro-interazioni. Il workspace paziente P1–P4 è concluso e non richiede ulteriori rifiniture nel blocco corrente.

@@ -7,6 +7,7 @@ export type PaymentStateSummary = {
   residualCents: number;
 };
 export type PaymentPeriod = { from?: string; to?: string };
+export type PaymentFilters = PaymentPeriod & { patientId?: string; method?: PaymentMethod; status?: Payment["status"] };
 export type PaymentAllocationInput = { sessionId: string; amountCents: number };
 export type CreatePaymentInput = {
   id: string;
@@ -20,6 +21,14 @@ export type CreatePaymentInput = {
 };
 
 const activePaymentIds = (payments: Payment[]) => new Set(payments.filter((payment) => payment.status === "active").map((payment) => payment.id));
+
+export function paymentAllocatedCents(paymentId: string, allocations: PaymentAllocation[]): number {
+  return allocations.reduce((total, allocation) => total + (allocation.paymentId === paymentId ? allocation.amountCents : 0), 0);
+}
+
+export function paymentAvailableCreditCents(payment: Payment, allocations: PaymentAllocation[]): number {
+  return payment.status === "active" ? Math.max(0, payment.amountCents - paymentAllocatedCents(payment.id, allocations)) : 0;
+}
 
 export function activeAllocatedCents(sessionId: string, payments: Payment[], allocations: PaymentAllocation[]): number {
   const active = activePaymentIds(payments);
@@ -57,6 +66,60 @@ export function unallocatedCreditCents(patientId: string, payments: Payment[], a
 
 export function sessionsCountInPeriod(sessions: Session[], period: PaymentPeriod): number {
   return sessions.filter((session) => (!period.from || session.date >= period.from) && (!period.to || session.date <= period.to)).length;
+}
+
+export function filterPayments(payments: Payment[], filters: PaymentFilters): Payment[] {
+  return payments.filter((payment) =>
+    (!filters.from || payment.paidAt >= filters.from)
+    && (!filters.to || payment.paidAt <= filters.to)
+    && (!filters.patientId || payment.patientId === filters.patientId)
+    && (!filters.method || payment.method === filters.method)
+    && (!filters.status || payment.status === filters.status));
+}
+
+export function openPatientSessions(patientId: string, sessions: Session[], payments: Payment[], allocations: PaymentAllocation[]): Session[] {
+  return sessions.filter((session) => session.patientId === patientId
+    && session.effectivePriceCents !== undefined
+    && session.effectivePriceCents > 0
+    && paymentStateForSession(session, payments, allocations).residualCents > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+}
+
+export function autoDistributePayment(amountCents: number, sessions: Session[], payments: Payment[], allocations: PaymentAllocation[]): PaymentAllocationInput[] {
+  let available = amountCents;
+  const result: PaymentAllocationInput[] = [];
+  for (const session of [...sessions].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))) {
+    if (available <= 0) break;
+    const summary = paymentStateForSession(session, payments, allocations);
+    if (summary.state === "free" || summary.state === "price_unspecified" || summary.residualCents <= 0) continue;
+    const amount = Math.min(available, summary.residualCents);
+    result.push({ sessionId: session.id, amountCents: amount });
+    available -= amount;
+  }
+  return result;
+}
+
+export function patientEconomicSummary(patientId: string, sessions: Session[], payments: Payment[], allocations: PaymentAllocation[]) {
+  const patientSessions = sessions.filter((session) => session.patientId === patientId);
+  return {
+    outstandingCents: outstandingCents(patientSessions, payments, allocations),
+    availableCreditCents: unallocatedCreditCents(patientId, payments, allocations),
+    unpaidSessions: patientSessions.filter((session) => {
+      const state = paymentStateForSession(session, payments, allocations).state;
+      return state === "unpaid" || state === "partial";
+    }).length,
+  };
+}
+
+export function economicOperationError(cause: unknown): Error {
+  const code = typeof cause === "object" && cause !== null && "code" in cause ? String(cause.code) : "";
+  const message = typeof cause === "object" && cause !== null && "message" in cause ? String(cause.message) : "";
+  if (code === "23514" || /overallocat|residu|allocation/i.test(message)) return new Error("Gli importi associati superano il pagamento o il residuo disponibile.");
+  if (code === "23503" || /patient_mismatch|stesso paziente/i.test(message)) return new Error("Il pagamento e le prestazioni devono appartenere allo stesso paziente.");
+  if (/payment_already_voided|already voided/i.test(message)) return new Error("Questo pagamento risulta già annullato.");
+  if (/session_price_below|session_not_found/i.test(message)) return new Error("Una prestazione è cambiata. Aggiorna i dati e riprova.");
+  if (/fetch|network|rete/i.test(message)) return new Error("Connessione non disponibile. Controlla la rete e riprova.");
+  return new Error("Non è stato possibile completare l’operazione economica. Riprova.");
 }
 
 export function buildMarkPaidInput(session: Session, payments: Payment[], allocations: PaymentAllocation[], input: { id: string; paidAt: string; method: PaymentMethod; note?: string; createdAt: string }): CreatePaymentInput | null {

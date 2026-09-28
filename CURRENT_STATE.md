@@ -109,7 +109,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 
 ## Limiti noti e verificabili
 
-- La fondazione E2A è attiva nel database, ma E2B deve ancora aggiungere la UI per registrare/annullare pagamenti e mostrare incassato, residui e credito. Dati fiscali, proforma/fatture e spese restano fuori dal modello.
+- E2B è **implementata e collaudata manualmente in locale**: `/economia` mostra incassato, residui, stati derivati delle prestazioni e storico movimenti. “Incassa” registra un importo completo o parziale sulla singola prestazione; “Registra incasso” mantiene il flusso generale per anticipi, entrate extra o pagamenti cumulativi, con distribuzione manuale o automatica e credito disponibile, senza creare automaticamente una Session. Sono presenti dettaglio economico e annullamento conservativo dei Payment. La scheda paziente espone soltanto un riepilogo economico compatto. Dati fiscali, proforma/fatture e spese restano fuori dal modello. Il codice E2B non è ancora stato pubblicato.
 
 - Il restyling UX/UI generale pre-lancio resta una fase separata. Eventuali rifiniture trasversali di tipografia, densità, dimensioni delle card, spacing, header, avatar, sistema colori e micro-interazioni non fanno parte del blocco P1–P4 concluso.
 
