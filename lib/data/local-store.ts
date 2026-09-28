@@ -25,6 +25,7 @@ export function normalizeAppData(value: unknown): AppData {
   const profile = isRecord(source.profile) ? source.profile : {};
   return {
     patients: arrayOrEmpty(source.patients),
+    patientAdministrativeDetails: arrayOrEmpty(source.patientAdministrativeDetails),
     appointments: arrayOrEmpty(source.appointments),
     locations: arrayOrEmpty(source.locations),
     services: arrayOrEmpty(source.services),
@@ -69,7 +70,8 @@ export function readLocalData(raw: string | null, whenMissing: () => AppData): L
       || !Array.isArray(parsed.data.locations)
       || !Array.isArray(parsed.data.services)
       || !Array.isArray(parsed.data.payments)
-      || !Array.isArray(parsed.data.paymentAllocations);
+      || !Array.isArray(parsed.data.paymentAllocations)
+      || !Array.isArray(parsed.data.patientAdministrativeDetails);
     return { data: normalized, writable: true, migrated: missingCollections };
   }
   return { data: normalizeAppData(parsed), writable: true, migrated: true };

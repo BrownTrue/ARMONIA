@@ -2,6 +2,8 @@ import type { ClinicalAssessment, ClinicalPathway } from "./clinical/types.ts";
 
 export type PatientStatus = "active" | "suspended" | "completed";
 export type Patient = { id:string; firstName:string; lastName:string; birthDate:string; contact:string; guardian:string; school:string; schoolClass:string; referralReason:string; notes:string; status:PatientStatus; createdAt:string };
+export type BillingSubjectType = "patient"|"other";
+export type PatientAdministrativeDetails = { patientId:string; patientTaxCode?:string; patientAddress?:string; patientPostalCode?:string; patientCity?:string; patientProvince?:string; patientCountry?:string; billingSubjectType:BillingSubjectType; recipientFirstName?:string; recipientLastName?:string; recipientTaxCode?:string; recipientRelationship?:string; recipientAddress?:string; recipientPostalCode?:string; recipientCity?:string; recipientProvince?:string; recipientCountry?:string; administrativeEmail?:string; createdAt:string; updatedAt:string };
 export type AppointmentType = "regular"|"assessment"|"checkup"|"cancelled";
 export type AppointmentLocation = { id:string; name:string; color:string; address:string; city:string; isActive:boolean; displayOrder:number; createdAt:string; updatedAt:string };
 export type AppointmentService = { id:string; name:string; description:string; defaultDurationMinutes:number; defaultPriceCents?:number; isActive:boolean; displayOrder:number; createdAt:string; updatedAt:string };
@@ -14,7 +16,7 @@ export type PaymentAllocation = { paymentId:string; sessionId:string; patientId:
 export type Goal = { id:string; patientId:string; clinicalPathwayId?:string; title:string; description:string; priority:number; status:string; progress:number; createdAt:string };
 export type Material = { id:string; title:string; description:string; category:string; tags:string[]; fileName:string; mimeType:string; size:number; favorite:boolean; patientIds:string[]; externalUrl?:string; storagePath?:string; createdAt:string };
 export type Profile = { firstName:string; lastName:string; profession:string; email:string; studio:string };
-export type AppData = { patients:Patient[]; appointments:Appointment[]; locations:AppointmentLocation[]; services:AppointmentService[]; sessions:Session[]; payments:Payment[]; paymentAllocations:PaymentAllocation[]; goals:Goal[]; materials:Material[]; clinicalPathways:ClinicalPathway[]; clinicalAssessments:ClinicalAssessment[]; profile:Profile };
+export type AppData = { patients:Patient[]; patientAdministrativeDetails:PatientAdministrativeDetails[]; appointments:Appointment[]; locations:AppointmentLocation[]; services:AppointmentService[]; sessions:Session[]; payments:Payment[]; paymentAllocations:PaymentAllocation[]; goals:Goal[]; materials:Material[]; clinicalPathways:ClinicalPathway[]; clinicalAssessments:ClinicalAssessment[]; profile:Profile };
 export const fullName=(p:Patient)=>`${p.firstName} ${p.lastName}`;
 export const initials=(p:Patient)=>`${p.firstName[0]||""}${p.lastName[0]||""}`.toUpperCase();
 export const age=(birthDate:string)=>{if(!birthDate)return 0;const d=new Date(birthDate),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a};
