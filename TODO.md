@@ -4,7 +4,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- Implementare A1B sulla fondazione A1A ora attiva in produzione: sezione facoltativa “Dati amministrativi” nella scheda paziente, senza modificare il flusso rapido “Nuovo paziente” e senza riutilizzare automaticamente `guardian` o `contact`. La migration `021` è applicata con postflight PASS, senza backfill e con zero record amministrativi iniziali.
+- AUTH: investigare le disconnessioni frequenti e verificare la persistenza della sessione, in un intervento separato.
 
 - Eseguire in un intervento separato l'hardening dei privilegi non necessari `TRUNCATE`, `REFERENCES` e `TRIGGER` rilevati su `public.sessions`, dopo aver completato l'audit ACL; non fa parte del collaudo funzionale E1.
 
@@ -26,7 +26,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Miglioramenti
 
-- Valutare separatamente in un futuro task UX l'avatar del paziente; non fa parte di A1A/A1B.
+- Valutare separatamente in un futuro task UX gli avatar paziente illustrati; non fanno parte di A1A/A1B.
 
 - Valutare una chiara azione “Elimina seduta” nella scheda paziente, protetta da conferma e con gestione sicura delle relazioni; non fa parte di E1.
 - E2A è chiusa: migration `020_payments_allocations_foundation.sql` applicata manualmente in produzione con preflight e postflight PASS, senza backfill. Mantenere separato l'eventuale hardening dei privilegi ereditati dai default privileges Supabase.

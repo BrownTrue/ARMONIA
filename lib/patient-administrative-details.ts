@@ -46,6 +46,78 @@ export function removePatientAdministrativeDetails(items: PatientAdministrativeD
   return items.filter((item) => item.patientId !== patientId);
 }
 
+const administrativeTextFields: (keyof PatientAdministrativeDetails)[] = [
+  "patientTaxCode", "patientAddress", "patientPostalCode", "patientCity", "patientProvince", "patientCountry",
+  "recipientFirstName", "recipientLastName", "recipientTaxCode", "recipientRelationship", "recipientAddress",
+  "recipientPostalCode", "recipientCity", "recipientProvince", "recipientCountry", "administrativeEmail",
+];
+
+export function isEmptyPatientAdministrativeDetails(details: PatientAdministrativeDetails) {
+  return details.billingSubjectType === "patient"
+    && administrativeTextFields.every((field) => !optionalText(details[field] as string | undefined));
+}
+
+export function copyPatientAddressToRecipient(details: PatientAdministrativeDetails): PatientAdministrativeDetails {
+  return {
+    ...details,
+    recipientAddress: details.patientAddress,
+    recipientPostalCode: details.patientPostalCode,
+    recipientCity: details.patientCity,
+    recipientProvince: details.patientProvince,
+    recipientCountry: details.patientCountry,
+  };
+}
+
+export function isValidAdministrativeEmail(value: string | undefined) {
+  const normalized = optionalText(value);
+  return !normalized || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+}
+
+export async function savePatientWithAdministrativeDetails(
+  patient: Patient,
+  details: PatientAdministrativeDetails,
+  existingDetails: PatientAdministrativeDetails | undefined,
+  savePatient: (patient: Patient) => Promise<void>,
+  saveDetails: (details: PatientAdministrativeDetails) => Promise<void>,
+  deleteDetails: (patientId: string) => Promise<void>,
+) {
+  try { await savePatient(patient); }
+  catch (cause) { throw new PatientAdministrativePersistenceError("patient", cause); }
+  const normalized = normalizePatientAdministrativeDetails(details);
+  try {
+    if (isEmptyPatientAdministrativeDetails(normalized)) {
+      if (existingDetails) await deleteDetails(patient.id);
+      return "none" as const;
+    }
+    await saveDetails(normalized);
+    return "saved" as const;
+  } catch (cause) {
+    throw new PatientAdministrativePersistenceError("administrative", cause);
+  }
+}
+
+export class PatientAdministrativePersistenceError extends Error {
+  readonly stage: "patient" | "administrative";
+  constructor(stage: "patient" | "administrative", options?: unknown) {
+    super(stage === "patient" ? "patient_save_failed" : "administrative_details_save_failed", { cause: options });
+    this.name = "PatientAdministrativePersistenceError";
+    this.stage = stage;
+  }
+}
+
+export function administrativeDetailsSummary(patient: Patient, details: PatientAdministrativeDetails) {
+  const recipient = details.billingSubjectType === "patient"
+    ? "Paziente stesso"
+    : [details.recipientFirstName, details.recipientLastName].filter(Boolean).join(" ") || "Un'altra persona";
+  const residence = [details.patientCity, details.patientProvince].filter(Boolean).join(" · ");
+  return [
+    details.patientTaxCode ? { label: "Codice fiscale", value: details.patientTaxCode } : undefined,
+    residence ? { label: "Comune / residenza", value: residence } : undefined,
+    { label: "Intestatario", value: details.billingSubjectType === "patient" ? `${recipient} · ${patient.firstName} ${patient.lastName}` : recipient },
+    details.administrativeEmail ? { label: "Email amministrativa", value: details.administrativeEmail } : undefined,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+}
+
 export type CurrentDocumentRecipient = {
   firstName: string;
   lastName: string;
