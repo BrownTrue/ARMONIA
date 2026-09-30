@@ -39,7 +39,7 @@ Il `DataProvider` espone alla UI le stesse operazioni in entrambe le modalità. 
 
 ## Autenticazione e profilo
 
-In modalità cloud l'accesso usa email e password Supabase, con sessione persistente e logout. Le route operative sono protette da `AuthGate`; `/about`, `/privacy` e `/login` sono pubbliche. Il profilo comprende nome, cognome, professione, email e studio/centro ed è persistente nel provider attivo.
+In modalità cloud l'accesso usa email e password Supabase, mantenendo invariati persistenza cookie e auto-refresh della libreria. Il bootstrap distingue caricamento, sessione valida, assenza confermata ed errore temporaneo: soltanto l'assenza confermata porta automaticamente al login, mentre un errore di verifica offre un retry controllato. `AuthGate` protegge le route operative; `/about`, `/privacy` e `/login` sono pubbliche. AUTH1 aggiunge inoltre una diagnostica temporanea esclusivamente client-side, limitata e priva di token o identificatori. Il profilo comprende nome, cognome, professione, email e studio/centro ed è persistente nel provider attivo.
 
 ## Funzionalità
 

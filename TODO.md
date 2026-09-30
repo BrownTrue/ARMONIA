@@ -4,7 +4,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- AUTH: investigare le disconnessioni frequenti e verificare la persistenza della sessione, in un intervento separato.
+- Se le disconnessioni ricompaiono, recuperare prima di modificare le impostazioni Supabase il buffer diagnostico temporaneo con `JSON.parse(sessionStorage.getItem("armonia-auth-diagnostics-v1") || "[]")` e analizzare gli eventi auth/bootstrap. Persistenza e auto-refresh Supabase non sono stati modificati.
 
 - Eseguire in un intervento separato l'hardening dei privilegi non necessari `TRUNCATE`, `REFERENCES` e `TRIGGER` rilevati su `public.sessions`, dopo aver completato l'audit ACL; non fa parte del collaudo funzionale E1.
 
