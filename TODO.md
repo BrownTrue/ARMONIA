@@ -40,7 +40,9 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Idee future
 
-- Progettare E3 separatamente: dati fiscali e generazione di proforma/fatture; valutare le spese soltanto in un blocco successivo dedicato.
+- E3A è chiusa: le migration 022 e 023 sono applicate e la diagnostica finale semplice ha validato direttamente policy, CHECK e guardie strutturali senza rilevare variazioni dei dati preesistenti. I vecchi postflight testuali possono produrre falsi negativi e sono sostituiti, per la verifica conclusiva, da `023_final_simple_diagnostic.sql`.
+- E3B: implementare l'area Documenti/Proforma e il flusso bozza usando le Session economiche, con selezione non predefinita delle sedute gratuite e blocco UI delle Session già in un proforma issued non voided.
+- E3C: introdurre emissione cloud atomica e numerazione annuale `PF-AAAA-NNNN`. La RPC dovrà bloccare documento e righe, ricalcolare i totali ignorando quelli del browser, congelare gli snapshot e impedire in modo concorrente che una Session compaia in più documenti `issued` non annullati. Il workflow di branding/PDF dovrà completare e verificare gli asset privati prima della transizione finale, evitando lo stato `issued` con PDF mancante. Restano fuori fatturazione elettronica, SDI, Sistema TS, IVA/bollo automatici, PEC, email e pagamenti online.
 
 - Aggiungere, dopo una progettazione completa e sicura, le operazioni sulle serie “questo e successivi” e “intera serie”.
 - Valutare uno storico revisioni delle valutazioni cliniche completate, con audit log, autore e confronto tra versioni; l’MVP attuale sovrascrive la versione precedente durante una correzione esplicita.

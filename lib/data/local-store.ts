@@ -23,9 +23,15 @@ const arrayOrEmpty = <T>(value: unknown): T[] => Array.isArray(value) ? value as
 export function normalizeAppData(value: unknown): AppData {
   const source = isRecord(value) ? value : {};
   const profile = isRecord(source.profile) ? source.profile : {};
+  const professionalDocumentDetails = isRecord(source.professionalDocumentDetails)
+    ? source.professionalDocumentDetails as AppData["professionalDocumentDetails"]
+    : undefined;
   return {
     patients: arrayOrEmpty(source.patients),
     patientAdministrativeDetails: arrayOrEmpty(source.patientAdministrativeDetails),
+    ...(professionalDocumentDetails ? { professionalDocumentDetails } : {}),
+    economicDocuments: arrayOrEmpty(source.economicDocuments),
+    economicDocumentLines: arrayOrEmpty(source.economicDocumentLines),
     appointments: arrayOrEmpty(source.appointments),
     locations: arrayOrEmpty(source.locations),
     services: arrayOrEmpty(source.services),
@@ -71,7 +77,9 @@ export function readLocalData(raw: string | null, whenMissing: () => AppData): L
       || !Array.isArray(parsed.data.services)
       || !Array.isArray(parsed.data.payments)
       || !Array.isArray(parsed.data.paymentAllocations)
-      || !Array.isArray(parsed.data.patientAdministrativeDetails);
+      || !Array.isArray(parsed.data.patientAdministrativeDetails)
+      || !Array.isArray(parsed.data.economicDocuments)
+      || !Array.isArray(parsed.data.economicDocumentLines);
     return { data: normalized, writable: true, migrated: missingCollections };
   }
   return { data: normalizeAppData(parsed), writable: true, migrated: true };
