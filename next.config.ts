@@ -6,6 +6,9 @@ const PRIVATE_NO_STORE_HEADER = {
 };
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/economic-documents/[id]/issue": ["./lib/economic-documents/fonts/**/*"],
+  },
   async headers() {
     return [
       { source: "/api/:path*", headers: [PRIVATE_NO_STORE_HEADER] },
