@@ -1,5 +1,5 @@
 import { currentDocumentRecipient, type CurrentDocumentRecipient } from "./patient-administrative-details.ts";
-import type { EconomicDocument, EconomicDocumentLine, Patient, PatientAdministrativeDetails, ProfessionalDocumentDetails, Profile } from "./types.ts";
+import type { EconomicDocument, EconomicDocumentLine, Patient, PatientAdministrativeDetails, ProfessionalDocumentDetails, Profile, Session } from "./types.ts";
 
 const text = (value?: string) => value?.trim() || undefined;
 const upper = (value?: string) => text(value)?.toUpperCase();
@@ -106,6 +106,33 @@ export function deleteLocalEconomicDocumentLine(lines: EconomicDocumentLine[], d
 export function sessionIsInActiveIssuedEconomicDocument(sessionId: string, documents: EconomicDocument[], lines: EconomicDocumentLine[]) {
   const issuedIds = new Set(documents.filter((document) => document.status === "issued").map((document) => document.id));
   return lines.some((line) => line.sessionId === sessionId && issuedIds.has(line.documentId));
+}
+
+export function createEconomicDocumentDraft(input: { id: string; patientId: string; professionalSnapshot: ProfessionalDocumentSnapshot; recipientSnapshot: RecipientDocumentSnapshot; logoIncluded?: boolean; createdAt: string }): EconomicDocument {
+  return { id: input.id, patientId: input.patientId, documentType: "proforma", status: "draft", professionalSnapshot: input.professionalSnapshot, recipientSnapshot: input.recipientSnapshot, subtotalCents: 0, totalCents: 0, currencyCode: "EUR", notes: "", logoIncluded: Boolean(input.logoIncluded), renderTemplateVersion: 1, createdAt: input.createdAt, updatedAt: input.createdAt };
+}
+
+export function economicDocumentLineFromSession(input: { id: string; documentId: string; session: Session; unitAmountCents?: number; position: number; createdAt: string }): EconomicDocumentLine {
+  const amount = input.unitAmountCents ?? input.session.effectivePriceCents;
+  if (amount === undefined || !Number.isInteger(amount) || amount < 0) throw new Error("economic_document_session_price_required");
+  return { id: input.id, patientId: input.session.patientId, documentId: input.documentId, sessionId: input.session.id, serviceId: input.session.serviceId, serviceNameSnapshot: input.session.serviceNameSnapshot, serviceDateSnapshot: input.session.date, descriptionSnapshot: input.session.serviceNameSnapshot?.trim() || "Prestazione logopedica", quantity: 1, unitAmountCents: amount, lineTotalCents: amount, position: input.position, createdAt: input.createdAt, updatedAt: input.createdAt };
+}
+
+export function createManualEconomicDocumentLine(input: { id: string; documentId: string; patientId: string; description: string; quantity: number; unitAmountCents: number; position: number; createdAt: string }): EconomicDocumentLine {
+  const description = input.description.trim();
+  if (!description || !Number.isInteger(input.quantity) || input.quantity <= 0 || !Number.isInteger(input.unitAmountCents) || input.unitAmountCents < 0) throw new Error("economic_document_manual_line_invalid");
+  return { id: input.id, patientId: input.patientId, documentId: input.documentId, descriptionSnapshot: description, quantity: input.quantity, unitAmountCents: input.unitAmountCents, lineTotalCents: input.quantity * input.unitAmountCents, position: input.position, createdAt: input.createdAt, updatedAt: input.createdAt };
+}
+
+export function addEconomicDocumentLine(lines: EconomicDocumentLine[], line: EconomicDocumentLine) {
+  if (line.sessionId && lines.some((item) => item.sessionId === line.sessionId)) throw new Error("economic_document_session_duplicate");
+  return [...lines, line];
+}
+
+export function economicDocumentWithLines(document: EconomicDocument, lines: EconomicDocumentLine[], updatedAt: string): EconomicDocument {
+  if (document.status !== "draft") throw new Error("economic_document_not_mutable");
+  const totals = documentTotals(lines);
+  return { ...document, ...totals, updatedAt };
 }
 
 export function assertPatientEconomicDocumentDeleteAllowed(patientId: string, documents: EconomicDocument[]) {

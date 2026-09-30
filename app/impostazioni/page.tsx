@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
-import type { Profile } from "@/lib/types";
+import type { ProfessionalDocumentDetails, Profile } from "@/lib/types";
 import { useBranding } from "@/components/branding-provider";
 import {clearGoogleCalendarLocalState,clearGoogleSyncError,flushGoogleCalendarQueue,getGoogleCalendarPreferences,getGoogleSyncState,persistGoogleCalendarPreferences,queueAllGoogleAppointments,saveGoogleCalendarPreferences,subscribeGoogleSync,type GoogleCalendarPreferences,type GoogleSyncState} from "@/lib/google-calendar/client-sync";
 import {createGoogleOAuthResultConsumer} from "@/lib/google-calendar/oauth-result";
@@ -15,14 +15,16 @@ import { CalendarFeedSettings } from "@/components/calendar-feed-settings";
 import { Modal } from "@/components/modal";
 type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
 const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
+const emptyProfessionalDetails=(details?:ProfessionalDocumentDetails):ProfessionalDocumentDetails=>details||{userId:"local",taxCode:"",vatNumber:"",address:"",postalCode:"",city:"",province:"",country:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
 export default function Settings() {
   const router = useRouter();
-  const { data, ready, connection, saveProfile, signOut } = useData();
+  const { data, ready, connection, saveProfile, saveProfessionalDocumentDetails, deleteProfessionalDocumentDetails, signOut } = useData();
   const { logoSrc, hasCustomLogo, ready: brandingReady, saveLogo, removeLogo } = useBranding();
   const logoInput = useRef<HTMLInputElement>(null);
   const consumeGoogleOAuthResult=useRef(createGoogleOAuthResultConsumer()).current;
   const googleAutoOpened=useRef(false);
   const [v, setV] = useState<Profile>(data.profile),
+    [professionalDetails,setProfessionalDetails]=useState<ProfessionalDocumentDetails>(()=>emptyProfessionalDetails(data.professionalDocumentDetails)),
     [saved, setSaved] = useState(false),
     [google,setGoogle]=useState<GoogleStatus|null>(null),
     [googlePrefs,setGooglePrefs]=useState<GoogleCalendarPreferences>({enabled:false,nameFormat:"first_initial",reminderMinutes:30}),
@@ -32,7 +34,7 @@ export default function Settings() {
     [googleNotice,setGoogleNotice]=useState<{kind:"success"|"error";text:string}|null>(null),
     [googleExpanded,setGoogleExpanded]=useState(false),
     [calendarsHelpOpen,setCalendarsHelpOpen]=useState(false);
-  useEffect(() => { if (ready) setV(data.profile); }, [ready, data.profile]);
+  useEffect(() => { if (ready) { setV(data.profile); setProfessionalDetails(emptyProfessionalDetails(data.professionalDocumentDetails)); } }, [ready, data.profile, data.professionalDocumentDetails]);
   useEffect(()=>{setGooglePrefs(getGoogleCalendarPreferences());setSyncState(getGoogleSyncState());return subscribeGoogleSync(()=>setSyncState(getGoogleSyncState()))},[]);
   useEffect(()=>{fetch("/api/google-calendar/status",{cache:"no-store"}).then(r=>r.json()).then((status:GoogleStatus)=>{setGoogle(status);const result=new URLSearchParams(window.location.search).get("google"),oauthResult=consumeGoogleOAuthResult(result);if(oauthResult==="reconnected"){clearGoogleSyncError();setGoogleNotice({kind:"success",text:"Google Calendar è stato ricollegato. Le operazioni rimaste in attesa possono ora essere ritentate."})}else if(result?.startsWith("reconnect-")){const text=result==="reconnect-calendar-unavailable"?"Il calendario Armonia esistente non è accessibile con l’account autorizzato. La connessione precedente non è stata modificata.":result==="reconnect-missing-refresh-token"?"Google non ha fornito una nuova autorizzazione persistente. La connessione precedente non è stata modificata.":"Riconnessione Google non riuscita. La connessione precedente non è stata modificata.";setGoogleNotice({kind:"error",text})}if(status.connected){const current=getGoogleCalendarPreferences(),preferences={...current,enabled:status.syncEnabled??true,nameFormat:cloudDataMode&&status.nameFormat?status.nameFormat:current.nameFormat,reminderMinutes:cloudDataMode&&status.reminderMinutes!==undefined?status.reminderMinutes:current.reminderMinutes};saveGoogleCalendarPreferences(preferences);setGooglePrefs(preferences);if(oauthResult==="connected")void queueAllGoogleAppointments(data.appointments,data.patients)}if(oauthResult)router.replace("/impostazioni",{scroll:false})}).catch(()=>setGoogle({configured:true,connected:false,error:"Non è stato possibile verificare il collegamento a Google Calendar."}))},[ready,consumeGoogleOAuthResult,router]);
   const updateGooglePreferences=(patch:Partial<GoogleCalendarPreferences>)=>{const next={...googlePrefs,...patch};setGooglePrefs(next);void persistGoogleCalendarPreferences(next).then(()=>{if(google?.connected)queueAllGoogleAppointments(data.appointments,data.patients)}).catch(error=>setGoogle(old=>({...old!,error:error instanceof Error?error.message:"Salvataggio non riuscito"})))};
@@ -42,6 +44,7 @@ export default function Settings() {
       setSaved(false);
       setV((old) => ({ ...old, [k]: value }));
     };
+  const setProfessional=(key:keyof ProfessionalDocumentDetails)=>(event:React.ChangeEvent<HTMLInputElement>)=>{setSaved(false);setProfessionalDetails((current)=>({...current,[key]:event.target.value,updatedAt:new Date().toISOString()}))};
   const syncPresentation=googleSyncStatusPresentation(syncState.error,syncState.pending);
   const connectionError=googleSyncErrorPresentation(google?.error);
   useEffect(()=>{if(!google||googleAutoOpened.current)return;if(!google.connected||syncPresentation.kind!=="active"||googleNotice?.kind==="error"){googleAutoOpened.current=true;setGoogleExpanded(true)}},[google,syncPresentation.kind,googleNotice]);
@@ -59,10 +62,13 @@ export default function Settings() {
         onSubmit={async (e) => {
           e.preventDefault();
           await saveProfile(v);
+          const hasAdministrativeValues=[professionalDetails.taxCode,professionalDetails.vatNumber,professionalDetails.address,professionalDetails.postalCode,professionalDetails.city,professionalDetails.province,professionalDetails.country].some((value)=>Boolean(value?.trim()));
+          if(hasAdministrativeValues)await saveProfessionalDocumentDetails(professionalDetails);else if(data.professionalDocumentDetails)await deleteProfessionalDocumentDetails();
           setSaved(true);
         }}
       >
-        <h2 className="mb-5 font-bold">Il tuo profilo</h2>
+        <h2 className="font-bold">Dati professionali e documenti</h2>
+        <p className="mb-5 mt-1 text-sm text-slate-500">Questi dati vengono proposti nelle bozze dei documenti e restano modificabili prima dell’emissione.</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="Nome"
@@ -95,8 +101,15 @@ export default function Settings() {
               onChange={set("studio")}
             />
           </div>
+          <Field label="Codice fiscale" value={professionalDetails.taxCode||""} onChange={setProfessional("taxCode")}/>
+          <Field label="Partita IVA" value={professionalDetails.vatNumber||""} onChange={setProfessional("vatNumber")}/>
+          <div className="sm:col-span-2"><Field label="Indirizzo" value={professionalDetails.address||""} onChange={setProfessional("address")}/></div>
+          <Field label="CAP" value={professionalDetails.postalCode||""} onChange={setProfessional("postalCode")}/>
+          <Field label="Città" value={professionalDetails.city||""} onChange={setProfessional("city")}/>
+          <Field label="Provincia" value={professionalDetails.province||""} onChange={setProfessional("province")}/>
+          <Field label="Paese" value={professionalDetails.country||""} onChange={setProfessional("country")}/>
         </div>
-        <button className="btn btn-primary mt-6 w-full sm:w-auto">Salva profilo</button>
+        <button className="btn btn-primary mt-6 w-full sm:w-auto">Salva dati professionali</button>
         {saved && (
           <span className="mt-3 block text-sm font-bold text-sage-700 sm:ml-3 sm:inline">
             Modifiche salvate ✓
@@ -104,7 +117,7 @@ export default function Settings() {
         )}
       </form>
       <section className="card mt-5 max-w-2xl p-4 sm:p-6">
-        <div><h2 className="font-bold">Logo professionista / studio</h2><p className="mt-1 text-sm text-slate-500">PNG, JPG o WebP · massimo 2 MB. Il logo verrà adattato automaticamente ai documenti.</p></div>
+        <div><h2 className="font-bold">Logo dei documenti</h2><p className="mt-1 text-sm text-slate-500">Completa l’identità professionale usata nelle stampe. PNG, JPG o WebP · massimo 2 MB.</p></div>
         <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
           <div className="grid h-28 place-items-center overflow-hidden rounded-2xl border border-sage-100 bg-sage-50 p-4">
             {brandingReady ? <Image src={logoSrc} alt="Anteprima logo" width={180} height={90} unoptimized className="h-full w-full object-contain" /> : <span className="text-sm text-slate-400">Caricamento…</span>}
