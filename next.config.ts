@@ -7,7 +7,10 @@ const PRIVATE_NO_STORE_HEADER = {
 
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
-    "/api/economic-documents/[id]/issue": ["./lib/economic-documents/fonts/**/*"],
+    "/api/economic-documents/[id]/issue": [
+      "./lib/economic-documents/fonts/**/*",
+      "./node_modules/pdfkit/js/standard-fonts/**/*",
+    ],
   },
   async headers() {
     return [
