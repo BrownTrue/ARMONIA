@@ -41,6 +41,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 ## Idee future
 
 - Progettare in workstream separati documenti clinici/professionali, strumenti clinici con verifica preventiva di licenze e uso commerciale, e il motore del Laboratorio (Mattoncini, Ricette, Esercizi e Compiti a casa). La Banca Asset V0.1 fornisce soltanto il catalogo editoriale image-first e read-only; audio, scene, sequenze e rappresentazioni alternative restano evoluzioni future.
+- Estendere in futuro la Banca Contenuti oltre il mini corpus V1 con revisione editoriale dedicata. Mattoncini, Ricette, Esercizi e Compiti a casa restano workstream separati: non devono essere incorporati nei ContentItem. Per sequenze narrative più ricche serviranno asset visivi compositi dedicati, senza forzare gli asset oggetto attuali.
 - Revisionare in futuro `noun_zebra_001`, unico record fonologico ancora `needs_review`. La prima coda di 108 candidati è stata revisionata e promossa; per nuovi asset continuare a usare il tooling editoriale locale senza derivare IPA, fonemi, cluster, geminate o posizioni dall'ortografia in modo automatico.
 
 - E3A è chiusa: le migration 022 e 023 sono applicate e la diagnostica finale semplice ha validato direttamente policy, CHECK e guardie strutturali senza rilevare variazioni dei dati preesistenti. I vecchi postflight testuali possono produrre falsi negativi e sono sostituiti, per la verifica conclusiva, da `023_final_simple_diagnostic.sql`.
