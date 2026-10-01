@@ -25,6 +25,7 @@ import { fullName, uid } from "@/lib/types";
 import {
   EconomicDocumentRequestError,
   createEconomicDocumentIssueRunner,
+  economicDocumentDraftIsDirty,
   economicDocumentDownloadErrorMessage,
   economicDocumentDownloadUrl,
   economicDocumentIssueErrorMessage,
@@ -109,11 +110,12 @@ function EconomicDocumentEditor({ document, patients, cloudEnabled, onClose, onS
     setIssueFailed(false);
     setError("");
     try {
-      prepareDraft();
+      const prepared = prepareDraft();
       if (missingRecipient.length) throw new Error(`Completa i dati del destinatario: ${missingRecipient.join(", ")}.`);
       if (missingProfessional.length) throw new Error(`Completa i dati professionali: ${missingProfessional.join(", ")}.`);
       if (!Number.isSafeInteger(totals) || totals < 0) throw new Error("Controlla il totale del proforma prima dell’emissione.");
-      await issueRunner.current.run({ persist: async () => { const { next, normalizedLines }=prepareDraft(); await onSave(next, normalizedLines, persistedLineIds); setLines(normalizedLines); setPersistedLineIds(normalizedLines.map((line)=>line.id)); return next; }, issue:onIssue });
+      const shouldPersist = !document || economicDocumentDraftIsDirty(document, originalLines, prepared.next, prepared.normalizedLines);
+      await issueRunner.current.run({ documentId: document?.id, shouldPersist, persist: async () => { const { next, normalizedLines }=prepareDraft(); await onSave(next, normalizedLines, persistedLineIds); setLines(normalizedLines); setPersistedLineIds(normalizedLines.map((line)=>line.id)); return next; }, issue:onIssue });
       setIssueOpen(false);
     } catch (cause) {
       setIssueFailed(true);

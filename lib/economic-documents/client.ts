@@ -1,4 +1,4 @@
-import type { EconomicDocument } from "../types";
+import type { EconomicDocument, EconomicDocumentLine } from "../types";
 
 export class EconomicDocumentRequestError extends Error {
   readonly code: string;
@@ -17,13 +17,48 @@ export function createEconomicDocumentIssueRunner() {
   let persistedDocumentId: string | undefined;
   let issueStarted = false;
   return {
-    async run(input: { persist: () => Promise<{ id: string }>; issue: (documentId: string) => Promise<EconomicDocument> }) {
-      if (!persistedDocumentId) persistedDocumentId = (await input.persist()).id;
+    async run(input: { documentId?: string; shouldPersist: boolean; persist: () => Promise<{ id: string }>; issue: (documentId: string) => Promise<EconomicDocument> }) {
+      if (!persistedDocumentId) persistedDocumentId = input.documentId && !input.shouldPersist ? input.documentId : (await input.persist()).id;
       issueStarted = true;
       return input.issue(persistedDocumentId);
     },
     state: () => ({ persistedDocumentId, issueStarted }),
   };
+}
+
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => [key, stableValue(entry)]));
+  return value;
+}
+
+export function economicDocumentDraftFingerprint(document: EconomicDocument, lines: EconomicDocumentLine[]) {
+  return JSON.stringify(stableValue({
+    document: {
+      patientId: document.patientId,
+      professionalSnapshot: document.professionalSnapshot,
+      recipientSnapshot: document.recipientSnapshot,
+      notes: document.notes,
+      logoIncluded: document.logoIncluded,
+    },
+    lines: [...lines].sort((left, right) => left.position - right.position || left.id.localeCompare(right.id)).map((line) => ({
+      id: line.id,
+      sessionId: line.sessionId,
+      serviceId: line.serviceId,
+      serviceNameSnapshot: line.serviceNameSnapshot,
+      serviceDateSnapshot: line.serviceDateSnapshot,
+      descriptionSnapshot: line.descriptionSnapshot,
+      quantity: line.quantity,
+      unitAmountCents: line.unitAmountCents,
+    })),
+  }));
+}
+
+export function economicDocumentDraftIsDirty(originalDocument: EconomicDocument, originalLines: EconomicDocumentLine[], currentDocument: EconomicDocument, currentLines: EconomicDocumentLine[]) {
+  return economicDocumentDraftFingerprint(originalDocument, originalLines) !== economicDocumentDraftFingerprint(currentDocument, currentLines);
 }
 
 async function responseBody(response: Response) {
