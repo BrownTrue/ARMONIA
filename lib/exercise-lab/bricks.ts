@@ -9,6 +9,8 @@ import type {
   MinimalPairItem,
   MinimalPairsParams,
   PhonologyFilters,
+  ReadingComprehensionParams,
+  ReadingComprehensionPreview,
   RepetitionItem,
   RepetitionParams,
 } from "./types.ts";
@@ -17,6 +19,7 @@ export const exerciseBricks: readonly ExerciseBrickDescriptor[] = [
   { code: "image_naming", title: "Denominazione immagini", description: "Mostra immagini selezionate in base alle caratteristiche della parola." },
   { code: "minimal_pairs", title: "Coppie minime", description: "Contrasti fonologici già presenti e revisionabili nel corpus." },
   { code: "word_nonword_repetition", title: "Ripetizione parole e non-parole", description: "Liste testuali deterministiche per attività di ripetizione." },
+  { code: "reading_comprehension", title: "Lettura e comprensione", description: "Brani reali del catalogo con domande di comprensione già revisionate." },
 ];
 
 const usableStatuses = new Set<ContentReviewStatus>(["reviewed", "approved"]);
@@ -84,6 +87,35 @@ export function buildRepetitionPreview(params: RepetitionParams): ExercisePrevie
   const sources = params.contentKind === "word" ? getContentsByType("word") : params.contentKind === "nonword" ? getContentsByType("nonword") : [...getContentsByType("word"), ...getContentsByType("nonword")];
   const matches = sources.filter((item) => allowed(item.reviewStatus, params.includeDrafts) && matchesPhonology(item, params)).map((item) => ({ contentId: item.id, contentKind: item.contentType, text: item.text, phonemicTranscription: item.phonemicTranscription, syllabification: item.syllabification, reviewStatus: item.reviewStatus }));
   return preview("word_nonword_repetition", "Ripetizione parole e non-parole", params.itemCount, matches, error);
+}
+
+export function buildReadingComprehensionPreview(params: ReadingComprehensionParams = {}): ReadingComprehensionPreview {
+  const passages = getContentsByType("passage").filter((passage) => allowed(passage.reviewStatus, params.includeDrafts) && (!params.audience || passage.intendedAudience?.includes(params.audience)));
+  const availablePassages = passages.map((passage) => ({
+    passageId: passage.id,
+    title: passage.title,
+    wordCount: passage.wordCount,
+    questionCount: passage.questions?.length || 0,
+    intendedAudience: [...(passage.intendedAudience || [])],
+  }));
+  const passage = params.passageId ? passages.find((entry) => entry.id === params.passageId) : undefined;
+  return {
+    brickCode: "reading_comprehension",
+    title: "Lettura e comprensione",
+    availablePassages,
+    selectedPassage: passage ? {
+      ...availablePassages.find((entry) => entry.passageId === passage.id)!,
+      text: passage.text,
+      sentenceCount: passage.sentenceCount,
+      questions: (passage.questions || []).map((question) => ({ ...question })),
+      reviewStatus: passage.reviewStatus,
+    } : undefined,
+    warnings: params.passageId && !passage ? ["Il brano selezionato non è disponibile con i criteri correnti."] : [],
+  };
+}
+
+export function getAvailableReadingAudiences(includeDrafts = false) {
+  return unique(getContentsByType("passage").filter((passage) => allowed(passage.reviewStatus, includeDrafts)).flatMap((passage) => passage.intendedAudience || []));
 }
 
 export function getAvailableWordPhonemes(includeDrafts = false) { return unique(getContentsByType("word").filter((x) => allowed(x.reviewStatus, includeDrafts)).flatMap((x) => x.phonemes.map((p) => p.symbol))); }
