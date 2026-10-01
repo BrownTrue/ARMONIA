@@ -1,7 +1,7 @@
 import type { AssetPhonologicalPosition } from "../asset-bank/types.ts";
 import type { ContentAudience, ContentReviewStatus, MinimalPairType, PassageQuestionType } from "../content-bank/types.ts";
 
-export const EXERCISE_BRICK_CODES = ["image_naming", "minimal_pairs", "word_nonword_repetition", "reading_comprehension"] as const;
+export const EXERCISE_BRICK_CODES = ["image_naming", "minimal_pairs", "word_nonword_repetition", "reading_comprehension", "sentence_reading"] as const;
 export type ExerciseBrickCode = typeof EXERCISE_BRICK_CODES[number];
 export type SyllableCountFilter = number | "4+";
 
@@ -29,6 +29,9 @@ export type ReadingComprehensionParams = {
   includeDrafts?: boolean;
   audience?: ContentAudience;
   passageId?: string;
+};
+export type SentenceReadingParams = EditorialOptions & {
+  audience?: ContentAudience;
 };
 
 export type ImageNamingItem = {
@@ -87,6 +90,13 @@ export type ReadingComprehensionPreview = {
   availablePassages: ReadingPassageOption[];
   selectedPassage?: ReadingComprehensionItem;
   warnings: string[];
+};
+export type SentenceReadingItem = {
+  sentenceId: string;
+  text: string;
+  wordCount: number;
+  intendedAudience: ContentAudience[];
+  reviewStatus: ContentReviewStatus;
 };
 
 export type ExercisePreview<T> = {

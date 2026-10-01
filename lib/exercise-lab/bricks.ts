@@ -13,6 +13,8 @@ import type {
   ReadingComprehensionPreview,
   RepetitionItem,
   RepetitionParams,
+  SentenceReadingItem,
+  SentenceReadingParams,
 } from "./types.ts";
 
 export const exerciseBricks: readonly ExerciseBrickDescriptor[] = [
@@ -20,6 +22,7 @@ export const exerciseBricks: readonly ExerciseBrickDescriptor[] = [
   { code: "minimal_pairs", title: "Coppie minime", description: "Contrasti fonologici già presenti e revisionabili nel corpus." },
   { code: "word_nonword_repetition", title: "Ripetizione parole e non-parole", description: "Liste testuali deterministiche per attività di ripetizione." },
   { code: "reading_comprehension", title: "Lettura e comprensione", description: "Brani reali del catalogo con domande di comprensione già revisionate." },
+  { code: "sentence_reading", title: "Lettura di frasi", description: "Liste di frasi reali del catalogo, selezionate in modo stabile per destinatario editoriale." },
 ];
 
 const usableStatuses = new Set<ContentReviewStatus>(["reviewed", "approved"]);
@@ -116,6 +119,18 @@ export function buildReadingComprehensionPreview(params: ReadingComprehensionPar
 
 export function getAvailableReadingAudiences(includeDrafts = false) {
   return unique(getContentsByType("passage").filter((passage) => allowed(passage.reviewStatus, includeDrafts)).flatMap((passage) => passage.intendedAudience || []));
+}
+
+export function buildSentenceReadingPreview(params: SentenceReadingParams): ExercisePreview<SentenceReadingItem> {
+  const error = invalidCommon(params);
+  const matches = getContentsByType("sentence")
+    .filter((sentence) => allowed(sentence.reviewStatus, params.includeDrafts) && (!params.audience || sentence.intendedAudience?.includes(params.audience)))
+    .map((sentence) => ({ sentenceId: sentence.id, text: sentence.text, wordCount: sentence.wordCount, intendedAudience: [...(sentence.intendedAudience || [])], reviewStatus: sentence.reviewStatus }));
+  return preview("sentence_reading", "Lettura di frasi", params.itemCount, matches, error);
+}
+
+export function getAvailableSentenceAudiences(includeDrafts = false) {
+  return unique(getContentsByType("sentence").filter((sentence) => allowed(sentence.reviewStatus, includeDrafts)).flatMap((sentence) => sentence.intendedAudience || []));
 }
 
 export function getAvailableWordPhonemes(includeDrafts = false) { return unique(getContentsByType("word").filter((x) => allowed(x.reviewStatus, includeDrafts)).flatMap((x) => x.phonemes.map((p) => p.symbol))); }
