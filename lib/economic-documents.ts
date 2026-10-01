@@ -118,10 +118,12 @@ export function economicDocumentLineFromSession(input: { id: string; documentId:
   return { id: input.id, patientId: input.session.patientId, documentId: input.documentId, sessionId: input.session.id, serviceId: input.session.serviceId, serviceNameSnapshot: input.session.serviceNameSnapshot, serviceDateSnapshot: input.session.date, descriptionSnapshot: input.session.serviceNameSnapshot?.trim() || "Prestazione logopedica", quantity: 1, unitAmountCents: amount, lineTotalCents: amount, position: input.position, createdAt: input.createdAt, updatedAt: input.createdAt };
 }
 
-export function createManualEconomicDocumentLine(input: { id: string; documentId: string; patientId: string; description: string; quantity: number; unitAmountCents: number; position: number; createdAt: string }): EconomicDocumentLine {
+export function createManualEconomicDocumentLine(input: { id: string; documentId: string; patientId: string; description: string; serviceDate?: string; quantity: number; unitAmountCents: number; position: number; createdAt: string }): EconomicDocumentLine {
   const description = input.description.trim();
   if (!description || !Number.isInteger(input.quantity) || input.quantity <= 0 || !Number.isInteger(input.unitAmountCents) || input.unitAmountCents < 0) throw new Error("economic_document_manual_line_invalid");
-  return { id: input.id, patientId: input.patientId, documentId: input.documentId, descriptionSnapshot: description, quantity: input.quantity, unitAmountCents: input.unitAmountCents, lineTotalCents: input.quantity * input.unitAmountCents, position: input.position, createdAt: input.createdAt, updatedAt: input.createdAt };
+  const serviceDateSnapshot = input.serviceDate?.trim() || undefined;
+  if (serviceDateSnapshot && !/^\d{4}-\d{2}-\d{2}$/.test(serviceDateSnapshot)) throw new Error("economic_document_manual_line_invalid");
+  return { id: input.id, patientId: input.patientId, documentId: input.documentId, serviceDateSnapshot, descriptionSnapshot: description, quantity: input.quantity, unitAmountCents: input.unitAmountCents, lineTotalCents: input.quantity * input.unitAmountCents, position: input.position, createdAt: input.createdAt, updatedAt: input.createdAt };
 }
 
 export function addEconomicDocumentLine(lines: EconomicDocumentLine[], line: EconomicDocumentLine) {
