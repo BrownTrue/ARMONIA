@@ -68,9 +68,10 @@ export function buildMinimalPairsPreview(params: MinimalPairsParams): ExercisePr
     if (!wordA || !wordB || !allowed(pair.reviewStatus, params.includeDrafts) || !allowed(wordA.reviewStatus, params.includeDrafts) || !allowed(wordB.reviewStatus, params.includeDrafts)) return [];
     if (params.position && pair.contrast.position !== params.position) return [];
     if (params.pairType && pair.pairType !== params.pairType) return [];
-    if (a && b && !((pair.contrast.phonemeA === a && pair.contrast.phonemeB === b) || (pair.contrast.phonemeA === b && pair.contrast.phonemeB === a))) return [];
-    if (a && !b && pair.contrast.phonemeA !== a && pair.contrast.phonemeB !== a) return [];
-    if (!a && b && pair.contrast.phonemeA !== b && pair.contrast.phonemeB !== b) return [];
+    if ((a || b) && pair.contrast.kind !== "phoneme") return [];
+    if (pair.contrast.kind === "phoneme" && a && b && !((pair.contrast.phonemeA === a && pair.contrast.phonemeB === b) || (pair.contrast.phonemeA === b && pair.contrast.phonemeB === a))) return [];
+    if (pair.contrast.kind === "phoneme" && a && !b && pair.contrast.phonemeA !== a && pair.contrast.phonemeB !== a) return [];
+    if (pair.contrast.kind === "phoneme" && !a && b && pair.contrast.phonemeA !== b && pair.contrast.phonemeB !== b) return [];
     const assetA = imageFor(wordA.id), assetB = imageFor(wordB.id);
     if (params.requireImages && (!assetA || !assetB)) return [];
     return [{ minimalPairId: pair.id, wordAId: wordA.id, wordBId: wordB.id, wordA: wordA.text, wordB: wordB.text, imageAssetAId: assetA?.id, imageAssetBId: assetB?.id, imagePathA: assetA?.imagePath, imagePathB: assetB?.imagePath, contrast: pair.contrast, pairType: pair.pairType, reviewStatus: pair.reviewStatus }];
@@ -88,5 +89,5 @@ export function buildRepetitionPreview(params: RepetitionParams): ExercisePrevie
 export function getAvailableWordPhonemes(includeDrafts = false) { return unique(getContentsByType("word").filter((x) => allowed(x.reviewStatus, includeDrafts)).flatMap((x) => x.phonemes.map((p) => p.symbol))); }
 export function getAvailableClusterPhonemes(includeDrafts = false) { return unique([...getContentsByType("word"), ...getContentsByType("nonword")].filter((x) => allowed(x.reviewStatus, includeDrafts)).flatMap((x) => x.consonantClusters.flatMap((c) => c.phonemes))); }
 export function getAvailableGeminates(includeDrafts = false) { return unique([...getContentsByType("word"), ...getContentsByType("nonword")].filter((x) => allowed(x.reviewStatus, includeDrafts)).flatMap((x) => x.geminates)); }
-export function getAvailablePairContrasts(includeDrafts = false) { return getContentsByType("minimal_pair").filter((x) => allowed(x.reviewStatus, includeDrafts)).map((x) => ({ phonemeA: x.contrast.phonemeA, phonemeB: x.contrast.phonemeB, position: x.contrast.position, pairType: x.pairType })); }
+export function getAvailablePairContrasts(includeDrafts = false) { return getContentsByType("minimal_pair").filter((x) => allowed(x.reviewStatus, includeDrafts) && x.contrast.kind === "phoneme").map((x) => ({ phonemeA: x.contrast.kind === "phoneme" ? x.contrast.phonemeA : "", phonemeB: x.contrast.kind === "phoneme" ? x.contrast.phonemeB : "", position: x.contrast.position, pairType: x.pairType })); }
 function unique(values: string[]) { return [...new Set(values)].sort((left, right) => left.localeCompare(right, "it")); }

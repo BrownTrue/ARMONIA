@@ -12,7 +12,7 @@ export function searchContents(query: string, entries: readonly ContentItem[] = 
 function searchableText(item: ContentItem) {
   if (item.contentType === "word") return [item.text, item.lemma, item.phonemicTranscription, item.notes].filter(Boolean).join(" ");
   if (item.contentType === "nonword") return [item.text, item.phonemicTranscription, item.phonotacticPattern, item.notes].filter(Boolean).join(" ");
-  if (item.contentType === "minimal_pair") return [getWordById(item.wordAId)?.text, getWordById(item.wordBId)?.text, item.contrast.phonemeA, item.contrast.phonemeB].filter(Boolean).join(" ");
+  if (item.contentType === "minimal_pair") return [getWordById(item.wordAId)?.text, getWordById(item.wordBId)?.text, item.contrast.kind === "phoneme" ? item.contrast.phonemeA : item.contrast.segment, item.contrast.kind === "phoneme" ? item.contrast.phonemeB : "geminata"].filter(Boolean).join(" ");
   if (item.contentType === "sentence") return item.text;
   if (item.contentType === "passage") return [item.title, item.text, ...(item.questions || []).map((question) => question.prompt)].join(" ");
   return [item.title, ...item.steps.map((step) => step.canonicalDescription)].filter(Boolean).join(" ");
@@ -29,5 +29,5 @@ export function filterWords(filters: WordFilters = {}, entries: readonly WordCon
     return true;
   });
 }
-export function getMinimalPairs(filters: MinimalPairFilters = {}) { return getContentsByType("minimal_pair").filter((pair) => (!filters.pairType || pair.pairType === filters.pairType) && (!filters.position || pair.contrast.position === filters.position) && (!filters.phoneme || pair.contrast.phonemeA === filters.phoneme || pair.contrast.phonemeB === filters.phoneme)); }
+export function getMinimalPairs(filters: MinimalPairFilters = {}) { return getContentsByType("minimal_pair").filter((pair) => (!filters.pairType || pair.pairType === filters.pairType) && (!filters.contrastKind || pair.contrast.kind === filters.contrastKind) && (!filters.position || pair.contrast.position === filters.position) && (!filters.phoneme || (pair.contrast.kind === "phoneme" ? pair.contrast.phonemeA === filters.phoneme || pair.contrast.phonemeB === filters.phoneme : pair.contrast.segment === filters.phoneme))); }
 export function getAvailableRepresentations(wordId: string) { const word = getWordById(wordId); return { text: Boolean(word?.text), image: Boolean(word?.imageAssetIds?.some((id) => getAssetById(id))) }; }

@@ -1,4 +1,4 @@
-import { getAssetById } from "../../lib/asset-bank/catalog.ts";
+import { getAssets } from "../../lib/asset-bank/catalog.ts";
 import type { ContentBase, ContentItem, ContentPhonology, MinimalPairContent, NonwordContent, PassageContent, SentenceContent, SequenceContent, WordContent } from "../../lib/content-bank/types.ts";
 
 const original = {
@@ -9,14 +9,14 @@ const original = {
   licenseName: "Contenuto originale ARMONIA — revisione editoriale interna",
 } as const satisfies Omit<ContentBase, "id" | "contentType">;
 
-function wordFromAsset(id: string, assetId: string): WordContent {
-  const asset = getAssetById(assetId);
+export function wordFromAsset(assetId: string): WordContent {
+  const asset = getAssets().find((item) => item.id === assetId);
   if (!asset?.syllabification || !asset.syllableCount || !asset.phonemicTranscription || !asset.phonemes) throw new Error(`Fonologia Asset incompleta per ${assetId}`);
   return {
     ...original,
-    id,
+    id: `word_${asset.id.replace(/^(noun|verb|concept)_/, "").replace(/_001$/, "")}_001`,
     contentType: "word",
-    reviewStatus: "reviewed",
+    reviewStatus: asset.phonologyReviewStatus === "reviewed" ? "reviewed" : "draft",
     text: asset.label,
     lemma: asset.label,
     partOfSpeech: asset.partOfSpeech === "noun" || asset.partOfSpeech === "verb" || asset.partOfSpeech === "adjective" ? asset.partOfSpeech : "other",
@@ -40,16 +40,9 @@ function word(id: string, text: string, syllabification: string, transcription: 
 }
 
 const words: WordContent[] = [
-  wordFromAsset("word_cane_001", "noun_cane_001"),
-  wordFromAsset("word_pane_001", "noun_pane_001"),
-  wordFromAsset("word_rana_001", "noun_rana_001"),
+  ...getAssets().map((asset) => wordFromAsset(asset.id)),
   word("word_lana_001", "lana", "la-na", "/ˈlana/", "l@1 a@1 n@2 a@2"),
-  wordFromAsset("word_treno_001", "noun_treno_001"),
   word("word_strada_001", "strada", "stra-da", "/ˈstrada/", "s@1 t@1 r@1 a@1 d@2 a@2", [{ phonemes: ["s", "t", "r"], position: "initial", syllable: 1 }]),
-  wordFromAsset("word_gatto_001", "noun_gatto_001"),
-  wordFromAsset("word_foglia_001", "noun_foglia_001"),
-  wordFromAsset("word_zaino_001", "noun_zaino_001"),
-  wordFromAsset("word_specchio_001", "noun_specchio_001"),
   word("word_fatto_001", "fatto", "fat-to", "/ˈfatto/", "f@1 a@1 t@1 t@2 o@2", [], ["t"]),
   word("word_voglia_001", "voglia", "vo-glia", "/ˈvɔʎʎa/", "v@1 ɔ@1 ʎ@1 ʎ@2 a@2", [], ["ʎ"]),
   word("word_freno_001", "freno", "fre-no", "/ˈfrɛno/", "f@1 r@1 ɛ@1 n@2 o@2", [{ phonemes: ["f", "r"], position: "initial", syllable: 1 }]),
@@ -63,7 +56,7 @@ const pairs: MinimalPairContent[] = [
   ["pair_foglia_voglia_001", "word_foglia_001", "word_voglia_001", "f", "v", "minimal"],
   ["pair_treno_freno_001", "word_treno_001", "word_freno_001", "t", "f", "minimal"],
   ["pair_specchio_vecchio_001", "word_specchio_001", "word_vecchio_001", "sp", "v", "near_minimal"],
-].map(([id, wordAId, wordBId, phonemeA, phonemeB, pairType]) => ({ ...original, id, contentType: "minimal_pair", wordAId, wordBId, pairType, contrast: { phonemeA, phonemeB, position: "initial" } } as MinimalPairContent));
+].map(([id, wordAId, wordBId, phonemeA, phonemeB, pairType]) => ({ ...original, id, contentType: "minimal_pair", wordAId, wordBId, pairType, contrast: { kind: "phoneme", phonemeA, phonemeB, position: "initial" } } as MinimalPairContent));
 
 function nonword(id: string, text: string, syllabification: string, transcription: string, phonemeSpec: string, pattern: string): NonwordContent {
   return { ...original, id, contentType: "nonword", text, syllabification, syllableCount: syllabification.split("-").length, phonemicTranscription: transcription, phonemes: units(phonemeSpec), consonantClusters: [], geminates: [], phonotacticPattern: pattern, notes: "Non-parola editoriale di test; nessuna validazione clinica o normativa." };

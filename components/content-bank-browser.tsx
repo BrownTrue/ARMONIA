@@ -36,7 +36,7 @@ function contentTitle(item: ContentItem) {
 function contentSummary(item: ContentItem) {
   if (item.contentType === "word") return `${item.syllabification} · ${item.partOfSpeech}`;
   if (item.contentType === "nonword") return `${item.syllabification} · item editoriale di test`;
-  if (item.contentType === "minimal_pair") return `Contrasto /${item.contrast.phonemeA}/ – /${item.contrast.phonemeB}/ · ${item.pairType === "minimal" ? "minima" : "quasi minima"}`;
+  if (item.contentType === "minimal_pair") return item.contrast.kind === "phoneme" ? `Contrasto /${item.contrast.phonemeA}/ – /${item.contrast.phonemeB}/ · ${item.pairType === "minimal" ? "minima" : "quasi minima"}` : `Contrasto singleton – geminata /${item.contrast.segment}/ · ${item.pairType === "minimal" ? "minima" : "quasi minima"}`;
   if (item.contentType === "sentence") return `${item.wordCount} parole`;
   if (item.contentType === "passage") return item.text;
   return item.steps.map((step) => `${step.order}. ${step.canonicalDescription || step.imageAssetId}`).join(" ");

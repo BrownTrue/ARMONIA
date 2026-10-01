@@ -45,7 +45,7 @@ export type MinimalPairItem = {
   imageAssetBId?: string;
   imagePathA?: string;
   imagePathB?: string;
-  contrast: { phonemeA: string; phonemeB: string; position: AssetPhonologicalPosition };
+  contrast: import("../content-bank/types.ts").MinimalPairContent["contrast"];
   pairType: MinimalPairType;
   reviewStatus: ContentReviewStatus;
 };

@@ -7,6 +7,7 @@ export const CONTENT_DIFFICULTIES = ["easy", "medium", "advanced"] as const;
 export const CONTENT_PARTS_OF_SPEECH = ["noun", "verb", "adjective", "adverb", "other"] as const;
 export const MINIMAL_PAIR_TYPES = ["minimal", "near_minimal"] as const;
 export const CONTRAST_TYPES = ["voicing", "place", "manner", "other"] as const;
+export const MINIMAL_PAIR_CONTRAST_KINDS = ["phoneme", "gemination"] as const;
 export const PASSAGE_QUESTION_TYPES = ["literal", "inferential", "sequence", "vocabulary"] as const;
 
 export type ContentType = typeof CONTENT_TYPES[number];
@@ -16,6 +17,7 @@ export type ContentDifficulty = typeof CONTENT_DIFFICULTIES[number];
 export type ContentPartOfSpeech = typeof CONTENT_PARTS_OF_SPEECH[number];
 export type MinimalPairType = typeof MINIMAL_PAIR_TYPES[number];
 export type ContrastType = typeof CONTRAST_TYPES[number];
+export type MinimalPairContrastKind = typeof MINIMAL_PAIR_CONTRAST_KINDS[number];
 export type PassageQuestionType = typeof PASSAGE_QUESTION_TYPES[number];
 
 export type ContentBase = {
@@ -47,6 +49,7 @@ export type WordContent = ContentBase & ContentPhonology & {
   contentType: "word";
   text: string;
   lemma: string;
+  senseLabel?: string;
   partOfSpeech: ContentPartOfSpeech;
   imageAssetIds?: string[];
 };
@@ -58,17 +61,26 @@ export type NonwordContent = ContentBase & ContentPhonology & {
   derivedFromWordId?: string;
 };
 
+export type PhonemeContrast = {
+  kind: "phoneme";
+  phonemeA: string;
+  phonemeB: string;
+  position: AssetPhonologicalPosition;
+  type?: ContrastType;
+};
+export type GeminationContrast = {
+  kind: "gemination";
+  segment: string;
+  sideA: "singleton";
+  sideB: "geminate";
+  position: AssetPhonologicalPosition;
+};
 export type MinimalPairContent = ContentBase & {
   contentType: "minimal_pair";
   wordAId: string;
   wordBId: string;
   pairType: MinimalPairType;
-  contrast: {
-    phonemeA: string;
-    phonemeB: string;
-    position: AssetPhonologicalPosition;
-    type?: ContrastType;
-  };
+  contrast: PhonemeContrast | GeminationContrast;
 };
 
 export type SentenceContent = ContentBase & {
@@ -134,6 +146,7 @@ export type WordFilters = {
 
 export type MinimalPairFilters = {
   pairType?: MinimalPairType;
+  contrastKind?: MinimalPairContrastKind;
   phoneme?: string;
   position?: AssetPhonologicalPosition;
 };

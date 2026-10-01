@@ -1,6 +1,6 @@
 import { getAssets } from "../asset-bank/catalog.ts";
 import { ASSET_PHONOLOGICAL_POSITIONS, ASSET_SOURCE_TYPES } from "../asset-bank/types.ts";
-import { CONTENT_AUDIENCES, CONTENT_DIFFICULTIES, CONTENT_PARTS_OF_SPEECH, CONTENT_REVIEW_STATUSES, CONTENT_TYPES, CONTRAST_TYPES, MINIMAL_PAIR_TYPES, PASSAGE_QUESTION_TYPES, type ContentItem, type ContentPhonology, type WordContent } from "./types.ts";
+import { CONTENT_AUDIENCES, CONTENT_DIFFICULTIES, CONTENT_PARTS_OF_SPEECH, CONTENT_REVIEW_STATUSES, CONTENT_TYPES, CONTRAST_TYPES, MINIMAL_PAIR_TYPES, MINIMAL_PAIR_CONTRAST_KINDS, PASSAGE_QUESTION_TYPES, type ContentItem, type ContentPhonology, type WordContent } from "./types.ts";
 
 export type ContentValidationIssue = { contentId?: string; field?: string; message: string };
 export type ContentCatalogValidation = { valid: boolean; errors: ContentValidationIssue[]; warnings: ContentValidationIssue[] };
@@ -47,6 +47,7 @@ export function validateContentCatalog(entries: readonly ContentItem[]): Content
     switch (entry.contentType) {
       case "word":
         if (!nonEmpty(entry.text) || !nonEmpty(entry.lemma)) push(entry, "text", "Testo e lemma sono obbligatori.");
+        if (entry.senseLabel !== undefined && !nonEmpty(entry.senseLabel)) push(entry, "senseLabel", "L'etichetta di senso, se presente, non può essere vuota.");
         if (!CONTENT_PARTS_OF_SPEECH.includes(entry.partOfSpeech)) push(entry, "partOfSpeech", "Parte del discorso non valida.");
         validatePhonology(entry, errors); checkAssetRefs(entry, "imageAssetIds", entry.imageAssetIds); break;
       case "nonword":
@@ -56,9 +57,11 @@ export function validateContentCatalog(entries: readonly ContentItem[]): Content
         checkWordRefs(entry, "wordAId", [entry.wordAId]); checkWordRefs(entry, "wordBId", [entry.wordBId]);
         if (entry.wordAId === entry.wordBId) push(entry, "wordBId", "La coppia richiede due parole diverse.");
         if (!MINIMAL_PAIR_TYPES.includes(entry.pairType)) push(entry, "pairType", "Tipo coppia non valido.");
-        if (!nonEmpty(entry.contrast.phonemeA) || !nonEmpty(entry.contrast.phonemeB) || entry.contrast.phonemeA === entry.contrast.phonemeB) push(entry, "contrast", "Contrasto fonemico non valido.");
+        if (!MINIMAL_PAIR_CONTRAST_KINDS.includes(entry.contrast.kind)) push(entry, "contrast.kind", "Tipo di contrasto non valido.");
+        if (entry.contrast.kind === "phoneme" && (!nonEmpty(entry.contrast.phonemeA) || !nonEmpty(entry.contrast.phonemeB) || entry.contrast.phonemeA === entry.contrast.phonemeB)) push(entry, "contrast", "Contrasto fonemico non valido.");
+        if (entry.contrast.kind === "gemination" && (!nonEmpty(entry.contrast.segment) || entry.contrast.sideA !== "singleton" || entry.contrast.sideB !== "geminate")) push(entry, "contrast", "Contrasto di geminazione non valido.");
         if (!ASSET_PHONOLOGICAL_POSITIONS.includes(entry.contrast.position)) push(entry, "contrast.position", "Posizione contrasto non valida.");
-        if (entry.contrast.type && !CONTRAST_TYPES.includes(entry.contrast.type)) push(entry, "contrast.type", "Tipo contrasto non valido."); break;
+        if (entry.contrast.kind === "phoneme" && entry.contrast.type && !CONTRAST_TYPES.includes(entry.contrast.type)) push(entry, "contrast.type", "Tipo contrasto non valido."); break;
       case "sentence":
         if (!nonEmpty(entry.text) || !Number.isInteger(entry.wordCount) || entry.wordCount < 1) push(entry, "text", "Frase e conteggio parole sono obbligatori.");
         else if (entry.wordCount !== countWords(entry.text)) push(entry, "wordCount", "Il conteggio parole non corrisponde al testo.");
