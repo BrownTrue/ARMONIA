@@ -1,5 +1,6 @@
 import type { AssetEntry } from "../../lib/asset-bank/types.ts";
 import { ASSET_GRID_MANIFEST } from "./grid-manifest.mjs";
+import { armoniaAssetPhonology } from "./phonology.ts";
 
 const categoryLemmas = {
   animali: ["cane", "gatto", "rana", "pesce", "zebra", "volpe", "tigre", "scimmia", "giraffa", "coniglio"],
@@ -26,4 +27,7 @@ function entryFromFilename(filename: string): AssetEntry {
 
 // Il manifest resta la fonte tecnica autorevole di ID, filename e path. I
 // metadati linguistici non revisionati vengono intenzionalmente omessi.
-export const armoniaAssetCatalog: AssetEntry[] = manifestFiles.map(entryFromFilename);
+const baseCatalog = manifestFiles.map(entryFromFilename);
+const knownIds = new Set(baseCatalog.map((asset) => asset.id));
+for (const id of Object.keys(armoniaAssetPhonology)) if (!knownIds.has(id)) throw new Error(`Metadati fonologici collegati a un asset inesistente: ${id}`);
+export const armoniaAssetCatalog: AssetEntry[] = baseCatalog.map((asset) => ({ ...asset, ...armoniaAssetPhonology[asset.id] }));
