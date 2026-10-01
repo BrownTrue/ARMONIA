@@ -41,11 +41,15 @@ inferenze ortografia→IPA nel runtime.
 
 Il catalogo reale comprende una proiezione Word per ciascuno dei 120 asset:
 fonologia e immagine restano riferimenti alla Banca Asset, senza copie manuali.
-I contenuti testuali proposti per l'espansione vivono invece in
-`candidates/catalog.ts`, sono tutti `draft`, non sono importati dal catalogo
-normale e richiedono revisione editoriale prima di qualsiasi promozione.
+Il corpus Round 2 revisionato è promosso in `expanded.ts` con ID canonici e
+stato `reviewed`. Questo stato certifica soltanto la revisione editoriale: non
+attribuisce validità clinica, normativa o diagnostica e non certifica
+appropriatezza per età. La coda `candidates/catalog.ts` resta separata e
+contiene soltanto gli elementi ancora bloccati o da revisionare; oggi conserva
+quattro merge bloccati da parole storiche draft e la geminazione
+`fato`/`fatto`, anch'essa in attesa della revisione di `fatto`.
 
-`coverage-report.md` fotografa la copertura reale. Si rigenera con
+`coverage-report.md` fotografa esclusivamente la copertura reale. Si rigenera con
 `npm run content-bank:coverage`; `npm run content-bank:candidates:validate`
 controlla struttura, conteggi e riferimenti della coda editoriale separata.
 

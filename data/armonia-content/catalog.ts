@@ -1,5 +1,6 @@
 import { getAssets } from "../../lib/asset-bank/catalog.ts";
 import type { ContentBase, ContentItem, ContentPhonology, MinimalPairContent, NonwordContent, PassageContent, SentenceContent, SequenceContent, WordContent } from "../../lib/content-bank/types.ts";
+import { armoniaExpandedContent } from "./expanded.ts";
 
 const original = {
   reviewStatus: "draft",
@@ -56,7 +57,7 @@ const pairs: MinimalPairContent[] = [
   ["pair_foglia_voglia_001", "word_foglia_001", "word_voglia_001", "f", "v", "minimal"],
   ["pair_treno_freno_001", "word_treno_001", "word_freno_001", "t", "f", "minimal"],
   ["pair_specchio_vecchio_001", "word_specchio_001", "word_vecchio_001", "sp", "v", "near_minimal"],
-].map(([id, wordAId, wordBId, phonemeA, phonemeB, pairType]) => ({ ...original, id, contentType: "minimal_pair", wordAId, wordBId, pairType, contrast: { kind: "phoneme", phonemeA, phonemeB, position: "initial" } } as MinimalPairContent));
+].map(([id, wordAId, wordBId, phonemeA, phonemeB, pairType]) => ({ ...original, ...(id === "pair_pane_cane_001" ? { reviewStatus: "reviewed" as const, commercialUseAllowed: true } : {}), id, contentType: "minimal_pair", wordAId, wordBId, pairType, contrast: { kind: "phoneme", phonemeA, phonemeB, position: "initial" } } as MinimalPairContent));
 
 function nonword(id: string, text: string, syllabification: string, transcription: string, phonemeSpec: string, pattern: string): NonwordContent {
   return { ...original, id, contentType: "nonword", text, syllabification, syllableCount: syllabification.split("-").length, phonemicTranscription: transcription, phonemes: units(phonemeSpec), consonantClusters: [], geminates: [], phonotacticPattern: pattern, notes: "Non-parola editoriale di test; nessuna validazione clinica o normativa." };
@@ -133,4 +134,4 @@ const sequences: SequenceContent[] = [
   ], linguisticFeatures: { temporalConcepts: ["prima", "poi", "infine"] } },
 ];
 
-export const armoniaContentCatalog: readonly ContentItem[] = [...words, ...pairs, ...nonwords, ...sentences, ...passages, ...sequences];
+export const armoniaContentCatalog: readonly ContentItem[] = [...words, ...pairs, ...nonwords, ...sentences, ...passages, ...sequences, ...armoniaExpandedContent];

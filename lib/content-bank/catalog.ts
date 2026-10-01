@@ -1,13 +1,17 @@
 import { armoniaContentCatalog } from "../../data/armonia-content/catalog.ts";
 import { getAssetById } from "../asset-bank/catalog.ts";
 import { assertValidContentCatalog } from "./validation.ts";
-import type { ContentItem, ContentType, MinimalPairFilters, WordContent, WordFilters } from "./types.ts";
+import type { ContentItem, ContentType, MinimalPairContent, MinimalPairFilters, WordContent, WordFilters } from "./types.ts";
 const catalog = Object.freeze([...armoniaContentCatalog]);
 assertValidContentCatalog(catalog);
 export function getContents(): readonly ContentItem[] { return catalog; }
 export function getContentById(id: string) { return catalog.find((item) => item.id === id); }
 export function getContentsByType<T extends ContentType>(type: T) { return catalog.filter((item): item is Extract<ContentItem, { contentType: T }> => item.contentType === type); }
 export function getWordById(id: string) { const item = getContentById(id); return item?.contentType === "word" ? item : undefined; }
+export function getMinimalPairLabel(pair: MinimalPairContent) {
+  const wordA = getWordById(pair.wordAId), wordB = getWordById(pair.wordBId);
+  return wordA && wordB ? `${wordA.text} ↔ ${wordB.text}` : "Coppia non disponibile";
+}
 export function searchContents(query: string, entries: readonly ContentItem[] = catalog) { const normalized = query.trim().toLocaleLowerCase("it"); return normalized ? entries.filter((item) => searchableText(item).toLocaleLowerCase("it").includes(normalized)) : [...entries]; }
 function searchableText(item: ContentItem) {
   if (item.contentType === "word") return [item.text, item.lemma, item.phonemicTranscription, item.notes].filter(Boolean).join(" ");

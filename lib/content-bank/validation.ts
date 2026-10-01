@@ -30,14 +30,16 @@ function validatePhonology(item: { id: string } & Partial<ContentPhonology>, err
 }
 
 export function validateContentCatalog(entries: readonly ContentItem[]): ContentCatalogValidation {
-  const errors: ContentValidationIssue[] = [], warnings: ContentValidationIssue[] = [], ids = new Set<string>();
+  const errors: ContentValidationIssue[] = [], warnings: ContentValidationIssue[] = [], ids = new Set<string>(), questionIds = new Set<string>(), semanticPairs = new Set<string>();
   const assetIds = new Set(getAssets().map((asset) => asset.id));
   const wordIds = new Set(entries.filter((entry): entry is WordContent => entry.contentType === "word").map((entry) => entry.id));
+  const wordsById = new Map(entries.filter((entry): entry is WordContent => entry.contentType === "word").map((entry) => [entry.id, entry]));
   const push = (entry: ContentItem, field: string, message: string) => errors.push({ contentId: entry.id, field, message });
   const checkWordRefs = (entry: ContentItem, field: string, refs: readonly string[] = []) => { for (const ref of refs) if (!wordIds.has(ref)) push(entry, field, `WordContent inesistente: ${ref}.`); };
   const checkAssetRefs = (entry: ContentItem, field: string, refs: readonly string[] = []) => { for (const ref of refs) if (!assetIds.has(ref)) push(entry, field, `Asset inesistente: ${ref}.`); };
   for (const entry of entries) {
     if (!nonEmpty(entry.id)) push(entry, "id", "ID obbligatorio."); else if (ids.has(entry.id)) push(entry, "id", "ID duplicato."); else ids.add(entry.id);
+    if (entry.reviewStatus !== "draft" && entry.id.startsWith("candidate_")) push(entry, "id", "Un contenuto promosso non può conservare un ID candidate_.");
     if (!CONTENT_TYPES.includes(entry.contentType)) push(entry, "contentType", "Tipo contenuto non valido.");
     if (!CONTENT_REVIEW_STATUSES.includes(entry.reviewStatus)) push(entry, "reviewStatus", "Stato revisione non valido.");
     if (!ASSET_SOURCE_TYPES.includes(entry.sourceType)) push(entry, "sourceType", "Tipo fonte non valido.");
@@ -55,7 +57,9 @@ export function validateContentCatalog(entries: readonly ContentItem[]): Content
         validatePhonology(entry, errors); if (entry.derivedFromWordId) checkWordRefs(entry, "derivedFromWordId", [entry.derivedFromWordId]); break;
       case "minimal_pair":
         checkWordRefs(entry, "wordAId", [entry.wordAId]); checkWordRefs(entry, "wordBId", [entry.wordBId]);
+        { const semanticKey = [entry.wordAId, entry.wordBId].sort().join("::"); if (semanticPairs.has(semanticKey)) push(entry, "wordAId", "Coppia semanticamente duplicata, anche considerando l'ordine inverso."); else semanticPairs.add(semanticKey); }
         if (entry.wordAId === entry.wordBId) push(entry, "wordBId", "La coppia richiede due parole diverse.");
+        if (entry.reviewStatus !== "draft" && [entry.wordAId, entry.wordBId].some((id) => wordsById.get(id)?.reviewStatus === "draft")) push(entry, "reviewStatus", "Una coppia reviewed/approved non può riferire parole draft.");
         if (!MINIMAL_PAIR_TYPES.includes(entry.pairType)) push(entry, "pairType", "Tipo coppia non valido.");
         if (!MINIMAL_PAIR_CONTRAST_KINDS.includes(entry.contrast.kind)) push(entry, "contrast.kind", "Tipo di contrasto non valido.");
         if (entry.contrast.kind === "phoneme" && (!nonEmpty(entry.contrast.phonemeA) || !nonEmpty(entry.contrast.phonemeB) || entry.contrast.phonemeA === entry.contrast.phonemeB)) push(entry, "contrast", "Contrasto fonemico non valido.");
@@ -72,8 +76,8 @@ export function validateContentCatalog(entries: readonly ContentItem[]): Content
           if (entry.wordCount !== countWords(entry.text)) push(entry, "wordCount", "Il conteggio parole non corrisponde al testo.");
           if (entry.sentenceCount !== countSentences(entry.text)) push(entry, "sentenceCount", "Il conteggio frasi non corrisponde al testo.");
         }
-        checkWordRefs(entry, "linkedWordIds", entry.linkedWordIds); const questionIds = new Set<string>();
-        for (const question of entry.questions || []) { if (!nonEmpty(question.id) || questionIds.has(question.id)) push(entry, "questions", "ID domanda mancante o duplicato."); questionIds.add(question.id); if (!PASSAGE_QUESTION_TYPES.includes(question.type) || !nonEmpty(question.prompt)) push(entry, "questions", "Domanda non valida."); }
+        checkWordRefs(entry, "linkedWordIds", entry.linkedWordIds);
+        for (const question of entry.questions || []) { if (!nonEmpty(question.id) || questionIds.has(question.id)) push(entry, "questions", "ID domanda mancante o duplicato."); questionIds.add(question.id); if (entry.reviewStatus !== "draft" && question.id.startsWith("candidate_")) push(entry, "questions", "Una domanda promossa non può conservare un ID candidate_."); if (!PASSAGE_QUESTION_TYPES.includes(question.type) || !nonEmpty(question.prompt)) push(entry, "questions", "Domanda non valida."); }
         break;
       }
       case "sequence": {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { searchContents } from "@/lib/content-bank/catalog";
+import { getMinimalPairLabel, searchContents } from "@/lib/content-bank/catalog";
 import { CONTENT_TYPES, type ContentItem, type ContentType } from "@/lib/content-bank/types";
 
 const typeLabels: Record<ContentType, string> = { word: "Parole", nonword: "Non-parole", minimal_pair: "Coppie fonologiche", sentence: "Frasi", passage: "Brani", sequence: "Sequenze" };
@@ -29,7 +29,7 @@ export function ContentBankBrowser({ contents }: { contents: readonly ContentIte
 
 function contentTitle(item: ContentItem) {
   if (item.contentType === "word" || item.contentType === "nonword") return item.text;
-  if (item.contentType === "minimal_pair") return item.id.replace(/^pair_|_001$/g, "").replaceAll("_", " ↔ ");
+  if (item.contentType === "minimal_pair") return getMinimalPairLabel(item);
   if (item.contentType === "sentence") return item.text;
   return item.title || "Sequenza";
 }
