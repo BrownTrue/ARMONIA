@@ -15,7 +15,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 
 ## Struttura principale
 
-- `app/`: pagine, layout e route API; include Oggi, Pazienti, Calendario, Sedute, Materiali, Economia, Statistiche, Impostazioni, Login e le pagine pubbliche Informazioni e Privacy.
+- `app/`: pagine, layout e route API; include Oggi, Pazienti, Calendario, Sedute, Risorse, Materiali, Economia, Statistiche, Impostazioni, Login e le pagine pubbliche Informazioni e Privacy.
 - `components/data-provider.tsx`: API dati condivisa dalla UI e selezione fra provider locale e Supabase.
 - `components/`: shell applicativa e moduli riutilizzabili per form, modali, autenticazione e appuntamenti.
 - `lib/supabase/`: client browser/server e repository Supabase.
@@ -26,7 +26,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 - `lib/today-dashboard.ts`: classificazione degli appuntamenti odierni in da fare e completati.
 - `supabase/migrations/`: schema e modifiche additive del database.
 
-Su mobile la navigazione primaria usa una bottom bar con Oggi, Calendario, Pazienti, Materiali e Altro. “Altro” apre un bottom sheet con le sole destinazioni secondarie reali — Economia, Statistiche e Impostazioni — insieme alle azioni account; la navigazione desktop resta separata e completa.
+Su mobile la navigazione primaria usa una bottom bar con Oggi, Calendario, Pazienti, Risorse e Altro. “Altro” apre un bottom sheet con le sole destinazioni secondarie reali — Economia, Statistiche e Impostazioni — insieme alle azioni account; la navigazione desktop resta separata e completa.
 
 ## Modalità dati
 
@@ -100,6 +100,8 @@ La scheda paziente consente di avviare e chiudere percorsi clinici opzionali, co
 ### Materiali
 
 La libreria supporta upload, apertura, modifica dei metadati, eliminazione, ricerca, filtri e preferiti. I materiali possono essere associati a pazienti e sedute. In locale i file restano in IndexedDB. La Libreria terapeutica V2 cloud usa file privati e URL temporanei, una quota configurabile per account (default 1 GB), un limite di 20 MB per file e una whitelist chiusa per PDF, PNG, JPEG, MP3, M4A, WAV e DOCX. Gli audio usano il player nativo; i DOCX sono solo scaricabili. I link esterni non usano Storage e non consumano quota.
+
+La route `/risorse` è la home unificata del dominio: presenta la Libreria esistente con conteggio, quota cloud quando disponibile e materiali recenti reali, e introduce gli ingressi futuri per documenti clinici/professionali, strumenti clinici e Laboratorio esercizi. Queste tre aree sono shell dichiaratamente in preparazione e non espongono dati o funzioni simulate. `/materiali` resta la Libreria operativa completa e mantiene compatibilità con i link esistenti.
 
 Il flusso V2 cloud separa preparazione autenticata, prenotazione atomica dei byte, upload diretto firmato a Supabase Storage e finalizzazione server idempotente con verifica del contenuto e commit transazionale di materiale e contatori. Un esito RPC ambiguo viene verificato rileggendo la reservation e non autorizza cleanup distruttivo. Le reservation scadute restano contabilizzate finché il backend non conferma l'assenza o la rimozione dell'oggetto. Le migration `014`, `015`, `016` e `017` sono applicate in produzione: il bucket è privato, applica il limite di 20 MiB e la whitelist MIME, le scritture sono server-side e `authenticated` conserva soltanto la lettura RLS su `materials`.
 

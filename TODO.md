@@ -40,6 +40,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Idee future
 
+- Progettare in workstream separati i tre moduli annunciati dalla home Risorse: documenti clinici/professionali, strumenti clinici con verifica preventiva di licenze e uso commerciale, e Laboratorio esercizi (Mattoncini, Ricette, Esercizi e Compiti a casa). Le shell attuali non contengono modelli o dati simulati.
+
 - E3A è chiusa: le migration 022 e 023 sono applicate e la diagnostica finale semplice ha validato direttamente policy, CHECK e guardie strutturali senza rilevare variazioni dei dati preesistenti. I vecchi postflight testuali possono produrre falsi negativi e sono sostituiti, per la verifica conclusiva, da `023_final_simple_diagnostic.sql`.
 - E3C-A è chiusa: la migration `024` è applicata e validata in produzione; numerazione annuale, tentativi persistenti, lock/controllo anti-doppia-Session, guardie RLS, bucket privato e primitive server-only di finalize/void sono attivi.
 - E3C-B è implementata localmente e non committata: route Node autenticate, renderer A4, copia immutabile del logo, upload verificato, signed download e voiding usano le primitive E3C-A e mantengono i retry sullo stesso tentativo.

@@ -6,8 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useData } from "./data-provider";
 
-const desktopItems = [["◷", "Oggi", "/oggi"], ["□", "Calendario", "/calendario"], ["◎", "Pazienti", "/pazienti"], ["▧", "Materiali", "/materiali"], ["◔", "Statistiche", "/statistiche"], ["€", "Economia", "/economia"], ["⚙", "Impostazioni", "/impostazioni"]] as const;
-const primaryMobileItems = [["◷", "Oggi", "/oggi"], ["□", "Calendario", "/calendario"], ["◎", "Pazienti", "/pazienti"], ["▧", "Materiali", "/materiali"]] as const;
+const desktopItems = [["◷", "Oggi", "/oggi"], ["□", "Calendario", "/calendario"], ["◎", "Pazienti", "/pazienti"], ["▧", "Risorse", "/risorse"], ["◔", "Statistiche", "/statistiche"], ["€", "Economia", "/economia"], ["⚙", "Impostazioni", "/impostazioni"]] as const;
+const primaryMobileItems = [["◷", "Oggi", "/oggi"], ["□", "Calendario", "/calendario"], ["◎", "Pazienti", "/pazienti"], ["▧", "Risorse", "/risorse"]] as const;
 const secondaryMobileItems = [["€", "Economia", "Incassi e prestazioni", "/economia"], ["◔", "Statistiche", "Andamento dell’attività", "/statistiche"], ["⚙", "Impostazioni", "Profilo e integrazioni", "/impostazioni"]] as const;
 const isRouteActive = (path: string, href: string) => path === href || (href !== "/oggi" && path.startsWith(`${href}/`));
 const isSecondaryRoute = (path: string) => secondaryMobileItems.some(([, , , href]) => isRouteActive(path, href));
