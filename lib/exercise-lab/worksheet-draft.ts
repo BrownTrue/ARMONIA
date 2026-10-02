@@ -41,6 +41,11 @@ export function removeWorksheetBlock(worksheet: WorksheetDraft, blockId: string)
   return { ...worksheet, blocks: worksheet.blocks.filter((block) => block.id !== blockId) };
 }
 
+export function duplicateWorksheetBlock(worksheet: WorksheetDraft, blockId: string): WorksheetDraft {
+  const source = worksheet.blocks.find((block) => block.id === blockId);
+  return source ? addWorksheetBlock(worksheet, source.exercise) : worksheet;
+}
+
 export function moveWorksheetBlock(worksheet: WorksheetDraft, blockId: string, direction: -1 | 1): WorksheetDraft {
   const index = worksheet.blocks.findIndex((block) => block.id === blockId), target = index + direction;
   if (index < 0 || target < 0 || target >= worksheet.blocks.length) return worksheet;
