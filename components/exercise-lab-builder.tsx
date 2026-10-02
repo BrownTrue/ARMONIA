@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useData } from "@/components/data-provider";
+import { Modal } from "@/components/modal";
 import { ExerciseDraftEditor } from "@/components/exercise-draft-editor";
 import { WorksheetDraftEditor } from "@/components/worksheet-draft-editor";
 import { WorksheetPreview } from "@/components/worksheet-preview";
@@ -24,7 +25,7 @@ import { patientWorksheetFromDraft, worksheetDraftFromPatientWorksheet, type Pat
 import type { ContentAudience, PassageQuestionType } from "@/lib/content-bank/types";
 import type { ExerciseBrickCode, ExercisePreview, ImageNamingItem, MinimalPairItem, ReadingComprehensionPreview, RepetitionItem, SentenceReadingItem, SyllableCountFilter } from "@/lib/exercise-lab/types";
 import { missingRecipeContentIds, type ExerciseRecipeConfiguration, type ExerciseRecipeV1 } from "@/lib/exercise-lab/recipes";
-import { uid, type Patient } from "@/lib/types";
+import { fullName, uid, type Patient } from "@/lib/types";
 
 const positions = [{ value: "", label: "Qualsiasi" }, { value: "initial", label: "Iniziale" }, { value: "medial", label: "Mediale" }, { value: "final", label: "Finale" }] as const;
 const counts = [4, 6, 8, 10, 12];
@@ -33,7 +34,6 @@ type WorkspaceView = "compose" | "templates" | "choose" | "add" | "edit" | "prev
 type Candidate = ImageNamingItem | MinimalPairItem | RepetitionItem | SentenceReadingItem;
 
 export function ExerciseLabBuilder({ patient, patientWorksheet, initialPrint = false, initialSection }: { patient?: Patient; patientWorksheet?: PatientWorksheetV1; initialPrint?: boolean; initialSection?: "templates" | "saved" }) {
-  const router = useRouter();
   const { data, saveExerciseRecipe, deleteExerciseRecipe, saveWorksheetTemplate, deleteWorksheetTemplate, savePatientWorksheet } = useData();
   const [worksheet, setWorksheet] = useState(() => patientWorksheet ? worksheetDraftFromPatientWorksheet(patientWorksheet) : createWorksheetDraft());
   const [view, setView] = useState<WorkspaceView>(initialPrint && patientWorksheet ? "print" : patientWorksheet ? "compose" : initialSection === "templates" ? "templates" : initialSection === "saved" ? "choose" : "compose");
@@ -49,6 +49,7 @@ export function ExerciseLabBuilder({ patient, patientWorksheet, initialPrint = f
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false), [recipeName, setRecipeName] = useState(""), [recipeDescription, setRecipeDescription] = useState(""), [recipeNotice, setRecipeNotice] = useState("");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false), [templateName, setTemplateName] = useState(""), [templateDescription, setTemplateDescription] = useState(""), [templateNotice, setTemplateNotice] = useState("");
   const [patientWorksheetNotice, setPatientWorksheetNotice] = useState(""), [savingPatientWorksheet, setSavingPatientWorksheet] = useState(false);
+  const [patientDialogOpen, setPatientDialogOpen] = useState(false), [selectedPatientId, setSelectedPatientId] = useState(""), [savedForPatient, setSavedForPatient] = useState<Patient>();
   const wordPhonemes = getAvailableWordPhonemes(includeDrafts), clusters = getAvailableClusterPhonemes(includeDrafts), geminates = getAvailableGeminates(includeDrafts);
   const readingAudiences = getAvailableReadingAudiences(includeDrafts), sentenceAudiences = getAvailableSentenceAudiences(includeDrafts);
   const parsedSyllables = syllables ? (syllables === "4+" ? "4+" : Number(syllables)) as SyllableCountFilter : undefined;
@@ -100,16 +101,20 @@ export function ExerciseLabBuilder({ patient, patientWorksheet, initialPrint = f
       setTemplateDialogOpen(false); setTemplateName(""); setTemplateDescription(""); setTemplateNotice("Modello salvato.");
     } catch { setTemplateNotice("Non è stato possibile salvare il modello. Controlla le attività presenti."); }
   }
-  async function saveForPatient() {
-    if (!patient) return;
+  async function saveForPatient(targetPatient: Patient) {
     if (!worksheet.blocks.length) { setPatientWorksheetNotice("Aggiungi almeno un’attività prima di salvare la scheda."); return; }
     setSavingPatientWorksheet(true); setPatientWorksheetNotice("");
     try {
       const timestamp = new Date().toISOString();
-      await savePatientWorksheet(patientWorksheetFromDraft({ id: patientWorksheet?.id || uid(), patientId: patient.id, worksheet, createdAt: patientWorksheet?.createdAt || timestamp, updatedAt: timestamp }));
-      router.push(`/pazienti/${patient.id}?tab=resources`);
+      await savePatientWorksheet(patientWorksheetFromDraft({ id: patientWorksheet?.id || uid(), patientId: targetPatient.id, worksheet, createdAt: patientWorksheet?.createdAt || timestamp, updatedAt: timestamp }));
+      setSavedForPatient(targetPatient); setPatientDialogOpen(false); setSelectedPatientId("");
     } catch { setPatientWorksheetNotice("Non è stato possibile salvare la scheda del paziente. Riprova."); }
     finally { setSavingPatientWorksheet(false); }
+  }
+  async function saveForSelectedPatient() {
+    const selectedPatient = data.patients.find((item) => item.id === selectedPatientId);
+    if (!selectedPatient) { setPatientWorksheetNotice("Seleziona un paziente disponibile."); return; }
+    await saveForPatient(selectedPatient);
   }
   function useTemplate(template: WorksheetTemplateV1) {
     if (worksheet.blocks.length && !window.confirm("Usare questo modello sostituirà la scheda corrente non salvata. Continuare?")) return;
@@ -150,7 +155,7 @@ export function ExerciseLabBuilder({ patient, patientWorksheet, initialPrint = f
   if (view === "edit" && editingBlock && editingExercise) return <FocusedWorkspace title="Modifica attività" onBack={() => setView("compose")}><ExerciseDraftEditor draft={editingExercise} initialDraft={editingBlock.initialExercise} onChange={setEditingExercise} /><div className="sticky bottom-0 mt-8 flex justify-end border-t border-slate-100 bg-white/95 py-4 backdrop-blur"><button type="button" onClick={saveEditedActivity} className="btn btn-primary">Salva modifiche</button></div></FocusedWorkspace>;
   if (view === "templates") return <FocusedWorkspace title="Modelli di scheda" onBack={() => setView("compose")}><TemplateList templates={data.worksheetTemplates} onUse={useTemplate} onSave={saveWorksheetTemplate} onDelete={deleteWorksheetTemplate} /></FocusedWorkspace>;
   if (view === "choose") return <FocusedWorkspace title="Che attività vuoi aggiungere?" onBack={() => setView("compose")}><RecipeList recipes={data.exerciseRecipes} onUse={useRecipe} onDelete={deleteExerciseRecipe} /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{exerciseBricks.map((entry) => <button type="button" key={entry.code} onClick={() => chooseBrick(entry.code)} className="group min-h-36 rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><strong className="block text-base text-slate-900">{entry.title}</strong><span className="mt-3 block text-sm leading-6 text-slate-500">{activityDescription(entry.code)}</span><span className="mt-4 block text-sm font-bold text-emerald-800">Scegli →</span></button>)}</div></FocusedWorkspace>;
-  if (view === "compose") return <div className="mt-8">{templateNotice && <p role="status" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{templateNotice}</p>}<WorksheetDraftEditor worksheet={worksheet} onChange={setWorksheet} onAddActivity={() => setView("choose")} onEditActivity={openEditor} onPreview={() => setView("preview")} onBrowseTemplates={() => setView("templates")} onSaveAsTemplate={() => { if (!worksheet.blocks.length) { setTemplateDialogOpen(false); setTemplateNotice("Aggiungi almeno un’attività prima di salvare il modello."); return; } setTemplateNotice(""); setTemplateDialogOpen(true); }} />{patient && <section className="mt-5 flex flex-col gap-3 rounded-2xl border border-sage-200 bg-sage-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold text-slate-900">{patientWorksheet ? "Aggiorna la scheda del paziente" : "Salva nella scheda paziente"}</p><p className="mt-1 text-sm text-slate-600">Verrà salvata una copia concreta delle attività attuali.</p>{patientWorksheetNotice && <p role="alert" className="mt-2 text-sm font-semibold text-rose-700">{patientWorksheetNotice}</p>}</div><button type="button" disabled={savingPatientWorksheet} onClick={() => void saveForPatient()} className="btn btn-primary shrink-0 disabled:cursor-not-allowed disabled:opacity-60">{savingPatientWorksheet ? "Salvataggio…" : patientWorksheet ? "Salva modifiche" : "Salva per il paziente"}</button></section>}{templateDialogOpen && <div className="mt-5"><TemplateDialog name={templateName} description={templateDescription} notice={templateNotice} onName={setTemplateName} onDescription={setTemplateDescription} onCancel={() => setTemplateDialogOpen(false)} onSave={() => void saveCurrentTemplate()} /></div>}</div>;
+  if (view === "compose") return <div className="mt-8">{templateNotice && <p role="status" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{templateNotice}</p>}<WorksheetDraftEditor worksheet={worksheet} onChange={setWorksheet} onAddActivity={() => setView("choose")} onEditActivity={openEditor} onPreview={() => setView("preview")} onBrowseTemplates={() => setView("templates")} onSaveAsTemplate={() => { if (!worksheet.blocks.length) { setTemplateDialogOpen(false); setTemplateNotice("Aggiungi almeno un’attività prima di salvare il modello."); return; } setTemplateNotice(""); setTemplateDialogOpen(true); }} />{!!worksheet.blocks.length && <section className="mt-5 flex flex-col gap-3 rounded-2xl border border-sage-200 bg-sage-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold text-slate-900">{patientWorksheet ? "Aggiorna la scheda del paziente" : "Salva nelle Risorse del paziente"}</p><p className="mt-1 text-sm text-slate-600">{patient ? `Questa scheda sarà collegata a ${fullName(patient)}.` : "Collega una copia concreta della scheda a un paziente."}</p>{patientWorksheetNotice && <p role="alert" className="mt-2 text-sm font-semibold text-rose-700">{patientWorksheetNotice}</p>}</div><button type="button" disabled={savingPatientWorksheet} onClick={() => { if (patient) void saveForPatient(patient); else { setPatientWorksheetNotice(""); setPatientDialogOpen(true); } }} className="btn shrink-0 border border-sage-300 bg-white font-bold text-sage-800 hover:bg-sage-100 disabled:cursor-not-allowed disabled:opacity-60">{savingPatientWorksheet ? "Salvataggio…" : patientWorksheet ? "Salva modifiche" : patient ? `Salva per ${fullName(patient)}` : "Salva per un paziente"}</button></section>}{savedForPatient && <section role="status" className="mt-4 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-semibold text-emerald-900">Salvata nelle Risorse di {fullName(savedForPatient)}.</p><div className="flex flex-wrap gap-2"><Link href={`/pazienti/${savedForPatient.id}?tab=resources`} className="btn btn-secondary text-sm">Vai alle Risorse del paziente</Link><button type="button" className="btn btn-quiet text-sm" onClick={() => setSavedForPatient(undefined)}>Continua a modificare</button></div></section>}{templateDialogOpen && <div className="mt-5"><TemplateDialog name={templateName} description={templateDescription} notice={templateNotice} onName={setTemplateName} onDescription={setTemplateDescription} onCancel={() => setTemplateDialogOpen(false)} onSave={() => void saveCurrentTemplate()} /></div>}{patientDialogOpen && <PatientWorksheetDialog patients={data.patients} selectedPatientId={selectedPatientId} saving={savingPatientWorksheet} notice={patientWorksheetNotice} onSelect={setSelectedPatientId} onCancel={() => { setPatientDialogOpen(false); setPatientWorksheetNotice(""); }} onSave={() => void saveForSelectedPatient()} />}</div>;
 
   return <FocusedWorkspace title={exerciseBricks.find((entry) => entry.code === brick)?.title || "Nuova attività"} onBack={() => setView("choose")}>
     <div className="space-y-6">
@@ -174,6 +179,9 @@ function TemplateList({ templates, onUse, onSave, onDelete }: { templates: Works
 }
 function TemplateDialog({ name, description, notice, onName, onDescription, onCancel, onSave }: { name: string; description: string; notice: string; onName: (value: string) => void; onDescription: (value: string) => void; onCancel: () => void; onSave: () => void }) {
   return <section role="dialog" aria-modal="true" aria-labelledby="template-dialog-title" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5"><h3 id="template-dialog-title" className="font-bold text-slate-900">Salva come modello</h3><p className="mt-1 text-sm text-slate-600">Salva titolo, istruzioni, ordine e configurazioni delle attività.</p><div className="mt-4 grid gap-4"><label className="text-xs font-bold text-slate-600">Nome modello *<input autoFocus className="field" maxLength={120} value={name} onChange={(event) => onName(event.target.value)} /></label><label className="text-xs font-bold text-slate-600">Descrizione facoltativa<textarea className="field min-h-20" maxLength={500} value={description} onChange={(event) => onDescription(event.target.value)} /></label></div>{notice && <p role="status" className="mt-3 text-sm text-amber-900">{notice}</p>}<div className="mt-4 flex justify-end gap-2"><button type="button" className="btn btn-secondary" onClick={onCancel}>Annulla</button><button type="button" className="btn btn-primary" onClick={onSave}>Salva modello</button></div></section>;
+}
+function PatientWorksheetDialog({ patients, selectedPatientId, saving, notice, onSelect, onCancel, onSave }: { patients: Patient[]; selectedPatientId: string; saving: boolean; notice: string; onSelect: (id: string) => void; onCancel: () => void; onSave: () => void }) {
+  return <Modal title="Salva per un paziente" onClose={onCancel}><p className="text-sm text-slate-600">Seleziona il paziente a cui collegare questa scheda.</p>{patients.length ? <label className="mt-5 block text-sm font-bold text-slate-700">Paziente<select autoFocus className="field" value={selectedPatientId} onChange={(event) => onSelect(event.target.value)}><option value="">Seleziona un paziente…</option>{patients.map((item) => <option key={item.id} value={item.id}>{fullName(item)}</option>)}</select></label> : <p className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Non hai ancora pazienti disponibili.</p>}{notice && <p role="alert" className="mt-3 text-sm font-semibold text-rose-700">{notice}</p>}<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" className="btn btn-secondary" onClick={onCancel}>Annulla</button><button type="button" className="btn btn-primary" disabled={!selectedPatientId || saving} onClick={onSave}>{saving ? "Salvataggio…" : "Salva per il paziente"}</button></div></Modal>;
 }
 function RecipeList({ recipes, onUse, onDelete }: { recipes: ExerciseRecipeV1[]; onUse: (recipe: ExerciseRecipeV1) => void; onDelete: (id: string) => Promise<void> }) {
   const { saveExerciseRecipe } = useData();
