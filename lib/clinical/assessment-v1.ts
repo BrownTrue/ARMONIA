@@ -16,7 +16,13 @@ export type ClinicalChoice = {
 
 export type AssessmentTestEntryV1 = {
   id: string;
+  source?: "catalog" | "manual";
+  catalogToolId?: string;
   name?: string;
+  nameSnapshot?: string;
+  acronymSnapshot?: string;
+  versionSnapshot?: string;
+  areaSnapshot?: string;
   date?: string;
   area?: string;
   rawScore?: number | string;

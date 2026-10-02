@@ -95,7 +95,7 @@ export function hasPrintableClinicalValue(value?: ClinicalValue<unknown>) {
 }
 
 export function printableTestHasContent(test: AssessmentTestEntryV1) {
-  return Boolean(test.name?.trim() || test.date || test.area?.trim() || hasPrintableValue(test.rawScore) || hasPrintableValue(test.standardizedScore) || hasPrintableValue(test.percentile) || test.notes?.trim());
+  return Boolean(test.name?.trim() || test.nameSnapshot?.trim() || test.acronymSnapshot?.trim() || test.versionSnapshot?.trim() || test.date || test.area?.trim() || test.areaSnapshot?.trim() || hasPrintableValue(test.rawScore) || hasPrintableValue(test.standardizedScore) || hasPrintableValue(test.percentile) || test.notes?.trim());
 }
 
 export function assessmentPrintVisibility(data: LanguageCommunicationAssessmentV1) {

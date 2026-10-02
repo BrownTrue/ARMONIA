@@ -45,7 +45,13 @@ function isClinicalChoice(value: unknown): value is ClinicalChoice {
 function isTestEntry(value: unknown): value is AssessmentTestEntryV1 {
   return isRecord(value)
     && typeof value.id === "string"
+    && (value.source === undefined || value.source === "catalog" || value.source === "manual")
+    && isOptionalString(value.catalogToolId)
     && isOptionalString(value.name)
+    && isOptionalString(value.nameSnapshot)
+    && isOptionalString(value.acronymSnapshot)
+    && isOptionalString(value.versionSnapshot)
+    && isOptionalString(value.areaSnapshot)
     && (value.date === undefined || isIsoDate(value.date))
     && isOptionalString(value.area)
     && isOptionalScore(value.rawScore)
