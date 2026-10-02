@@ -1942,7 +1942,7 @@ export const clinicalToolsV1 = [
       "licenseUrl": "https://www.aphasialab.org/qab/",
       "lastCheckedDate": "2026-10-02"
     },
-    "integrationStatus": "catalog_only",
+    "integrationStatus": "integrated",
     "licenseStatus": "open_verified",
     "partnershipStatus": "none",
     "suggestedIntegration": "native_integration_verified",

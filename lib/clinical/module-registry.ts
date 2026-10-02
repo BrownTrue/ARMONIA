@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { AacMultimodalModuleV1, AuditoryCommunicationModuleV1, ClinicalAssessmentV2Data, ClinicalModuleInstance, CognitiveCommunicationModuleV1, FeedingSwallowingModuleV1, FluencyModuleV1, LanguageOralModuleV1, MotorSpeechModuleV1, OrofacialFunctionsModuleV1, SchoolLearningModuleV1, SocialPragmaticsModuleV1, SpeechSoundModuleV1, VoiceModuleV1 } from "./assessment-v2.ts";
 import { anamnesisSectionRegistry, normalizeClinicalAnamnesis } from "./anamnesis-sections.ts";
+import { nativeClinicalToolPrintLines } from "../clinical-tools/native-registry.ts";
 
 export type ClinicalPrintField = { label: string; value: string | string[] };
 export type ClinicalPrintSection = { code: string; title: string; fields: ClinicalPrintField[] };
@@ -327,7 +328,7 @@ export function toClinicalAssessmentV2PrintSections(data: ClinicalAssessmentV2Da
       ? getClinicalModuleDefinition(module.code, module.version)!.toPrintSections(module.data as never) : []),
     ...commonPrintSection("tests", "Test / strumenti", [
       ...(data.tests?.notAdministered ? [{ label: "Somministrazione", value: "Test non somministrati" }] : []),
-      ...(data.tests?.items || []).map((item) => ({ label: item.name?.trim() || item.acronymSnapshot?.trim() || item.nameSnapshot?.trim() || "Test / strumento", value: [item.versionSnapshot ? `Versione: ${item.versionSnapshot}` : undefined, item.date, item.area || item.areaSnapshot, item.rawScore !== undefined ? `Punteggio grezzo: ${item.rawScore}` : undefined, item.standardizedScore !== undefined ? `Punteggio standardizzato: ${item.standardizedScore}` : undefined, item.percentile !== undefined ? `Percentile: ${item.percentile}` : undefined, item.notes].filter((value): value is string => Boolean(value)) })),
+      ...(data.tests?.items || []).map((item) => ({ label: item.name?.trim() || item.acronymSnapshot?.trim() || item.nameSnapshot?.trim() || "Test / strumento", value: item.nativeTool ? [...nativeClinicalToolPrintLines(item.nativeTool), ...(item.notes ? [item.notes] : [])] : [item.versionSnapshot ? `Versione: ${item.versionSnapshot}` : undefined, item.date, item.area || item.areaSnapshot, item.rawScore !== undefined ? `Punteggio grezzo: ${item.rawScore}` : undefined, item.standardizedScore !== undefined ? `Punteggio standardizzato: ${item.standardizedScore}` : undefined, item.percentile !== undefined ? `Percentile: ${item.percentile}` : undefined, item.notes].filter((value): value is string => Boolean(value)) })),
       ...printField("Note generali", data.tests?.notes?.trim()),
     ]),
     ...commonPrintSection("summary", "Sintesi", [

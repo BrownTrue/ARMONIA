@@ -8,7 +8,7 @@ import type { ClinicalToolAreaFilter, ClinicalToolAudienceFilter, ClinicalToolCa
 const CLINICAL_FILTERS = [
   ["all", "Tutti"], ["pediatric", "Età evolutiva"], ["adult", "Adulti"], ["language", "Linguaggio"], ["voice", "Voce"], ["swallowing", "Deglutizione"], ["fluency", "Fluenza"], ["aac", "CAA"], ["literacy", "Lettura/Scrittura"],
 ] as const;
-const STATUS_FILTERS = [["all", "Tutti"], ["open_verified", "Open verificati"], ["external", "Esterni"], ["permission_required", "Licenza richiesta"]] as const;
+const STATUS_FILTERS = [["all", "Tutti"], ["integrated", "Integrati"], ["open_verified", "Open verificati"], ["external", "Esterni"], ["permission_required", "Licenza richiesta"]] as const;
 
 export function ClinicalToolDirectory({ tools }: { tools: readonly ClinicalToolCatalogEntry[] }) {
   const [query, setQuery] = useState("");
@@ -51,7 +51,7 @@ function ToolCard({ tool }: { tool: ClinicalToolCatalogEntry }) {
     <div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-sage-50 px-2.5 py-1 text-xs font-bold text-sage-800">{clinicalAreaLabel(tool.clinicalAreas[0])}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{toolTypeLabel(tool.toolType)}</span></div>
     <p className="mt-4 text-base font-bold text-slate-800">{tool.population.label}</p>
     <p className="mt-2 line-clamp-2 flex-1 text-sm leading-6 text-slate-600">{tool.shortDescription}</p>
-    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-slate-100 pt-4"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tool.licenseStatus === "open_verified" ? "bg-emerald-50 text-emerald-800" : tool.licenseStatus === "permission_required" ? "bg-amber-50 text-amber-900" : "bg-slate-100 text-slate-700"}`}>{licenseStatusLabel(tool.licenseStatus)}</span><span className="text-xs font-semibold text-slate-500">{tool.integrationStatus === "external" ? "Strumento esterno" : "Presente nel catalogo"}</span></div>
+    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-slate-100 pt-4"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tool.licenseStatus === "open_verified" ? "bg-emerald-50 text-emerald-800" : tool.licenseStatus === "permission_required" ? "bg-amber-50 text-amber-900" : "bg-slate-100 text-slate-700"}`}>{licenseStatusLabel(tool.licenseStatus)}</span><span className="text-xs font-semibold text-slate-500">{tool.integrationStatus === "integrated" ? "Integrato in ARMONIA" : tool.integrationStatus === "external" ? "Strumento esterno" : "Presente nel catalogo"}</span></div>
     <div className="mt-4 flex flex-wrap items-center gap-2"><Link href={`/risorse/strumenti/${tool.id}`} className="inline-flex min-h-11 items-center rounded-xl bg-sage-700 px-4 text-sm font-bold text-white transition hover:bg-sage-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2">Vedi scheda</Link>{link && <a href={link.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-sage-700 transition hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500">{link.label}</a>}</div>
   </article>;
 }

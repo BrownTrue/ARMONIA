@@ -1,5 +1,6 @@
 import { uid } from "../types.ts";
 import type { ClinicalAssessment } from "./types.ts";
+import type { NativeClinicalToolEnvelope } from "../clinical-tools/native-registry.ts";
 
 export type ClinicalAvailability = "available" | "not_available" | "not_applicable";
 
@@ -29,6 +30,7 @@ export type AssessmentTestEntryV1 = {
   standardizedScore?: number | string;
   percentile?: number | string;
   notes?: string;
+  nativeTool?: NativeClinicalToolEnvelope;
 };
 
 export type LanguageCommunicationAssessmentV1 = {

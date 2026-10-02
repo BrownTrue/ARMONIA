@@ -7,6 +7,7 @@ import type {
 import type { ClinicalAssessment, ClinicalPathway } from "./types.ts";
 import { isRegisteredClinicalModule } from "./module-registry.ts";
 import { isClinicalAnamnesisV2 } from "./anamnesis-sections.ts";
+import { isNativeClinicalToolEnvelope } from "../clinical-tools/native-registry.ts";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const AVAILABILITY = new Set(["available", "not_available", "not_applicable"]);
@@ -57,7 +58,8 @@ function isTestEntry(value: unknown): value is AssessmentTestEntryV1 {
     && isOptionalScore(value.rawScore)
     && isOptionalScore(value.standardizedScore)
     && isOptionalScore(value.percentile)
-    && isOptionalString(value.notes);
+    && isOptionalString(value.notes)
+    && (value.nativeTool === undefined || isNativeClinicalToolEnvelope(value.nativeTool));
 }
 
 export function isLanguageCommunicationPayloadV1(value: unknown): value is LanguageCommunicationAssessmentV1 {

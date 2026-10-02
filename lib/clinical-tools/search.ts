@@ -22,7 +22,7 @@ export function filterClinicalTools(entries: readonly ClinicalToolCatalogEntry[]
   return entries.filter((tool) => {
     const audienceOk = audience === "all" || tool.population.lifeStages.some((stage) => (audience === "pediatric" ? PEDIATRIC : ADULT).has(stage));
     const areaOk = area === "all" || tool.clinicalAreas.some((code) => AREA_FILTERS[area].includes(code));
-    const statusOk = status === "all" || (status === "external" ? tool.integrationStatus === "external" : tool.licenseStatus === status);
+    const statusOk = status === "all" || (status === "external" || status === "integrated" ? tool.integrationStatus === status : tool.licenseStatus === status);
     return audienceOk && areaOk && statusOk;
   });
 }

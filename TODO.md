@@ -40,7 +40,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Idee future
 
-- Strumenti clinici V1 è operativa con 38 record static-first e selezione nel Percorso clinico. Prima di qualsiasi integrazione nativa verificare separatamente diritti su item, scoring, attribuzione e uso software; QAB e IDDSI restano soltanto schede catalogo. Valutare partnership e disclosure solo quando esisterà un caso reale, senza alterare classificazione clinica o stato di licenza.
+- Italian QAB è il primo strumento clinico nativo ed è pronto per il collaudo manuale nel Percorso clinico; mantenere `docs/qab-it-clinical-review.md` come review pack clinico-editoriale. Gli altri 37 strumenti restano invariati. Prima di ulteriori integrazioni native verificare separatamente diritti su item, scoring, attribuzione e uso software; IDDSI resta scheda catalogo. Valutare partnership e disclosure solo quando esisterà un caso reale.
 
 - `026_exercise_recipes.sql`, `027_worksheet_templates.sql` e `028_patient_worksheets.sql` sono applicate; Schede paziente V1 è online. Il Laboratorio generale può ora salvare una nuova scheda scegliendo un paziente, mentre il contesto paziente e l'update sullo stesso ID restano preservati. Revisionare e applicare manualmente `029_patient_worksheet_home_assignment.sql`, poi collaudare in cloud badge, assegnazione, rimozione e duplicazione non assegnata.
 - L'assegnazione a casa V1 resta un semplice timestamp facoltativo sulla `PatientWorksheetV1`. Scadenze, completamento, reminder, consegna, scoring e un eventuale dominio Homework completo richiederanno un workstream futuro separato, solo se necessario. Audio, scene, sequenze visive ricche e rappresentazioni alternative restano evoluzioni future.

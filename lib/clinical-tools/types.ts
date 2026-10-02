@@ -45,7 +45,7 @@ export type ClinicalToolCatalogEntry = {
   officialUrl: string | null;
   officialPurchaseUrl: string | null;
   rights: ClinicalToolRights;
-  integrationStatus: "external" | "catalog_only";
+  integrationStatus: "external" | "catalog_only" | "integrated";
   licenseStatus: "open_verified" | "permission_required" | "restricted" | "unclear";
   partnershipStatus: "none" | "partner";
   suggestedIntegration: string;
@@ -55,4 +55,4 @@ export type ClinicalToolCatalogEntry = {
 
 export type ClinicalToolAudienceFilter = "all" | "pediatric" | "adult";
 export type ClinicalToolAreaFilter = "all" | "language" | "voice" | "swallowing" | "fluency" | "aac" | "literacy";
-export type ClinicalToolStatusFilter = "all" | "open_verified" | "external" | "permission_required";
+export type ClinicalToolStatusFilter = "all" | "integrated" | "open_verified" | "external" | "permission_required";

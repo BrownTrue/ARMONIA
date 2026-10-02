@@ -1,6 +1,6 @@
 import type { ClinicalToolCatalogEntry } from "./types.ts";
 
-const INTEGRATION = new Set(["external", "catalog_only"]);
+const INTEGRATION = new Set(["external", "catalog_only", "integrated"]);
 const LICENSE = new Set(["open_verified", "permission_required", "restricted", "unclear"]);
 const REVIEW = new Set(["reviewed", "needs_review"]);
 const RIGHTS = new Set(["allowed", "allowed_with_attribution", "allowed_with_conditions", "allowed_noncommercial_unmodified", "forbidden", "forbidden_except_license", "forbidden_without_permission", "permission_required", "restricted_to_language_translation", "unknown"]);
