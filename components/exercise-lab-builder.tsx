@@ -18,6 +18,7 @@ import {
   selectedInOrder, toggleSelectedId,
 } from "@/lib/exercise-lab/manual-selection";
 import { addWorksheetBlock, createWorksheetDraft, updateWorksheetBlock, type ExerciseBlockDraft } from "@/lib/exercise-lab/worksheet-draft";
+import { instantiateWorksheetTemplate, worksheetTemplateFromDraft, type WorksheetTemplateV1 } from "@/lib/exercise-lab/worksheet-templates";
 import type { ContentAudience, PassageQuestionType } from "@/lib/content-bank/types";
 import type { ExerciseBrickCode, ExercisePreview, ImageNamingItem, MinimalPairItem, ReadingComprehensionPreview, RepetitionItem, SentenceReadingItem, SyllableCountFilter } from "@/lib/exercise-lab/types";
 import { missingRecipeContentIds, type ExerciseRecipeConfiguration, type ExerciseRecipeV1 } from "@/lib/exercise-lab/recipes";
@@ -26,11 +27,11 @@ import { uid } from "@/lib/types";
 const positions = [{ value: "", label: "Qualsiasi" }, { value: "initial", label: "Iniziale" }, { value: "medial", label: "Mediale" }, { value: "final", label: "Finale" }] as const;
 const counts = [4, 6, 8, 10, 12];
 type SelectionMode = "manual" | "automatic";
-type WorkspaceView = "compose" | "choose" | "add" | "edit" | "preview" | "print";
+type WorkspaceView = "compose" | "templates" | "choose" | "add" | "edit" | "preview" | "print";
 type Candidate = ImageNamingItem | MinimalPairItem | RepetitionItem | SentenceReadingItem;
 
 export function ExerciseLabBuilder() {
-  const { data, saveExerciseRecipe, deleteExerciseRecipe } = useData();
+  const { data, saveExerciseRecipe, deleteExerciseRecipe, saveWorksheetTemplate, deleteWorksheetTemplate } = useData();
   const [worksheet, setWorksheet] = useState(createWorksheetDraft);
   const [view, setView] = useState<WorkspaceView>("compose");
   const [editingBlock, setEditingBlock] = useState<ExerciseBlockDraft>();
@@ -43,6 +44,7 @@ export function ExerciseLabBuilder() {
   const [contrastKey, setContrastKey] = useState(""), [readingAudience, setReadingAudience] = useState(""), [passageId, setPassageId] = useState(""), [shownAnswers, setShownAnswers] = useState<Set<string>>(new Set());
   const [sentenceAudience, setSentenceAudience] = useState(""), [sentenceCount, setSentenceCount] = useState(5);
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false), [recipeName, setRecipeName] = useState(""), [recipeDescription, setRecipeDescription] = useState(""), [recipeNotice, setRecipeNotice] = useState("");
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false), [templateName, setTemplateName] = useState(""), [templateDescription, setTemplateDescription] = useState(""), [templateNotice, setTemplateNotice] = useState("");
   const wordPhonemes = getAvailableWordPhonemes(includeDrafts), clusters = getAvailableClusterPhonemes(includeDrafts), geminates = getAvailableGeminates(includeDrafts);
   const readingAudiences = getAvailableReadingAudiences(includeDrafts), sentenceAudiences = getAvailableSentenceAudiences(includeDrafts);
   const parsedSyllables = syllables ? (syllables === "4+" ? "4+" : Number(syllables)) as SyllableCountFilter : undefined;
@@ -75,7 +77,7 @@ export function ExerciseLabBuilder() {
   const preparedExercise = createExerciseDraft(preparedPreview as Parameters<typeof createExerciseDraft>[0]);
 
   function chooseBrick(next: ExerciseBrickCode) { setBrick(next); setQuery(""); setSelectedIds([]); setPhoneme(""); setContrastKey(""); setPosition(""); setPassageId(""); setShownAnswers(new Set()); setView("add"); }
-  function addCurrentActivity() { if (!preparedExercise) return; setWorksheet((current) => addWorksheetBlock(current, preparedExercise)); setSelectedIds([]); setView("compose"); }
+  function addCurrentActivity() { const configuration = currentRecipeConfiguration(); if (!preparedExercise || !configuration) return; setWorksheet((current) => addWorksheetBlock(current, preparedExercise, configuration)); setSelectedIds([]); setView("compose"); }
   function openEditor(block: ExerciseBlockDraft) { setEditingBlock(block); setEditingExercise(resetExerciseDraft(block.exercise)); setView("edit"); }
   function saveEditedActivity() { if (!editingBlock || !editingExercise) return; setWorksheet((current) => updateWorksheetBlock(current, editingBlock.id, editingExercise)); setEditingBlock(undefined); setEditingExercise(undefined); setView("compose"); }
   async function saveCurrentRecipe() {
@@ -84,6 +86,23 @@ export function ExerciseLabBuilder() {
     const timestamp = new Date().toISOString();
     await saveExerciseRecipe({ id: uid(), schemaVersion: 1, kind: brick, name: recipeName.trim(), description: recipeDescription.trim() || undefined, configuration, createdAt: timestamp, updatedAt: timestamp });
     setRecipeDialogOpen(false); setRecipeName(""); setRecipeDescription(""); setRecipeNotice("Ricetta salvata.");
+  }
+  async function saveCurrentTemplate() {
+    if (!worksheet.blocks.length) { setTemplateNotice("Aggiungi almeno un’attività prima di salvare il modello."); return; }
+    if (!templateName.trim()) { setTemplateNotice("Assegna un nome al modello."); return; }
+    try {
+      const timestamp = new Date().toISOString();
+      await saveWorksheetTemplate(worksheetTemplateFromDraft({ id: uid(), name: templateName, description: templateDescription, worksheet, createdAt: timestamp, updatedAt: timestamp }));
+      setTemplateDialogOpen(false); setTemplateName(""); setTemplateDescription(""); setTemplateNotice("Modello salvato.");
+    } catch { setTemplateNotice("Non è stato possibile salvare il modello. Controlla le attività presenti."); }
+  }
+  function useTemplate(template: WorksheetTemplateV1) {
+    if (worksheet.blocks.length && !window.confirm("Usare questo modello sostituirà la scheda corrente non salvata. Continuare?")) return;
+    const result = instantiateWorksheetTemplate(template);
+    setWorksheet(result.worksheet);
+    const missing = Object.values(result.missingContentIds).reduce((total, ids) => total + ids.length, 0);
+    setTemplateNotice(missing ? `${missing} contenuti del modello non sono più disponibili. Correggi i blocchi interessati.` : `Modello “${template.name}” caricato in una nuova scheda modificabile.`);
+    setView("compose");
   }
   function currentRecipeConfiguration(): ExerciseRecipeConfiguration | undefined {
     if (brick === "reading_comprehension") return passageId ? { kind: brick, selectedPassageId: passageId } : undefined;
@@ -114,8 +133,9 @@ export function ExerciseLabBuilder() {
   if (view === "print") return <WorksheetPrintView worksheet={worksheet} onBack={() => setView("preview")} />;
   if (view === "preview") return <div className="mt-8"><WorksheetPreview worksheet={worksheet} onBack={() => setView("compose")} onPrint={() => setView("print")} /></div>;
   if (view === "edit" && editingBlock && editingExercise) return <FocusedWorkspace title="Modifica attività" onBack={() => setView("compose")}><ExerciseDraftEditor draft={editingExercise} initialDraft={editingBlock.initialExercise} onChange={setEditingExercise} /><div className="sticky bottom-0 mt-8 flex justify-end border-t border-slate-100 bg-white/95 py-4 backdrop-blur"><button type="button" onClick={saveEditedActivity} className="btn btn-primary">Salva modifiche</button></div></FocusedWorkspace>;
+  if (view === "templates") return <FocusedWorkspace title="Modelli di scheda" onBack={() => setView("compose")}><TemplateList templates={data.worksheetTemplates} onUse={useTemplate} onSave={saveWorksheetTemplate} onDelete={deleteWorksheetTemplate} /></FocusedWorkspace>;
   if (view === "choose") return <FocusedWorkspace title="Che attività vuoi aggiungere?" onBack={() => setView("compose")}><RecipeList recipes={data.exerciseRecipes} onUse={useRecipe} onDelete={deleteExerciseRecipe} /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{exerciseBricks.map((entry) => <button type="button" key={entry.code} onClick={() => chooseBrick(entry.code)} className="group min-h-36 rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><strong className="block text-base text-slate-900">{entry.title}</strong><span className="mt-3 block text-sm leading-6 text-slate-500">{activityDescription(entry.code)}</span><span className="mt-4 block text-sm font-bold text-emerald-800">Scegli →</span></button>)}</div></FocusedWorkspace>;
-  if (view === "compose") return <div className="mt-8"><WorksheetDraftEditor worksheet={worksheet} onChange={setWorksheet} onAddActivity={() => setView("choose")} onEditActivity={openEditor} onPreview={() => setView("preview")} /></div>;
+  if (view === "compose") return <div className="mt-8">{templateNotice && <p role="status" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{templateNotice}</p>}<WorksheetDraftEditor worksheet={worksheet} onChange={setWorksheet} onAddActivity={() => setView("choose")} onEditActivity={openEditor} onPreview={() => setView("preview")} onBrowseTemplates={() => setView("templates")} onSaveAsTemplate={() => { if (!worksheet.blocks.length) { setTemplateDialogOpen(false); setTemplateNotice("Aggiungi almeno un’attività prima di salvare il modello."); return; } setTemplateNotice(""); setTemplateDialogOpen(true); }} />{templateDialogOpen && <div className="mt-5"><TemplateDialog name={templateName} description={templateDescription} notice={templateNotice} onName={setTemplateName} onDescription={setTemplateDescription} onCancel={() => setTemplateDialogOpen(false)} onSave={() => void saveCurrentTemplate()} /></div>}</div>;
 
   return <FocusedWorkspace title={exerciseBricks.find((entry) => entry.code === brick)?.title || "Nuova attività"} onBack={() => setView("choose")}>
     <div className="space-y-6">
@@ -133,6 +153,13 @@ export function ExerciseLabBuilder() {
 }
 
 function FocusedWorkspace({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) { return <div className="mt-8 space-y-6"><button type="button" onClick={onBack} className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-bold text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">← Torna alla scheda</button><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Nuova scheda</p><h2 className="mt-1 text-2xl font-bold text-slate-900">{title}</h2></div>{children}</div>; }
+function TemplateList({ templates, onUse, onSave, onDelete }: { templates: WorksheetTemplateV1[]; onUse: (template: WorksheetTemplateV1) => void; onSave: (template: WorksheetTemplateV1) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
+  if (!templates.length) return <div className="rounded-3xl border border-dashed border-emerald-200 bg-emerald-50/40 p-8 text-center"><p className="font-bold text-slate-800">Nessun modello salvato</p><p className="mt-2 text-sm text-slate-500">Componi una scheda e usa “Salva come modello”.</p></div>;
+  return <div className="grid gap-4 sm:grid-cols-2">{templates.map((template) => { const kinds = [...new Set(template.blocks.map((block) => exerciseBricks.find((entry) => entry.code === block.kind)?.title || block.kind))]; return <article key={template.id} className="rounded-3xl border border-slate-200 bg-white p-5"><h3 className="font-bold text-slate-900">{template.name}</h3>{template.description && <p className="mt-1 text-sm text-slate-500">{template.description}</p>}<p className="mt-3 text-xs font-bold text-emerald-700">{template.blocks.length} {template.blocks.length === 1 ? "attività" : "attività"}</p><p className="mt-1 text-xs leading-5 text-slate-500">{kinds.join(" · ") || "Scheda vuota"}</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" className="btn btn-primary" onClick={() => onUse(template)}>Usa modello</button><button type="button" className="btn btn-secondary" onClick={() => { const name = window.prompt("Nome del modello", template.name)?.trim(); if (!name) return; const description = window.prompt("Descrizione facoltativa", template.description || ""); if (description !== null) void onSave({ ...template, name, description: description.trim() || undefined, updatedAt: new Date().toISOString() }); }}>Modifica dettagli</button><button type="button" className="btn btn-quiet text-rose-700" onClick={() => { if (window.confirm(`Eliminare il modello “${template.name}”?`)) void onDelete(template.id); }}>Elimina</button></div></article>; })}</div>;
+}
+function TemplateDialog({ name, description, notice, onName, onDescription, onCancel, onSave }: { name: string; description: string; notice: string; onName: (value: string) => void; onDescription: (value: string) => void; onCancel: () => void; onSave: () => void }) {
+  return <section role="dialog" aria-modal="true" aria-labelledby="template-dialog-title" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5"><h3 id="template-dialog-title" className="font-bold text-slate-900">Salva come modello</h3><p className="mt-1 text-sm text-slate-600">Salva titolo, istruzioni, ordine e configurazioni delle attività.</p><div className="mt-4 grid gap-4"><label className="text-xs font-bold text-slate-600">Nome modello *<input autoFocus className="field" maxLength={120} value={name} onChange={(event) => onName(event.target.value)} /></label><label className="text-xs font-bold text-slate-600">Descrizione facoltativa<textarea className="field min-h-20" maxLength={500} value={description} onChange={(event) => onDescription(event.target.value)} /></label></div>{notice && <p role="status" className="mt-3 text-sm text-amber-900">{notice}</p>}<div className="mt-4 flex justify-end gap-2"><button type="button" className="btn btn-secondary" onClick={onCancel}>Annulla</button><button type="button" className="btn btn-primary" onClick={onSave}>Salva modello</button></div></section>;
+}
 function RecipeList({ recipes, onUse, onDelete }: { recipes: ExerciseRecipeV1[]; onUse: (recipe: ExerciseRecipeV1) => void; onDelete: (id: string) => Promise<void> }) {
   const { saveExerciseRecipe } = useData();
   if (!recipes.length) return null;

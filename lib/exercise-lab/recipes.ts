@@ -41,10 +41,14 @@ const optionalString = (value: unknown) => value === undefined || typeof value =
 export function parseExerciseRecipeV1(value: unknown): ExerciseRecipeV1 {
   if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.id !== "string" || !value.id || typeof value.name !== "string" || !value.name.trim() || typeof value.createdAt !== "string" || typeof value.updatedAt !== "string" || !kinds.includes(value.kind as ExerciseBrickCode) || !isRecord(value.configuration)) throw new Error("exercise_recipe_invalid");
   if (value.description !== undefined && typeof value.description !== "string") throw new Error("exercise_recipe_invalid");
-  const configuration = value.configuration;
-  if (configuration.kind !== value.kind) throw new Error("exercise_recipe_invalid");
-  validateConfiguration(configuration);
+  const configuration = parseExerciseRecipeConfiguration(value.configuration, value.kind as ExerciseBrickCode);
   return { ...value, name: value.name.trim(), description: value.description?.trim() || undefined, configuration } as ExerciseRecipeV1;
+}
+
+export function parseExerciseRecipeConfiguration(value: unknown, expectedKind?: ExerciseBrickCode): ExerciseRecipeConfiguration {
+  if (!isRecord(value) || !kinds.includes(value.kind as ExerciseBrickCode) || (expectedKind && value.kind !== expectedKind)) throw new Error("exercise_recipe_invalid");
+  validateConfiguration(value);
+  return value as ExerciseRecipeConfiguration;
 }
 
 function validateConfiguration(configuration: Record<string, unknown>) {

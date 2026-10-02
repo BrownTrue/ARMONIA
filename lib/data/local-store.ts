@@ -1,5 +1,6 @@
 import type { AppData } from "../types.ts";
 import { parseExerciseRecipeV1 } from "../exercise-lab/recipes.ts";
+import { parseWorksheetTemplateV1 } from "../exercise-lab/worksheet-templates.ts";
 
 export const LOCAL_DATA_KEY = "armonia-demo-v2";
 export const LOCAL_SCHEMA_VERSION = 1 as const;
@@ -21,6 +22,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const arrayOrEmpty = <T>(value: unknown): T[] => Array.isArray(value) ? value as T[] : [];
 const validExerciseRecipes = (value: unknown) => arrayOrEmpty<unknown>(value).flatMap((entry) => { try { return [parseExerciseRecipeV1(entry)]; } catch { return []; } });
+const validWorksheetTemplates = (value: unknown) => arrayOrEmpty<unknown>(value).flatMap((entry) => { try { return [parseWorksheetTemplateV1(entry)]; } catch { return []; } });
 
 export function normalizeAppData(value: unknown): AppData {
   const source = isRecord(value) ? value : {};
@@ -35,6 +37,7 @@ export function normalizeAppData(value: unknown): AppData {
     economicDocuments: arrayOrEmpty(source.economicDocuments),
     economicDocumentLines: arrayOrEmpty(source.economicDocumentLines),
     exerciseRecipes: validExerciseRecipes(source.exerciseRecipes),
+    worksheetTemplates: validWorksheetTemplates(source.worksheetTemplates),
     appointments: arrayOrEmpty(source.appointments),
     locations: arrayOrEmpty(source.locations),
     services: arrayOrEmpty(source.services),
@@ -83,7 +86,8 @@ export function readLocalData(raw: string | null, whenMissing: () => AppData): L
       || !Array.isArray(parsed.data.patientAdministrativeDetails)
       || !Array.isArray(parsed.data.economicDocuments)
       || !Array.isArray(parsed.data.economicDocumentLines)
-      || !Array.isArray(parsed.data.exerciseRecipes);
+      || !Array.isArray(parsed.data.exerciseRecipes)
+      || !Array.isArray(parsed.data.worksheetTemplates);
     return { data: normalized, writable: true, migrated: missingCollections };
   }
   return { data: normalizeAppData(parsed), writable: true, migrated: true };
