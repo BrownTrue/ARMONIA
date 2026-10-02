@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useData } from "@/components/data-provider";
 import { ExerciseDraftEditor } from "@/components/exercise-draft-editor";
 import { WorksheetDraftEditor } from "@/components/worksheet-draft-editor";
 import { WorksheetPreview } from "@/components/worksheet-preview";
@@ -19,6 +20,8 @@ import {
 import { addWorksheetBlock, createWorksheetDraft, updateWorksheetBlock, type ExerciseBlockDraft } from "@/lib/exercise-lab/worksheet-draft";
 import type { ContentAudience, PassageQuestionType } from "@/lib/content-bank/types";
 import type { ExerciseBrickCode, ExercisePreview, ImageNamingItem, MinimalPairItem, ReadingComprehensionPreview, RepetitionItem, SentenceReadingItem, SyllableCountFilter } from "@/lib/exercise-lab/types";
+import { missingRecipeContentIds, type ExerciseRecipeConfiguration, type ExerciseRecipeV1 } from "@/lib/exercise-lab/recipes";
+import { uid } from "@/lib/types";
 
 const positions = [{ value: "", label: "Qualsiasi" }, { value: "initial", label: "Iniziale" }, { value: "medial", label: "Mediale" }, { value: "final", label: "Finale" }] as const;
 const counts = [4, 6, 8, 10, 12];
@@ -27,6 +30,7 @@ type WorkspaceView = "compose" | "choose" | "add" | "edit" | "preview" | "print"
 type Candidate = ImageNamingItem | MinimalPairItem | RepetitionItem | SentenceReadingItem;
 
 export function ExerciseLabBuilder() {
+  const { data, saveExerciseRecipe, deleteExerciseRecipe } = useData();
   const [worksheet, setWorksheet] = useState(createWorksheetDraft);
   const [view, setView] = useState<WorkspaceView>("compose");
   const [editingBlock, setEditingBlock] = useState<ExerciseBlockDraft>();
@@ -38,6 +42,7 @@ export function ExerciseLabBuilder() {
   const [showWords, setShowWords] = useState(true), [showIpa, setShowIpa] = useState(false), [query, setQuery] = useState(""), [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [contrastKey, setContrastKey] = useState(""), [readingAudience, setReadingAudience] = useState(""), [passageId, setPassageId] = useState(""), [shownAnswers, setShownAnswers] = useState<Set<string>>(new Set());
   const [sentenceAudience, setSentenceAudience] = useState(""), [sentenceCount, setSentenceCount] = useState(5);
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false), [recipeName, setRecipeName] = useState(""), [recipeDescription, setRecipeDescription] = useState(""), [recipeNotice, setRecipeNotice] = useState("");
   const wordPhonemes = getAvailableWordPhonemes(includeDrafts), clusters = getAvailableClusterPhonemes(includeDrafts), geminates = getAvailableGeminates(includeDrafts);
   const readingAudiences = getAvailableReadingAudiences(includeDrafts), sentenceAudiences = getAvailableSentenceAudiences(includeDrafts);
   const parsedSyllables = syllables ? (syllables === "4+" ? "4+" : Number(syllables)) as SyllableCountFilter : undefined;
@@ -50,7 +55,7 @@ export function ExerciseLabBuilder() {
   const repetitionCandidates = useMemo(() => getRepetitionCandidates({ ...commonPhonology, contentKind: kind }), [cluster, geminate, includeDrafts, kind, parsedSyllables, phoneme, position]);
   const sentenceCandidates = useMemo(() => getSentenceReadingCandidates({ includeDrafts, audience: sentenceAudience as ContentAudience || undefined }), [includeDrafts, sentenceAudience]);
   const allImageCandidates = useMemo(() => getImageNamingCandidates({ includeDrafts }), [includeDrafts]);
-  const allPairCandidates = useMemo(() => getMinimalPairCandidates({ includeDrafts, requireImages }), [includeDrafts, requireImages]);
+  const allPairCandidates = useMemo(() => getMinimalPairCandidates({ includeDrafts }), [includeDrafts]);
   const allRepetitionCandidates = useMemo(() => getRepetitionCandidates({ includeDrafts, contentKind: kind }), [includeDrafts, kind]);
   const allSentenceCandidates = useMemo(() => getSentenceReadingCandidates({ includeDrafts }), [includeDrafts]);
   const readingPreview = useMemo(() => buildReadingComprehensionPreview({ includeDrafts, audience: readingAudience as ContentAudience || undefined, passageId: passageId || undefined }), [includeDrafts, passageId, readingAudience]);
@@ -73,11 +78,43 @@ export function ExerciseLabBuilder() {
   function addCurrentActivity() { if (!preparedExercise) return; setWorksheet((current) => addWorksheetBlock(current, preparedExercise)); setSelectedIds([]); setView("compose"); }
   function openEditor(block: ExerciseBlockDraft) { setEditingBlock(block); setEditingExercise(resetExerciseDraft(block.exercise)); setView("edit"); }
   function saveEditedActivity() { if (!editingBlock || !editingExercise) return; setWorksheet((current) => updateWorksheetBlock(current, editingBlock.id, editingExercise)); setEditingBlock(undefined); setEditingExercise(undefined); setView("compose"); }
+  async function saveCurrentRecipe() {
+    const configuration = currentRecipeConfiguration();
+    if (!recipeName.trim() || !configuration) { setRecipeNotice("Completa la configurazione e assegna un nome alla ricetta."); return; }
+    const timestamp = new Date().toISOString();
+    await saveExerciseRecipe({ id: uid(), schemaVersion: 1, kind: brick, name: recipeName.trim(), description: recipeDescription.trim() || undefined, configuration, createdAt: timestamp, updatedAt: timestamp });
+    setRecipeDialogOpen(false); setRecipeName(""); setRecipeDescription(""); setRecipeNotice("Ricetta salvata.");
+  }
+  function currentRecipeConfiguration(): ExerciseRecipeConfiguration | undefined {
+    if (brick === "reading_comprehension") return passageId ? { kind: brick, selectedPassageId: passageId } : undefined;
+    if (mode === "manual") return selectedIds.length ? { kind: brick, mode, ...(brick === "word_nonword_repetition" ? { contentKind: kind } : {}), selectedContentIds: [...selectedIds] } as ExerciseRecipeConfiguration : undefined;
+    if (brick === "minimal_pairs") return { kind: brick, mode, contrastKey: contrastKey || undefined, position: position as "initial" | "medial" | "final" || undefined, requireImages, itemCount };
+    if (brick === "sentence_reading") return { kind: brick, mode, audience: sentenceAudience as ContentAudience || undefined, itemCount: sentenceCount };
+    return { kind: brick, mode, ...(brick === "word_nonword_repetition" ? { contentKind: kind } : {}), phoneme: phoneme || undefined, position: position as "initial" | "medial" | "final" || undefined, syllableCount: parsedSyllables, clusterPhoneme: cluster || undefined, geminate: geminate || undefined, itemCount } as ExerciseRecipeConfiguration;
+  }
+  function useRecipe(recipe: ExerciseRecipeV1) {
+    const config = recipe.configuration; setBrick(recipe.kind); setQuery(""); setRecipeNotice("");
+    if (config.kind === "reading_comprehension") { setReadingAudience(""); setPassageId(config.selectedPassageId); const missing = missingRecipeContentIds(recipe, buildReadingComprehensionPreview({ includeDrafts }).availablePassages.map((item) => item.passageId)); if (missing.length) setRecipeNotice("Il brano salvato non è più disponibile. Scegline uno nuovo."); }
+    else {
+      setMode(config.mode);
+      if (config.mode === "manual") {
+        const source = config.kind === "image_naming" ? getImageNamingCandidates({ includeDrafts }) : config.kind === "minimal_pairs" ? getMinimalPairCandidates({ includeDrafts }) : config.kind === "word_nonword_repetition" ? getRepetitionCandidates({ includeDrafts, contentKind: config.contentKind }) : getSentenceReadingCandidates({ includeDrafts });
+        const available = source.map(candidateId), missing = missingRecipeContentIds(recipe, available); setSelectedIds(config.selectedContentIds.filter((id) => available.includes(id)));
+        if (missing.length) setRecipeNotice(`${missing.length} contenuti salvati non sono più disponibili. La ricetta non li ha sostituiti.`);
+      } else {
+        setSelectedIds([]); setItemCount(config.itemCount);
+        if (config.kind === "minimal_pairs") { setContrastKey(config.contrastKey || ""); setPosition(config.position || ""); setRequireImages(config.requireImages); }
+        if (config.kind === "sentence_reading") { setSentenceAudience(config.audience || ""); setSentenceCount(config.itemCount); }
+        if (config.kind === "image_naming" || config.kind === "word_nonword_repetition") { setPhoneme(config.phoneme || ""); setPosition(config.position || ""); setSyllables(config.syllableCount ? String(config.syllableCount) as typeof syllables : ""); setCluster(config.clusterPhoneme || ""); setGeminate(config.geminate || ""); if (config.kind === "word_nonword_repetition") setKind(config.contentKind); }
+      }
+    }
+    setView("add");
+  }
 
   if (view === "print") return <WorksheetPrintView worksheet={worksheet} onBack={() => setView("preview")} />;
   if (view === "preview") return <div className="mt-8"><WorksheetPreview worksheet={worksheet} onBack={() => setView("compose")} onPrint={() => setView("print")} /></div>;
   if (view === "edit" && editingBlock && editingExercise) return <FocusedWorkspace title="Modifica attività" onBack={() => setView("compose")}><ExerciseDraftEditor draft={editingExercise} initialDraft={editingBlock.initialExercise} onChange={setEditingExercise} /><div className="sticky bottom-0 mt-8 flex justify-end border-t border-slate-100 bg-white/95 py-4 backdrop-blur"><button type="button" onClick={saveEditedActivity} className="btn btn-primary">Salva modifiche</button></div></FocusedWorkspace>;
-  if (view === "choose") return <FocusedWorkspace title="Che attività vuoi aggiungere?" onBack={() => setView("compose")}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{exerciseBricks.map((entry) => <button type="button" key={entry.code} onClick={() => chooseBrick(entry.code)} className="group min-h-36 rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><strong className="block text-base text-slate-900">{entry.title}</strong><span className="mt-3 block text-sm leading-6 text-slate-500">{activityDescription(entry.code)}</span><span className="mt-4 block text-sm font-bold text-emerald-800">Scegli →</span></button>)}</div></FocusedWorkspace>;
+  if (view === "choose") return <FocusedWorkspace title="Che attività vuoi aggiungere?" onBack={() => setView("compose")}><RecipeList recipes={data.exerciseRecipes} onUse={useRecipe} onDelete={deleteExerciseRecipe} /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{exerciseBricks.map((entry) => <button type="button" key={entry.code} onClick={() => chooseBrick(entry.code)} className="group min-h-36 rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><strong className="block text-base text-slate-900">{entry.title}</strong><span className="mt-3 block text-sm leading-6 text-slate-500">{activityDescription(entry.code)}</span><span className="mt-4 block text-sm font-bold text-emerald-800">Scegli →</span></button>)}</div></FocusedWorkspace>;
   if (view === "compose") return <div className="mt-8"><WorksheetDraftEditor worksheet={worksheet} onChange={setWorksheet} onAddActivity={() => setView("choose")} onEditActivity={openEditor} onPreview={() => setView("preview")} /></div>;
 
   return <FocusedWorkspace title={exerciseBricks.find((entry) => entry.code === brick)?.title || "Nuova attività"} onBack={() => setView("choose")}>
@@ -88,12 +125,22 @@ export function ExerciseLabBuilder() {
         {brick !== "reading_comprehension" && mode === "manual" && <ManualBrowser items={visibleCandidates} selectedIds={selectedIds} query={query} onQuery={setQuery} getId={candidateId} onToggle={(id) => setSelectedIds((current) => toggleSelectedId(current, id))} brick={brick} />}
       </Step>
       <Step title="Controlla l’attività">{brick === "reading_comprehension" ? <ReadingPreview preview={readingPreview} shownAnswers={shownAnswers} onToggleAnswer={(id) => setShownAnswers(toggleSet(shownAnswers, id))} /> : <ActivityPreview preview={preparedPreview as ExercisePreview<Candidate>} mode={mode} selectedCount={selectedItems.length} brick={brick} showWords={showWords} showIpa={showIpa} onShowWords={setShowWords} onShowIpa={setShowIpa} />}</Step>
-      <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-slate-100 bg-white/95 py-4 backdrop-blur"><p className="text-sm font-semibold text-slate-500">{preparedExercise ? `${preparedExercise.items.length} contenuti pronti` : "Scegli almeno un contenuto"}</p><button type="button" onClick={addCurrentActivity} disabled={!preparedExercise} className="btn btn-primary">Aggiungi alla scheda</button></div>
+      {recipeNotice && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{recipeNotice}</p>}
+      {recipeDialogOpen && <RecipeDialog name={recipeName} description={recipeDescription} onName={setRecipeName} onDescription={setRecipeDescription} onCancel={() => setRecipeDialogOpen(false)} onSave={() => void saveCurrentRecipe()} />}
+      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 bg-white/95 py-4 backdrop-blur"><p className="text-sm font-semibold text-slate-500">{preparedExercise ? `${preparedExercise.items.length} contenuti pronti` : "Scegli almeno un contenuto"}</p><div className="flex flex-wrap gap-2"><button type="button" onClick={() => { setRecipeNotice(""); setRecipeDialogOpen(true); }} className="btn btn-secondary">Salva come ricetta</button><button type="button" onClick={addCurrentActivity} disabled={!preparedExercise} className="btn btn-primary">Aggiungi alla scheda</button></div></div>
     </div>
   </FocusedWorkspace>;
 }
 
 function FocusedWorkspace({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) { return <div className="mt-8 space-y-6"><button type="button" onClick={onBack} className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-bold text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">← Torna alla scheda</button><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Nuova scheda</p><h2 className="mt-1 text-2xl font-bold text-slate-900">{title}</h2></div>{children}</div>; }
+function RecipeList({ recipes, onUse, onDelete }: { recipes: ExerciseRecipeV1[]; onUse: (recipe: ExerciseRecipeV1) => void; onDelete: (id: string) => Promise<void> }) {
+  const { saveExerciseRecipe } = useData();
+  if (!recipes.length) return null;
+  return <section className="mb-7 rounded-3xl border border-emerald-100 bg-emerald-50/50 p-4 sm:p-5"><div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Le mie ricette</p><p className="mt-1 text-sm text-slate-600">Configurazioni personali riutilizzabili per una singola attività.</p></div><div className="grid gap-3 sm:grid-cols-2">{recipes.map((recipe) => <article key={recipe.id} className="rounded-2xl border border-emerald-100 bg-white p-4"><strong className="block text-slate-900">{recipe.name}</strong>{recipe.description && <p className="mt-1 text-sm text-slate-500">{recipe.description}</p>}<p className="mt-2 text-xs font-semibold text-emerald-700">{exerciseBricks.find((entry) => entry.code === recipe.kind)?.title}</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" className="btn btn-primary" onClick={() => onUse(recipe)}>Usa ricetta</button><button type="button" className="btn btn-secondary" onClick={() => { const name = window.prompt("Nome della ricetta", recipe.name)?.trim(); if (!name) return; const description = window.prompt("Descrizione facoltativa", recipe.description || ""); if (description !== null) void saveExerciseRecipe({ ...recipe, name, description: description.trim() || undefined, updatedAt: new Date().toISOString() }); }}>Modifica dettagli</button><button type="button" className="btn btn-secondary" onClick={() => { if (window.confirm(`Eliminare la ricetta “${recipe.name}”?`)) void onDelete(recipe.id); }}>Elimina</button></div></article>)}</div></section>;
+}
+function RecipeDialog({ name, description, onName, onDescription, onCancel, onSave }: { name: string; description: string; onName: (value: string) => void; onDescription: (value: string) => void; onCancel: () => void; onSave: () => void }) {
+  return <section role="dialog" aria-modal="true" aria-labelledby="recipe-dialog-title" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5"><h3 id="recipe-dialog-title" className="font-bold text-slate-900">Salva come ricetta</h3><div className="mt-4 grid gap-4"><label className="text-xs font-bold text-slate-600">Nome<input autoFocus className="field" maxLength={120} value={name} onChange={(event) => onName(event.target.value)} /></label><label className="text-xs font-bold text-slate-600">Descrizione facoltativa<textarea className="field min-h-20" maxLength={500} value={description} onChange={(event) => onDescription(event.target.value)} /></label></div><div className="mt-4 flex justify-end gap-2"><button type="button" className="btn btn-secondary" onClick={onCancel}>Annulla</button><button type="button" className="btn btn-primary" onClick={onSave}>Salva ricetta</button></div></section>;
+}
 function activityDescription(code: ExerciseBrickCode) { if (code === "image_naming") return "Scegli immagini da denominare"; if (code === "minimal_pairs") return "Lavora su contrasti fonologici"; if (code === "word_nonword_repetition") return "Crea liste di parole e non-parole"; if (code === "reading_comprehension") return "Scegli un brano con domande"; return "Prepara una lista di frasi da leggere"; }
 
 function candidateId(item: Candidate) { return "wordId" in item ? item.wordId : "minimalPairId" in item ? item.minimalPairId : "contentId" in item ? item.contentId : item.sentenceId; }
