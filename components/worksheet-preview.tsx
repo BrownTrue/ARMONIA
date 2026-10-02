@@ -2,9 +2,9 @@
 
 import type { ExerciseBlockDraft, WorksheetDraft } from "@/lib/exercise-lab/worksheet-draft";
 
-export function WorksheetPreview({ worksheet, onBack }: { worksheet: WorksheetDraft; onBack: () => void }) {
+export function WorksheetPreview({ worksheet, onBack, onPrint }: { worksheet: WorksheetDraft; onBack: () => void; onPrint: () => void }) {
   return <div className="space-y-6">
-    <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-bold text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">← Modifica scheda</button>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><button type="button" onClick={onBack} className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-bold text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">← Modifica scheda</button><button type="button" onClick={onPrint} className="btn btn-primary">Stampa / PDF</button></div>
     <article className="mx-auto max-w-4xl rounded-[2rem] border border-slate-200 bg-white px-5 py-8 shadow-sm sm:px-10 sm:py-12">
       <header className="border-b border-emerald-100 pb-7">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Scheda di attività</p>

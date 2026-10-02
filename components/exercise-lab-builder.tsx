@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ExerciseDraftEditor } from "@/components/exercise-draft-editor";
 import { WorksheetDraftEditor } from "@/components/worksheet-draft-editor";
 import { WorksheetPreview } from "@/components/worksheet-preview";
+import { WorksheetPrintView } from "@/components/worksheet-print-view";
 import {
   buildImageNamingPreview, buildReadingComprehensionPreview, buildRepetitionPreview, buildSentenceReadingPreview,
   exerciseBricks, getAvailableClusterPhonemes, getAvailableGeminates, getAvailableReadingAudiences,
@@ -22,7 +23,7 @@ import type { ExerciseBrickCode, ExercisePreview, ImageNamingItem, MinimalPairIt
 const positions = [{ value: "", label: "Qualsiasi" }, { value: "initial", label: "Iniziale" }, { value: "medial", label: "Mediale" }, { value: "final", label: "Finale" }] as const;
 const counts = [4, 6, 8, 10, 12];
 type SelectionMode = "manual" | "automatic";
-type WorkspaceView = "compose" | "choose" | "add" | "edit" | "preview";
+type WorkspaceView = "compose" | "choose" | "add" | "edit" | "preview" | "print";
 type Candidate = ImageNamingItem | MinimalPairItem | RepetitionItem | SentenceReadingItem;
 
 export function ExerciseLabBuilder() {
@@ -73,7 +74,8 @@ export function ExerciseLabBuilder() {
   function openEditor(block: ExerciseBlockDraft) { setEditingBlock(block); setEditingExercise(resetExerciseDraft(block.exercise)); setView("edit"); }
   function saveEditedActivity() { if (!editingBlock || !editingExercise) return; setWorksheet((current) => updateWorksheetBlock(current, editingBlock.id, editingExercise)); setEditingBlock(undefined); setEditingExercise(undefined); setView("compose"); }
 
-  if (view === "preview") return <div className="mt-8"><WorksheetPreview worksheet={worksheet} onBack={() => setView("compose")} /></div>;
+  if (view === "print") return <WorksheetPrintView worksheet={worksheet} onBack={() => setView("preview")} />;
+  if (view === "preview") return <div className="mt-8"><WorksheetPreview worksheet={worksheet} onBack={() => setView("compose")} onPrint={() => setView("print")} /></div>;
   if (view === "edit" && editingBlock && editingExercise) return <FocusedWorkspace title="Modifica attività" onBack={() => setView("compose")}><ExerciseDraftEditor draft={editingExercise} initialDraft={editingBlock.initialExercise} onChange={setEditingExercise} /><div className="sticky bottom-0 mt-8 flex justify-end border-t border-slate-100 bg-white/95 py-4 backdrop-blur"><button type="button" onClick={saveEditedActivity} className="btn btn-primary">Salva modifiche</button></div></FocusedWorkspace>;
   if (view === "choose") return <FocusedWorkspace title="Che attività vuoi aggiungere?" onBack={() => setView("compose")}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{exerciseBricks.map((entry) => <button type="button" key={entry.code} onClick={() => chooseBrick(entry.code)} className="group min-h-36 rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><strong className="block text-base text-slate-900">{entry.title}</strong><span className="mt-3 block text-sm leading-6 text-slate-500">{activityDescription(entry.code)}</span><span className="mt-4 block text-sm font-bold text-emerald-800">Scegli →</span></button>)}</div></FocusedWorkspace>;
   if (view === "compose") return <div className="mt-8"><WorksheetDraftEditor worksheet={worksheet} onChange={setWorksheet} onAddActivity={() => setView("choose")} onEditActivity={openEditor} onPreview={() => setView("preview")} /></div>;
