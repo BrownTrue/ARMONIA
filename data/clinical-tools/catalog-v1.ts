@@ -1805,9 +1805,9 @@ export const clinicalToolsV1 = [
   },
   {
     "id": "iddsi-framework-it",
-    "name": "International Dysphagia Diet Standardisation Initiative Framework – Italian",
+    "name": "International Dysphagia Diet Standardisation Initiative",
     "acronym": "IDDSI",
-    "version": "Framework 2.2 Italian",
+    "version": "Detailed Definitions v2.2 · Testing Methods v2.0",
     "clinicalAreas": [
       "disfagia",
       "feeding",
@@ -1815,7 +1815,7 @@ export const clinicalToolsV1 = [
       "deglutizione"
     ],
     "toolType": "standard_framework",
-    "shortDescription": "Framework internazionale per descrivere livelli di consistenza di alimenti e bevande nella gestione della disfagia.",
+    "shortDescription": "IDDSI fornisce una terminologia standardizzata per descrivere consistenze di alimenti e bevande e metodi pratici per verificarle.",
     "population": {
       "label": "Tutte le età",
       "lifeStages": [
@@ -1852,8 +1852,8 @@ export const clinicalToolsV1 = [
       "reference"
     ],
     "approximateDurationMinutes": null,
-    "resultType": "standardized_level_classification",
-    "scoringAvailable": true,
+    "resultType": "classification_framework",
+    "scoringAvailable": false,
     "publisher": "IDDSI",
     "rightsHolder": "IDDSI",
     "officialUrl": "https://www.iddsi.org/standards/framework",
@@ -1870,16 +1870,26 @@ export const clinicalToolsV1 = [
     "integrationStatus": "catalog_only",
     "licenseStatus": "open_verified",
     "partnershipStatus": "none",
-    "suggestedIntegration": "native_integration_verified",
+    "suggestedIntegration": "official_external_resources",
     "references": [
       {
-        "kind": "official",
-        "title": "IDDSI Framework",
+        "kind": "iddsi_official_framework",
+        "title": "Framework / Detailed Level Definitions italiano",
         "url": "https://www.iddsi.org/standards/framework"
       },
       {
-        "kind": "official_translation",
-        "title": "IDDSI framework documents / translations",
+        "kind": "iddsi_official_testing",
+        "title": "Testing Methods italiano",
+        "url": "https://www.iddsi.org/standards/framework-plus-resources"
+      },
+      {
+        "kind": "iddsi_official_patient_materials",
+        "title": "Materiali per pazienti in italiano",
+        "url": "https://www.iddsi.org/standards/framework-plus-resources"
+      },
+      {
+        "kind": "iddsi_official_materials",
+        "title": "Poster e materiali ufficiali in italiano",
         "url": "https://www.iddsi.org/standards/framework-plus-resources"
       }
     ],
