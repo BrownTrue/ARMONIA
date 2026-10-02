@@ -15,7 +15,7 @@ const areas = [
   { title: "Materiali del terapista", description: "File caricati dal terapista e collegabili a pazienti e sedute.", href: "/materiali", action: "Apri libreria", icon: "▱", tone: "border-sage-200 bg-sage-50/70 text-sage-800", iconTone: "bg-sage-100", upcoming: false },
   { title: "Documenti clinici e professionali", description: "Modelli per relazioni, consensi, certificati e documenti professionali.", href: "/risorse/documenti", action: "Scopri l’area", icon: "▤", tone: "border-sky-100 bg-sky-50/70 text-sky-900", iconTone: "bg-sky-100", upcoming: true },
   { title: "Strumenti clinici ARMONIA", description: "Strumenti open, di pubblico dominio, autorizzati o originali ARMONIA integrabili nelle valutazioni.", href: "/risorse/strumenti", action: "Scopri l’area", icon: "✣", tone: "border-amber-100 bg-amber-50/70 text-amber-950", iconTone: "bg-amber-100", upcoming: true },
-  { title: "Laboratorio esercizi ARMONIA", description: "Crea attività, ricette di esercizi e compiti a casa collegabili a obiettivi e sedute.", href: "/risorse/laboratorio", action: "Apri laboratorio", icon: "◇", tone: "border-violet-100 bg-violet-50/70 text-violet-950", iconTone: "bg-violet-100", upcoming: true },
+  { title: "Laboratorio esercizi ARMONIA", description: "Crea schede terapeutiche, combina attività e prepara materiali da usare in seduta o da stampare.", href: "/risorse/laboratorio", action: "Apri laboratorio", icon: "◇", tone: "border-violet-100 bg-violet-50/70 text-violet-950", iconTone: "bg-violet-100", upcoming: false },
 ] as const;
 
 export default function ResourcesPage() {
@@ -43,7 +43,6 @@ export default function ResourcesPage() {
         <h2 className="mt-7 text-xl font-bold leading-tight">{area.title}</h2>
         <p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{area.description}</p>
         {index === 0 && <div className="mt-4 border-t border-sage-200/70 pt-3 text-sm"><strong>{data.materials.length}</strong> {data.materials.length === 1 ? "materiale" : "materiali"}{used !== undefined && storage && !storage.requiresReconciliation ? <span className="block mt-1 text-xs text-slate-500">{formatStorageBytes(used)} di {formatStorageBytes(storage.quotaBytes)}</span> : null}</div>}
-        {index === 3 && <p className="mt-4 text-xs font-bold text-violet-700">Mattoncini → Ricette → Esercizi → Compiti</p>}
         <span className="mt-5 inline-flex min-h-11 items-center font-bold">{area.action}<span className="ml-2 transition group-hover:translate-x-1" aria-hidden="true">→</span></span>
       </Link>)}
     </section>
