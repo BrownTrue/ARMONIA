@@ -9,6 +9,7 @@ export type PatientWorksheetV1 = {
   patientId: string;
   title: string;
   worksheetSnapshot: WorksheetDraft;
+  assignedHomeAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -19,11 +20,12 @@ const recipeKind = (kind: ExerciseDraft["kind"]) => kind === "picture_naming" ? 
 export function parsePatientWorksheetV1(value: unknown): PatientWorksheetV1 {
   if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.id !== "string" || !value.id || typeof value.patientId !== "string" || !value.patientId || typeof value.title !== "string" || !value.title.trim() || typeof value.createdAt !== "string" || typeof value.updatedAt !== "string") throw new Error("patient_worksheet_invalid");
   const worksheetSnapshot = parseWorksheetSnapshot(value.worksheetSnapshot);
-  return { schemaVersion: 1, id: value.id, patientId: value.patientId, title: value.title.trim(), worksheetSnapshot, createdAt: value.createdAt, updatedAt: value.updatedAt };
+  const assignedHomeAt = typeof value.assignedHomeAt === "string" && value.assignedHomeAt ? value.assignedHomeAt : null;
+  return { schemaVersion: 1, id: value.id, patientId: value.patientId, title: value.title.trim(), worksheetSnapshot, assignedHomeAt, createdAt: value.createdAt, updatedAt: value.updatedAt };
 }
 
 export function patientWorksheetFromDraft(input: { id: string; patientId: string; worksheet: WorksheetDraft; createdAt: string; updatedAt: string }): PatientWorksheetV1 {
-  return parsePatientWorksheetV1({ schemaVersion: 1, id: input.id, patientId: input.patientId, title: input.worksheet.title.trim() || "Scheda di attività", worksheetSnapshot: input.worksheet, createdAt: input.createdAt, updatedAt: input.updatedAt });
+  return parsePatientWorksheetV1({ schemaVersion: 1, id: input.id, patientId: input.patientId, title: input.worksheet.title.trim() || "Scheda di attività", worksheetSnapshot: input.worksheet, assignedHomeAt: null, createdAt: input.createdAt, updatedAt: input.updatedAt });
 }
 
 export function worksheetDraftFromPatientWorksheet(value: PatientWorksheetV1): WorksheetDraft {
@@ -38,7 +40,15 @@ export function savePatientWorksheet(items: PatientWorksheetV1[], patients: Pati
 
 export function duplicatePatientWorksheet(value: PatientWorksheetV1, id: string, timestamp: string): PatientWorksheetV1 {
   const source = parsePatientWorksheetV1(value);
-  return parsePatientWorksheetV1({ ...structuredClone(source), id, title: `Copia di ${source.title}`, createdAt: timestamp, updatedAt: timestamp });
+  return parsePatientWorksheetV1({ ...structuredClone(source), id, title: `Copia di ${source.title}`, assignedHomeAt: null, createdAt: timestamp, updatedAt: timestamp });
+}
+
+export function assignPatientWorksheetHome(value: PatientWorksheetV1, timestamp: string): PatientWorksheetV1 {
+  return parsePatientWorksheetV1({ ...structuredClone(parsePatientWorksheetV1(value)), assignedHomeAt: timestamp, updatedAt: timestamp });
+}
+
+export function unassignPatientWorksheetHome(value: PatientWorksheetV1, timestamp: string): PatientWorksheetV1 {
+  return parsePatientWorksheetV1({ ...structuredClone(parsePatientWorksheetV1(value)), assignedHomeAt: null, updatedAt: timestamp });
 }
 
 export function removePatientWorksheet(items: PatientWorksheetV1[], id: string) {
