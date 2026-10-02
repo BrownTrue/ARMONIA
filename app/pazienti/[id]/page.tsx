@@ -8,15 +8,15 @@ import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { PatientAdministrativeDetailsCard } from "@/components/patient-administrative-details";
 import { PatientForm } from "@/components/patient-form";
+import { PatientResourcesSection } from "@/components/patient-resources-section";
 import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/timeline";
 import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
 import { centsToEuroInput, euroInputToCents, formatEuroCents, selectableAppointmentServices } from "@/lib/calendar-v2";
 import { sessionWithService } from "@/lib/economy";
 import { clinicalAssessmentTypeLabel, getPatientOverview } from "@/lib/patient-overview";
 import type { PatientOverview } from "@/lib/patient-overview";
-import { getFuturePatientAppointments, getPatientMaterials, getRecentPatientMaterials } from "@/lib/patient-resources";
+import { getFuturePatientAppointments } from "@/lib/patient-resources";
 import { patientEconomicSummary } from "@/lib/payments";
-import type { RecentPatientMaterial } from "@/lib/patient-resources";
 import type { Appointment, Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
@@ -69,8 +69,6 @@ export default function PatientPage() {
   const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments, data.goals, data.materials, data.appointments);
   const visibleTimeline = filterPatientTimeline(timeline, activityFilter, activityQuery);
   const overview = getPatientOverview(data, id);
-  const patientMaterials = getPatientMaterials(data.materials, id);
-  const recentMaterials = getRecentPatientMaterials(data.sessions, data.materials, id);
   const futureAppointments = getFuturePatientAppointments(data.appointments, id);
   const recentActivity = timeline.slice(0, 3);
   const economySummary = patientEconomicSummary(id, data.sessions, data.payments, data.paymentAllocations);
@@ -166,7 +164,7 @@ export default function PatientPage() {
           )}
         </section>
       </div>}
-      {tab === "resources" && <div className="mt-4 space-y-4 sm:mt-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">Risorse</h2><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">I materiali associati e quelli usati nel lavoro recente.</p></div><Link href="/materiali" className="btn btn-quiet hidden text-sm sm:inline-flex">Apri Libreria</Link></div><div className="grid gap-4 lg:grid-cols-2"><ResourceSection title="Materiali del paziente">{patientMaterials.length ? <div className="space-y-2">{patientMaterials.map((material) => <PatientMaterialRow key={material.id} material={material} onOpen={() => void openMaterial(material,{newTab:true})} />)}</div> : <div><p className="text-sm text-slate-500">Nessun materiale associato.</p><Link href="/materiali" className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-sage-700">Gestisci nella Libreria</Link></div>}</ResourceSection><ResourceSection title="Usati recentemente">{recentMaterials.length ? <div className="space-y-2">{recentMaterials.map((entry) => <RecentMaterialRow key={entry.materialId} entry={entry} onOpen={entry.material ? () => void openMaterial(entry.material!,{newTab:true}) : undefined} />)}</div> : <p className="text-sm text-slate-500">Nessun materiale utilizzato nelle sedute.</p>}</ResourceSection></div><aside className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><div><p className="font-bold">Libreria terapeutica</p><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">Sfoglia e gestisci i materiali terapeutici.</p></div><Link href="/materiali" className="text-sm font-bold text-sage-700">Apri Libreria →</Link></aside></div>}
+      {tab === "resources" && <PatientResourcesSection patientId={p.id} />}
       {edit && (
         <Modal title="Modifica paziente" onClose={() => setEdit(false)}>
           <PatientForm patient={p} onDone={() => setEdit(false)} />
@@ -201,33 +199,6 @@ function FutureAppointmentRow({ appointment }: { appointment: Appointment }) {
   </div>;
 }
 
-function ResourceSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="card p-4 sm:p-5"><h3 className="mb-3 font-bold sm:mb-4">{title}</h3>{children}</section>;
-}
-
-function PatientMaterialRow({ material, onOpen }: { material: Material; onOpen: () => void }) {
-  return <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl bg-slate-50 p-2.5 sm:gap-3 sm:p-3">
-    <div className="min-w-0"><p className="break-words text-sm font-bold">{material.title}</p><p className="mt-1 text-xs text-slate-500">{materialFormatLabel(material)}</p>{material.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{material.tags.map((tag) => <span key={tag} className="rounded-full bg-sage-50 px-2 py-0.5 text-[11px] text-sage-700">{tag}</span>)}</div>}</div>
-    <button type="button" onClick={onOpen} className="min-h-10 shrink-0 rounded-lg px-2.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Apri</button>
-  </div>;
-}
-
-function RecentMaterialRow({ entry, onOpen }: { entry: RecentPatientMaterial; onOpen?: () => void }) {
-  return <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl bg-slate-50 p-2.5 sm:gap-3 sm:p-3">
-    <div className="min-w-0"><p className={`break-words text-sm font-bold ${entry.material ? "" : "text-slate-500"}`}>{entry.material?.title || "Materiale non più disponibile"}</p><p className="mt-1 text-xs text-slate-500">Ultimo utilizzo: {formatDate(entry.lastUsedOn)}{entry.material ? ` · ${materialFormatLabel(entry.material)}` : ""}</p></div>
-    {onOpen && <button type="button" onClick={onOpen} className="min-h-10 shrink-0 rounded-lg px-2.5 text-sm font-bold text-sage-700 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Apri</button>}
-  </div>;
-}
-
-function materialFormatLabel(material: Material) {
-  if (material.externalUrl) return "Link esterno";
-  if (material.mimeType === "application/pdf") return "PDF";
-  if (material.mimeType.startsWith("image/")) return "Immagine";
-  if (material.mimeType.startsWith("audio/")) return "Audio";
-  if (material.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return "DOCX";
-  const extension = material.fileName.split(".").pop()?.toUpperCase();
-  return extension && extension !== material.fileName.toUpperCase() ? extension : "File";
-}
 
 function SessionTimelineCard({ item, onEdit, onDelete, onOpenMaterial }: { item: SessionTimelineItem; onEdit: () => void; onDelete: () => void; onOpenMaterial: (material: Material) => void }) {
   const { session } = item;

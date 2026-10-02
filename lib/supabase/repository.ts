@@ -3,6 +3,7 @@ import type {AppData,Appointment,AppointmentLocation,AppointmentService,Economic
 import type {CreatePaymentInput} from "../payments.ts";
 import {parseExerciseRecipeV1,type ExerciseRecipeV1} from "../exercise-lab/recipes.ts";
 import {parseWorksheetTemplateV1,type WorksheetTemplateV1} from "../exercise-lab/worksheet-templates.ts";
+import {parsePatientWorksheetV1,type PatientWorksheetV1} from "../exercise-lab/patient-worksheets.ts";
 import {loadCloudClinicalData} from "./clinical-repository.ts";
 
 const splitDate=(value:string)=>{const d=new Date(value);return {date:d.toLocaleDateString("sv-SE"),time:d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit",hour12:false})}};
@@ -10,7 +11,7 @@ const joinDate=(date:string,time:string)=>new Date(`${date}T${time}:00`).toISOSt
 const check=<T extends {error:unknown}>(result:T)=>{if(result.error)throw result.error;return result};
 
 export async function loadCloudData(client:SupabaseClient,user:User):Promise<AppData>{
-  const [profiles,patients,patientAdministrativeDetails,professionalDocumentDetails,economicDocuments,economicDocumentLines,exerciseRecipes,worksheetTemplates,appointments,locations,services,sessions,payments,paymentAllocations,goals,materials,patientMaterials,sessionMaterials,sessionGoals,clinical]=await Promise.all([
+  const [profiles,patients,patientAdministrativeDetails,professionalDocumentDetails,economicDocuments,economicDocumentLines,exerciseRecipes,worksheetTemplates,patientWorksheets,appointments,locations,services,sessions,payments,paymentAllocations,goals,materials,patientMaterials,sessionMaterials,sessionGoals,clinical]=await Promise.all([
     client.from("profiles").select("*").eq("id",user.id).maybeSingle(),
     client.from("patients").select("*").order("created_at",{ascending:false}),
     client.from("patient_administrative_details").select("*").eq("user_id",user.id).order("created_at",{ascending:false}),
@@ -19,6 +20,7 @@ export async function loadCloudData(client:SupabaseClient,user:User):Promise<App
     client.from("economic_document_lines").select("*").eq("user_id",user.id).order("position"),
     client.from("exercise_recipes").select("*").eq("user_id",user.id).order("updated_at",{ascending:false}),
     client.from("worksheet_templates").select("*").eq("user_id",user.id).order("updated_at",{ascending:false}),
+    client.from("patient_worksheets").select("*").eq("user_id",user.id).order("updated_at",{ascending:false}),
     client.from("appointments").select("*").order("starts_at"),
     client.from("appointment_locations").select("*").eq("user_id",user.id).order("display_order").order("name"),
     client.from("appointment_services").select("*").eq("user_id",user.id).order("display_order").order("name"),
@@ -32,7 +34,7 @@ export async function loadCloudData(client:SupabaseClient,user:User):Promise<App
     client.from("session_goals").select("session_id,goal_id"),
     loadCloudClinicalData(client,user.id),
   ]);
-  [profiles,patients,patientAdministrativeDetails,professionalDocumentDetails,economicDocuments,economicDocumentLines,exerciseRecipes,worksheetTemplates,appointments,locations,services,sessions,payments,paymentAllocations,goals,materials,patientMaterials,sessionMaterials,sessionGoals].forEach(check);
+  [profiles,patients,patientAdministrativeDetails,professionalDocumentDetails,economicDocuments,economicDocumentLines,exerciseRecipes,worksheetTemplates,patientWorksheets,appointments,locations,services,sessions,payments,paymentAllocations,goals,materials,patientMaterials,sessionMaterials,sessionGoals].forEach(check);
   const profileRow=profiles.data;
   const profile:Profile={firstName:profileRow?.first_name||"",lastName:profileRow?.last_name||"",profession:profileRow?.profession||"Logopedista",email:profileRow?.email||user.email||"",studio:profileRow?.studio||""};
   return {
@@ -44,6 +46,7 @@ export async function loadCloudData(client:SupabaseClient,user:User):Promise<App
     economicDocumentLines:(economicDocumentLines.data||[]).map(economicDocumentLineFromRow),
     exerciseRecipes:(exerciseRecipes.data||[]).map(exerciseRecipeFromRow),
     worksheetTemplates:(worksheetTemplates.data||[]).map(worksheetTemplateFromRow),
+    patientWorksheets:(patientWorksheets.data||[]).map(patientWorksheetFromRow),
     appointments:(appointments.data||[]).map(appointmentFromRow),
     locations:(locations.data||[]).map(appointmentLocationFromRow),
     services:(services.data||[]).map(appointmentServiceFromRow),
@@ -70,6 +73,13 @@ export async function getWorksheetTemplate(client:SupabaseClient,userId:string,i
 export async function createWorksheetTemplate(client:SupabaseClient,userId:string,template:WorksheetTemplateV1){const validated=parseWorksheetTemplateV1(template);check(await client.from("worksheet_templates").insert(worksheetTemplateRow(validated,userId)).select("id").single())}
 export async function updateWorksheetTemplate(client:SupabaseClient,userId:string,template:WorksheetTemplateV1){const validated=parseWorksheetTemplateV1(template);const row=worksheetTemplateRow(validated,userId);check(await client.from("worksheet_templates").update({name:row.name,description:row.description,template_data:row.template_data,updated_at:row.updated_at}).eq("user_id",userId).eq("id",template.id).select("id").single())}
 export async function deleteWorksheetTemplate(client:SupabaseClient,userId:string,id:string){check(await client.from("worksheet_templates").delete().eq("user_id",userId).eq("id",id).select("id").single())}
+export const patientWorksheetFromRow=(row:{id:string;patient_id:string;schema_version:number;title:string;worksheet_snapshot:unknown;created_at:string;updated_at:string})=>parsePatientWorksheetV1({id:row.id,patientId:row.patient_id,schemaVersion:row.schema_version,title:row.title,worksheetSnapshot:row.worksheet_snapshot,createdAt:row.created_at,updatedAt:row.updated_at});
+export const patientWorksheetRow=(worksheet:PatientWorksheetV1,userId:string)=>({id:worksheet.id,user_id:userId,patient_id:worksheet.patientId,schema_version:worksheet.schemaVersion,title:worksheet.title,worksheet_snapshot:worksheet.worksheetSnapshot,created_at:worksheet.createdAt,updated_at:worksheet.updatedAt});
+export async function listPatientWorksheets(client:SupabaseClient,userId:string,patientId:string){const result=check(await client.from("patient_worksheets").select("*").eq("user_id",userId).eq("patient_id",patientId).order("updated_at",{ascending:false}));return (result.data||[]).map(patientWorksheetFromRow)}
+export async function getPatientWorksheet(client:SupabaseClient,userId:string,id:string){const result=check(await client.from("patient_worksheets").select("*").eq("user_id",userId).eq("id",id).maybeSingle());return result.data?patientWorksheetFromRow(result.data):undefined}
+export async function createPatientWorksheet(client:SupabaseClient,userId:string,worksheet:PatientWorksheetV1){const validated=parsePatientWorksheetV1(worksheet);check(await client.from("patient_worksheets").insert(patientWorksheetRow(validated,userId)).select("id").single())}
+export async function updatePatientWorksheet(client:SupabaseClient,userId:string,worksheet:PatientWorksheetV1){const validated=parsePatientWorksheetV1(worksheet);const row=patientWorksheetRow(validated,userId);check(await client.from("patient_worksheets").update({title:row.title,worksheet_snapshot:row.worksheet_snapshot,updated_at:row.updated_at}).eq("user_id",userId).eq("id",worksheet.id).select("id").single())}
+export async function deletePatientWorksheet(client:SupabaseClient,userId:string,id:string){check(await client.from("patient_worksheets").delete().eq("user_id",userId).eq("id",id).select("id").single())}
 
 export const patientRow=(p:Patient,userId:string)=>({id:p.id,user_id:userId,first_name:p.firstName,last_name:p.lastName,birth_date:p.birthDate||null,phone:p.contact||null,guardian_name:p.guardian||null,school:p.school||null,school_class:p.schoolClass||null,referral_reason:p.referralReason||null,notes:p.notes||null,status:p.status,updated_at:new Date().toISOString()});
 const nullableTrimmed=(value:string|undefined)=>value?.trim()||null;

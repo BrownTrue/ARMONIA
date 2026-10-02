@@ -1,6 +1,7 @@
 import type { ClinicalAssessment, ClinicalPathway } from "./clinical/types.ts";
 import type { ExerciseRecipeV1 } from "./exercise-lab/recipes.ts";
 import type { WorksheetTemplateV1 } from "./exercise-lab/worksheet-templates.ts";
+import type { PatientWorksheetV1 } from "./exercise-lab/patient-worksheets.ts";
 
 export type PatientStatus = "active" | "suspended" | "completed";
 export type Patient = { id:string; firstName:string; lastName:string; birthDate:string; contact:string; guardian:string; school:string; schoolClass:string; referralReason:string; notes:string; status:PatientStatus; createdAt:string };
@@ -23,7 +24,7 @@ export type PaymentAllocation = { paymentId:string; sessionId:string; patientId:
 export type Goal = { id:string; patientId:string; clinicalPathwayId?:string; title:string; description:string; priority:number; status:string; progress:number; createdAt:string };
 export type Material = { id:string; title:string; description:string; category:string; tags:string[]; fileName:string; mimeType:string; size:number; favorite:boolean; patientIds:string[]; externalUrl?:string; storagePath?:string; createdAt:string };
 export type Profile = { firstName:string; lastName:string; profession:string; email:string; studio:string };
-export type AppData = { patients:Patient[]; patientAdministrativeDetails:PatientAdministrativeDetails[]; professionalDocumentDetails?:ProfessionalDocumentDetails; economicDocuments:EconomicDocument[]; economicDocumentLines:EconomicDocumentLine[]; exerciseRecipes:ExerciseRecipeV1[]; worksheetTemplates:WorksheetTemplateV1[]; appointments:Appointment[]; locations:AppointmentLocation[]; services:AppointmentService[]; sessions:Session[]; payments:Payment[]; paymentAllocations:PaymentAllocation[]; goals:Goal[]; materials:Material[]; clinicalPathways:ClinicalPathway[]; clinicalAssessments:ClinicalAssessment[]; profile:Profile };
+export type AppData = { patients:Patient[]; patientAdministrativeDetails:PatientAdministrativeDetails[]; professionalDocumentDetails?:ProfessionalDocumentDetails; economicDocuments:EconomicDocument[]; economicDocumentLines:EconomicDocumentLine[]; exerciseRecipes:ExerciseRecipeV1[]; worksheetTemplates:WorksheetTemplateV1[]; patientWorksheets:PatientWorksheetV1[]; appointments:Appointment[]; locations:AppointmentLocation[]; services:AppointmentService[]; sessions:Session[]; payments:Payment[]; paymentAllocations:PaymentAllocation[]; goals:Goal[]; materials:Material[]; clinicalPathways:ClinicalPathway[]; clinicalAssessments:ClinicalAssessment[]; profile:Profile };
 export const fullName=(p:Patient)=>`${p.firstName} ${p.lastName}`;
 export const initials=(p:Patient)=>`${p.firstName[0]||""}${p.lastName[0]||""}`.toUpperCase();
 export const age=(birthDate:string)=>{if(!birthDate)return 0;const d=new Date(birthDate),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a};
