@@ -35,7 +35,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Miglioramenti
 
-- Implementare in un workstream dedicato l'attestazione di percorso logopedico. L'attestazione di presenza è live e genera localmente un PDF non persistito da una Session registrata; non introdurre storico o Storage senza una nuova decisione di prodotto.
+- Modulistica e handout V1 è completata: attestazioni di presenza e percorso generano localmente PDF professionali non persistiti. Non introdurre storico, Storage o ulteriori documenti senza una nuova decisione di prodotto.
 
 - Valutare separatamente in un futuro task UX gli avatar paziente illustrati; non fanno parte di A1A/A1B.
 

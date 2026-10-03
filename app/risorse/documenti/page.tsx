@@ -11,7 +11,7 @@ const attestations = [
   {
     title: "Attestazione di percorso logopedico",
     description: "Documento compilabile per attestare in modo essenziale un percorso logopedico.",
-    href: undefined,
+    href: "/risorse/documenti/percorso",
   },
 ] as const;
 
