@@ -13,7 +13,7 @@ type ResourceFilter = "all" | "favorites";
 
 const areas = [
   { title: "Materiali del terapista", description: "File caricati dal terapista e collegabili a pazienti e sedute.", href: "/materiali", action: "Apri libreria", icon: "▱", tone: "border-sage-200 bg-sage-50/70 text-sage-800", iconTone: "bg-sage-100", upcoming: false },
-  { title: "Documenti clinici e professionali", description: "Modelli per relazioni, consensi, certificati e documenti professionali.", href: "/risorse/documenti", action: "Scopri l’area", icon: "▤", tone: "border-sky-100 bg-sky-50/70 text-sky-900", iconTone: "bg-sky-100", upcoming: true },
+  { title: "Modulistica e handout", description: "Attestazioni professionali e materiali informativi pronti per pazienti, famiglie e contesti educativi.", href: "/risorse/documenti", action: "Apri modulistica", icon: "▤", tone: "border-sky-100 bg-sky-50/70 text-sky-900", iconTone: "bg-sky-100", upcoming: false },
   { title: "Strumenti clinici ARMONIA", description: "Directory professionale di strumenti di screening, valutazione e monitoraggio collegabili al Percorso clinico.", href: "/risorse/strumenti", action: "Apri directory", icon: "✣", tone: "border-amber-100 bg-amber-50/70 text-amber-950", iconTone: "bg-amber-100", upcoming: false },
   { title: "Laboratorio esercizi ARMONIA", description: "Crea schede terapeutiche, combina attività e prepara materiali da usare in seduta o da stampare.", href: "/risorse/laboratorio", action: "Apri laboratorio", icon: "◇", tone: "border-violet-100 bg-violet-50/70 text-violet-950", iconTone: "bg-violet-100", upcoming: false },
 ] as const;

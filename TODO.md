@@ -35,6 +35,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Miglioramenti
 
+- Estendere “Modulistica e handout” soltanto in un workstream dedicato: le attestazioni di presenza e di percorso sono placeholder non interattivi; compilazione, dati professionali e generazione documenti non fanno parte della Fase 1.
+
 - Valutare separatamente in un futuro task UX gli avatar paziente illustrati; non fanno parte di A1A/A1B.
 
 - Valutare una chiara azione “Elimina seduta” nella scheda paziente, protetta da conferma e con gestione sicura delle relazioni; non fa parte di E1.
