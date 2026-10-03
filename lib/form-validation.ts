@@ -75,6 +75,22 @@ export function validateNewAssessmentForm(input: { assessmentType: string; clini
   return errors;
 }
 
+export function validateMaterialForm(input: { title: string; mode: "file" | "link"; externalUrl?: string; requiresSource: boolean }): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!input.title.trim()) errors.title = "Inserisci un titolo.";
+  if (input.mode === "link" && input.requiresSource) {
+    const value = input.externalUrl?.trim() || "";
+    if (!value) errors.externalUrl = "Inserisci un link.";
+    else {
+      try {
+        const url = new URL(value);
+        if (url.protocol !== "http:" && url.protocol !== "https:") errors.externalUrl = "Inserisci un link valido.";
+      } catch { errors.externalUrl = "Inserisci un link valido."; }
+    }
+  }
+  return errors;
+}
+
 export function focusFirstInvalidField(errors: FieldErrors) {
   if (typeof document === "undefined") return;
   const first = Object.keys(errors)[0];

@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { Field, Select, Textarea } from "@/components/form-controls";
+import { focusFirstInvalidField, validateMaterialForm } from "@/lib/form-validation";
 import type { Material } from "@/lib/types";
 import { fullName, uid } from "@/lib/types";
 import { formatStorageBytes, materialUploadErrorMessage, STORAGE_QUOTA_BYTES, validateMaterialFileDeclaration } from "@/lib/therapeutic-library/files";
@@ -210,7 +211,7 @@ function MaterialForm({
   onDone: () => void;
 }) {
   const { data, saveMaterial } = useData();
-  const [file, setFile] = useState<File>(),[mode,setMode]=useState<"file"|"link">(material?.externalUrl?"link":"file"),[fileError,setFileError]=useState<string>(),[uploading,setUploading]=useState(false);
+  const [file, setFile] = useState<File>(),[mode,setMode]=useState<"file"|"link">(material?.externalUrl?"link":"file"),[fileError,setFileError]=useState<string>(),[fieldErrors,setFieldErrors]=useState<Record<string,string>>({}),[serverError,setServerError]=useState<string>(),[uploading,setUploading]=useState(false);
   const uploadGuard = useRef(false);
   const [v, setV] = useState<Material>(
     material || {
@@ -240,16 +241,15 @@ function MaterialForm({
     };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const errors=validateMaterialForm({title:v.title,mode,externalUrl:v.externalUrl,requiresSource:!material});
+    setFieldErrors(errors);setServerError(undefined);
+    if(Object.keys(errors).length){focusFirstInvalidField(errors);return;}
     if (!acquireSingleFlight(uploadGuard)) return;
     setUploading(true);
     let completed = false;
     try {
       if (!material && mode === "file" && !file) {
         setFileError("Seleziona un file oppure inserisci un link.");
-        return;
-      }
-      if (!material && mode === "link" && !v.externalUrl) {
-        setFileError("Inserisci un link.");
         return;
       }
       if (!material && mode === "file" && file) {
@@ -267,7 +267,8 @@ function MaterialForm({
       completed = true;
     } catch (cause) {
       const code = cause instanceof Error ? (cause.name || cause.message) : "";
-      setFileError(mode === "file" && Boolean(file) ? materialUploadErrorMessage(code) : materialSaveErrorMessage(cause, mode === "link" ? "link" : "material"));
+      if(mode === "file" && Boolean(file)) setFileError(materialUploadErrorMessage(code));
+      else setServerError(materialSaveErrorMessage(cause, mode === "link" ? "link" : "material"));
     } finally {
       releaseSingleFlight(uploadGuard);
       setUploading(false);
@@ -281,9 +282,10 @@ function MaterialForm({
   return (
     <form
       onSubmit={submit}
+      noValidate
       className="space-y-4"
     >
-      <Field label="Titolo" required value={v.title} onChange={set("title")} />
+      <Field id="material-title" data-validation-field="title" label="Titolo" required value={v.title} error={fieldErrors.title} onChange={(event)=>{set("title")(event);setFieldErrors(current=>({...current,title:""}))}} />
       <Textarea
         label="Descrizione"
         value={v.description}
@@ -309,12 +311,13 @@ function MaterialForm({
       </div>
       {!material && (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-sage-50 p-1"><button type="button" disabled={uploading} onClick={()=>{setMode("file");setFileError(undefined);setV(old=>({...old,externalUrl:""}))}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="file"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Carica file</button><button type="button" disabled={uploading} onClick={()=>{setMode("link");setFile(undefined);setFileError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="link"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Aggiungi link</button></div>
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-sage-50 p-1"><button type="button" disabled={uploading} onClick={()=>{setMode("file");setFileError(undefined);setFieldErrors({});setServerError(undefined);setV(old=>({...old,externalUrl:""}))}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="file"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Carica file</button><button type="button" disabled={uploading} onClick={()=>{setMode("link");setFile(undefined);setFileError(undefined);setFieldErrors({});setServerError(undefined)}} className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50 ${mode==="link"?"bg-white text-sage-800 shadow-sm":"text-slate-500"}`}>Aggiungi link</button></div>
           {mode==="link"?<><p className="text-sm font-bold text-sage-700">Non utilizza spazio ARMONIA</p><Field
-            label="Link web (alternativa al file)"
+            id="material-url" data-validation-field="externalUrl" label="Link web (alternativa al file)"
             type="url"
             value={v.externalUrl}
-            onChange={set("externalUrl")}
+            error={fieldErrors.externalUrl}
+            onChange={(event)=>{set("externalUrl")(event);setFieldErrors(current=>({...current,externalUrl:""}))}}
           /></>:<>
           <label className="block text-sm font-bold">
             File
@@ -338,6 +341,7 @@ function MaterialForm({
         </>
       )}
       {material?.externalUrl && <Field label="Link web" type="url" value={v.externalUrl || ""} onChange={set("externalUrl")} />}
+      {serverError&&<p role="alert" className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm font-medium text-red-700">{serverError}</p>}
       <fieldset>
         <legend className="text-sm font-bold">Collega ai pazienti</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
