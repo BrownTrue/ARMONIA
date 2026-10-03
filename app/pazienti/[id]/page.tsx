@@ -8,6 +8,7 @@ import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { PatientAdministrativeDetailsCard } from "@/components/patient-administrative-details";
 import { PatientForm } from "@/components/patient-form";
+import { Field } from "@/components/form-controls";
 import { PatientResourcesSection } from "@/components/patient-resources-section";
 import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/timeline";
 import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
@@ -19,6 +20,7 @@ import { getFuturePatientAppointments } from "@/lib/patient-resources";
 import { patientEconomicSummary } from "@/lib/payments";
 import type { Appointment, Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
+import { focusFirstInvalidField, validateGoalForm, validateSessionForm, type FieldErrors } from "@/lib/form-validation";
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
 export default function PatientPage() {
   const { id } = useParams<{ id: string }>(),
@@ -28,6 +30,8 @@ export default function PatientPage() {
     [detail, setDetail] = useState<Session | null>(null),
     [goalEdit, setGoalEdit] = useState<Goal | "new" | null>(null),
     [newGoalPathwayId, setNewGoalPathwayId] = useState<string | undefined>(),
+    [deleteSessionTarget, setDeleteSessionTarget] = useState<Session | null>(null),
+    [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null),
     [deletePatientOpen, setDeletePatientOpen] = useState(false),
     [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
     [activityQuery, setActivityQuery] = useState(""),
@@ -131,7 +135,7 @@ export default function PatientPage() {
                     />
                   </div>
                   <button onClick={() => setGoalEdit(g)} className="mt-2 text-xs font-bold text-sage-700">Modifica</button>
-                  <button onClick={() => confirm("Eliminare questo obiettivo?") && deleteGoal(g.id)} className="ml-3 mt-2 text-xs font-bold text-red-600">Elimina</button>
+                  <button onClick={() => setDeleteGoalTarget(g)} className="ml-3 mt-2 text-xs font-bold text-red-600">Elimina</button>
                 </div>
               ))}
               {overview.activeGoals.length > 3 && <p className="text-sm text-slate-500">+{overview.activeGoals.length - 3} altri obiettivi attivi</p>}
@@ -160,7 +164,7 @@ export default function PatientPage() {
             <p className="mt-4 text-sm text-slate-500">{timeline.length === 0 ? "Nessuna seduta o valutazione registrata." : "Nessuna attività corrisponde al filtro selezionato."}</p>
           ) : (
             <div className="mt-4 space-y-3 sm:space-y-2">
-              {visibleTimeline.map((item) => item.type === "session" ? <SessionTimelineCard key={item.id} item={item} onEdit={() => setDetail(item.session)} onDelete={() => confirm("Eliminare questa seduta?") && deleteSession(item.entityId)} onOpenMaterial={(material) => void openMaterial(material)} /> : <AssessmentTimelineCard key={item.id} item={item} patientId={p.id} />)}
+              {visibleTimeline.map((item) => item.type === "session" ? <SessionTimelineCard key={item.id} item={item} onEdit={() => setDetail(item.session)} onDelete={() => setDeleteSessionTarget(item.session)} onOpenMaterial={(material) => void openMaterial(material)} /> : <AssessmentTimelineCard key={item.id} item={item} patientId={p.id} />)}
             </div>
           )}
         </section>
@@ -185,6 +189,8 @@ export default function PatientPage() {
         </Modal>
       )}
       {deletePatientOpen && <DeletePatientModal patientName={fullName(p)} onClose={() => setDeletePatientOpen(false)} onConfirm={async () => { await deletePatient(p.id); router.push("/pazienti"); }} />}
+      {deleteSessionTarget && <DeleteEntityModal title="Eliminare questa seduta?" description="La seduta verrà eliminata definitivamente. L’appuntamento collegato resterà disponibile nel calendario." actionLabel="Elimina seduta" onClose={() => setDeleteSessionTarget(null)} onConfirm={async()=>{await deleteSession(deleteSessionTarget.id);setDeleteSessionTarget(null);}} />}
+      {deleteGoalTarget && <DeleteEntityModal title="Eliminare questo obiettivo?" description="L’obiettivo verrà eliminato e rimosso dalle sedute collegate. Questa operazione non può essere annullata." actionLabel="Elimina obiettivo" onClose={() => setDeleteGoalTarget(null)} onConfirm={async()=>{await deleteGoal(deleteGoalTarget.id);setDeleteGoalTarget(null);}} />}
     </AppShell>
   );
 }
@@ -200,6 +206,11 @@ function DeletePatientModal({ patientName, onClose, onConfirm }: { patientName: 
     catch { setError("Non è stato possibile eliminare il paziente. Riprova tra poco."); setDeleting(false); }
   };
   return <Modal title="Eliminare questo paziente?" onClose={() => { if (!deleting) onClose(); }}><div className="space-y-4 text-sm leading-6 text-slate-600"><p>Stai per eliminare definitivamente <strong>{patientName}</strong> e i dati collegati secondo il comportamento attuale di ARMONIA. Questa operazione non può essere annullata.</p>{error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 font-medium text-red-700">{error}</p>}</div><div className="form-actions mt-6"><button type="button" disabled={deleting} onClick={onClose} className="btn btn-quiet disabled:opacity-50">Annulla</button><button type="button" disabled={deleting} aria-busy={deleting} onClick={() => void remove()} className="btn bg-red-600 text-white disabled:cursor-wait disabled:opacity-60">{deleting ? "Eliminazione…" : error ? "Riprova eliminazione" : "Elimina paziente"}</button></div></Modal>;
+}
+
+function DeleteEntityModal({title,description,actionLabel,onClose,onConfirm}:{title:string;description:string;actionLabel:string;onClose:()=>void;onConfirm:()=>Promise<void>}) {
+  const [busy,setBusy]=useState(false); const [error,setError]=useState("");
+  return <Modal title={title} onClose={()=>!busy&&onClose()}><p className="text-sm leading-6 text-slate-600">{description}</p>{error&&<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{error}</p>}<div className="form-actions mt-6"><button type="button" disabled={busy} onClick={onClose} className="btn btn-quiet">Annulla</button><button type="button" disabled={busy} aria-busy={busy} onClick={async()=>{setBusy(true);setError("");try{await onConfirm();}catch{setError("Non è stato possibile completare l’eliminazione. Riprova.");setBusy(false);}}} className="btn bg-red-600 text-white disabled:opacity-60">{busy?"Eliminazione…":actionLabel}</button></div></Modal>;
 }
 
 function PatientEconomyDatum({label,value}:{label:string;value:string}) { return <div className="min-w-0"><p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-400">{label}</p><p className="mt-1 break-words font-bold text-slate-800">{value}</p></div>; }
@@ -301,14 +312,15 @@ function PatientDatum({ label, value }: { label: string; value: string }) {
 function GoalEditor({ goal, onDone }: { goal: Goal; onDone: () => void }) {
   const { saveGoal } = useData();
   const [value, setValue] = useState(goal);
-  return <form className="space-y-4" onSubmit={async (event) => { event.preventDefault(); await saveGoal(value); onDone(); }}>
-    <label className="block text-sm font-bold">Titolo<input required value={value.title} onChange={(e) => setValue((old) => ({...old,title:e.target.value}))} className="mt-2 w-full rounded-xl border border-sage-100 p-3 font-normal" /></label>
+  const [fieldErrors,setFieldErrors]=useState<FieldErrors>({}); const [serverError,setServerError]=useState(""); const [saving,setSaving]=useState(false);
+  return <form noValidate className="space-y-4" onSubmit={async (event) => { event.preventDefault();const errors=validateGoalForm({title:value.title});if(Object.keys(errors).length){setFieldErrors(errors);setServerError("");focusFirstInvalidField(errors);return;}setSaving(true);setFieldErrors({});setServerError("");try{await saveGoal({...value,title:value.title.trim()});onDone();}catch{setServerError("Non è stato possibile salvare l’obiettivo. Riprova.");setSaving(false);}}}>
+    <Field id="goal-title" data-validation-field="title" label="Titolo" required value={value.title} error={fieldErrors.title} onChange={(e) => {setValue((old) => ({...old,title:e.target.value}));setFieldErrors({});}} />
     <label className="block text-sm font-bold">Descrizione<textarea value={value.description} onChange={(e) => setValue((old) => ({...old,description:e.target.value}))} className="mt-2 min-h-20 w-full rounded-xl border border-sage-100 p-3 font-normal" /></label>
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block text-sm font-bold">Stato<select value={value.status} onChange={(e) => setValue((old) => ({...old,status:e.target.value}))} className="mt-2 w-full rounded-xl border border-sage-100 p-3 font-normal"><option value="not_started">Da iniziare</option><option value="in_progress">In corso</option><option value="consolidation">Consolidamento</option><option value="achieved">Raggiunto</option><option value="suspended">Sospeso</option></select></label>
       <label className="block text-sm font-bold">Progresso ({value.progress}%)<input type="range" min="0" max="100" value={value.progress} onChange={(e) => setValue((old) => ({...old,progress:Number(e.target.value)}))} className="mt-4 w-full" /></label>
     </div>
-    <div className="flex justify-end gap-2"><button type="button" onClick={onDone} className="btn btn-quiet">Annulla</button><button className="btn btn-primary">Salva obiettivo</button></div>
+    {serverError&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{serverError}</p>}<div className="flex justify-end gap-2"><button type="button" disabled={saving} onClick={onDone} className="btn btn-quiet">Annulla</button><button disabled={saving} className="btn btn-primary">{saving?"Salvataggio…":"Salva obiettivo"}</button></div>
   </form>;
 }
 function SessionEditor({
@@ -321,31 +333,23 @@ function SessionEditor({
   const { data, saveSession } = useData();
   const [v, setV] = useState(session);
   const [price, setPrice] = useState(centsToEuroInput(session.effectivePriceCents));
-  const [error, setError] = useState("");
+  const [fieldErrors,setFieldErrors]=useState<FieldErrors>({});
+  const [serverError, setServerError] = useState("");
+  const [saving,setSaving]=useState(false);
   return (
-    <form
+    <form noValidate
       onSubmit={async (e) => {
         e.preventDefault();
-        setError("");
-        let effectivePriceCents: number | undefined;
-        try { effectivePriceCents = euroInputToCents(price); } catch (cause) { setError(cause instanceof Error ? cause.message : "Inserisci un prezzo valido."); return; }
-        await saveSession({ ...v, effectivePriceCents });
-        onDone();
+        const errors=validateSessionForm({patientId:v.patientId,date:v.date,duration:v.duration,price});if(Object.keys(errors).length){setFieldErrors(errors);setServerError("");focusFirstInvalidField(errors);return;}
+        const effectivePriceCents=euroInputToCents(price);setSaving(true);setFieldErrors({});setServerError("");try{await saveSession({ ...v, effectivePriceCents });onDone();}catch{setServerError("Non è stato possibile salvare la seduta. Riprova.");setSaving(false);}
       }}
       className="space-y-4"
     >
-      <label className="block text-sm font-bold">
-        Data
-        <input
-          type="date"
-          value={v.date}
-          onChange={(e) => { const value=e.target.value; setV((old) => ({ ...old, date: value })) }}
-          className="mt-2 w-full rounded-xl border p-3 font-normal"
-        />
-      </label>
+      <Field id="session-edit-date" data-validation-field="date" label="Data" type="date" required value={v.date} error={fieldErrors.date} onChange={(e) => {setV((old)=>({...old,date:e.target.value}));setFieldErrors({});}} />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-bold">Prestazione<select value={v.serviceId || ""} onChange={(event)=>{const service=data.services.find((item)=>item.id===event.target.value)||null;setV((old)=>sessionWithService(old,service));if(service)setPrice(centsToEuroInput(service.defaultPriceCents));}} className="mt-2 w-full rounded-xl border p-3 font-normal"><option value="">Nessuna prestazione</option>{v.serviceId&&!data.services.some((item)=>item.id===v.serviceId)&&<option value={v.serviceId}>{v.serviceNameSnapshot||"Prestazione non disponibile"} — Non disponibile</option>}{selectableAppointmentServices(data.services,v.serviceId).map((service)=><option value={service.id} key={service.id}>{service.name}{!service.isActive?" — Non attiva":""}</option>)}</select></label>
-        <label className="block text-sm font-bold">Prezzo (facoltativo)<input inputMode="decimal" value={price} onChange={(event)=>setPrice(event.target.value)} className="mt-2 w-full rounded-xl border p-3 font-normal"/><span className="mt-1 block text-xs font-normal text-slate-500">Vuoto = non specificato · 0 = gratuita</span></label>
+        <div><Field id="session-edit-duration" data-validation-field="duration" label="Durata (minuti)" type="number" min={1} required value={Number.isNaN(v.duration)?"":v.duration} error={fieldErrors.duration} onChange={(event)=>{setV((old)=>({...old,duration:event.target.value===""?Number.NaN:Number(event.target.value)}));setFieldErrors({});}} /></div>
+        <div><Field id="session-edit-price" data-validation-field="price" label="Prezzo (facoltativo)" inputMode="decimal" value={price} error={fieldErrors.price} onChange={(event)=>{setPrice(event.target.value);setFieldErrors({});}}/><span className="mt-1 block text-xs text-slate-500">Vuoto = non specificato · 0 = gratuita</span></div>
       </div>
       <label className="block text-sm font-bold">
         Attività
@@ -372,11 +376,11 @@ function SessionEditor({
         />
       </label>
       <div className="flex justify-end gap-2">
-        {error && <p role="alert" className="mr-auto self-center text-sm font-bold text-red-700">{error}</p>}
-        <button type="button" onClick={onDone} className="btn btn-quiet">
+        {serverError && <p role="alert" className="mr-auto self-center text-sm font-bold text-red-700">{serverError}</p>}
+        <button type="button" disabled={saving} onClick={onDone} className="btn btn-quiet">
           Annulla
         </button>
-        <button className="btn btn-primary">Salva seduta</button>
+        <button disabled={saving} className="btn btn-primary">{saving?"Salvataggio…":"Salva seduta"}</button>
       </div>
     </form>
   );

@@ -8,6 +8,8 @@ import { resolveNewSessionDraft, sessionWithAppointmentSnapshot, sessionWithServ
 import { fullName, today, uid } from "@/lib/types";
 import type { Session } from "@/lib/types";
 import { Modal } from "@/components/modal";
+import { Field, Select } from "@/components/form-controls";
+import { focusFirstInvalidField, validateSessionForm, type FieldErrors } from "@/lib/form-validation";
 function Form() {
   const q = useSearchParams(),
     router = useRouter(),
@@ -15,7 +17,8 @@ function Form() {
   const requestedAppointmentId = q.get("a") || undefined;
   const [v, setV] = useState<Session | null>(null);
   const [price, setPrice] = useState("");
-  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState("");
   const [appointmentMissing, setAppointmentMissing] = useState(false);
   const [pendingWithoutActivities, setPendingWithoutActivities] = useState<Session | null>(null);
   const [saving, setSaving] = useState(false);
@@ -75,10 +78,11 @@ function Form() {
   );
   const persistSession = async (session: Session) => {
     setSaving(true);
-    setError("");
+    setServerError("");
     try { await saveSession(session); router.push("/pazienti/" + p.id); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Non è stato possibile salvare la seduta."); setSaving(false); }
+    catch { setServerError("Non è stato possibile salvare la seduta. Riprova."); setSaving(false); }
   };
+  const clearFieldError = (field: string) => setFieldErrors((current) => { if (!current[field]) return current; const next = { ...current }; delete next[field]; return next; });
   return (
     <AppShell>
       <header className="mb-7">
@@ -95,32 +99,36 @@ function Form() {
       </header>
       <form
         className="mx-auto max-w-3xl space-y-5"
+        noValidate
         onSubmit={async (e) => {
           e.preventDefault();
-          if (v.appointmentId && data.sessions.some((s) => s.appointmentId === v.appointmentId && s.id !== v.id)) { alert("Seduta già registrata per questo appuntamento."); return; }
+          if (v.appointmentId && data.sessions.some((s) => s.appointmentId === v.appointmentId && s.id !== v.id)) { const errors={appointmentId:"Per questo appuntamento esiste già una seduta. Aprila dalla timeline del paziente per modificarla."}; setFieldErrors(errors); setServerError(""); focusFirstInvalidField(errors); return; }
           const f=new FormData(e.currentTarget);
-          setError("");
-          let effectivePriceCents: number | undefined;
-          try { effectivePriceCents = euroInputToCents(price); } catch (cause) { setError(cause instanceof Error ? cause.message : "Inserisci un prezzo valido."); return; }
+          const errors=validateSessionForm({patientId:v.patientId,date:v.date,duration:v.duration,price,latestDate:today()});
+          if(Object.keys(errors).length){setFieldErrors(errors);setServerError("");focusFirstInvalidField(errors);return;}
+          setFieldErrors({}); setServerError("");
+          const effectivePriceCents=euroInputToCents(price);
           const session={...v,effectivePriceCents,activities:String(f.get('activities')||'').trim(),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')};
           if (!session.activities) { setPendingWithoutActivities(session); return; }
           await persistSession(session);
         }}
       >
+        {Object.keys(fieldErrors).length > 1 && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p className="font-bold">Ci sono alcune informazioni da controllare.</p><p className="mt-1">Correggi i campi evidenziati e riprova.</p></div>}
         <section className="card p-5">
           <h2 className="text-sm font-bold">Data e paziente</h2>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-bold">Paziente<select value={v.patientId} onChange={(e) => updateSession((old) => ({...old,patientId:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal">{data.patients.map((patient) => <option value={patient.id} key={patient.id}>{fullName(patient)}</option>)}</select></label>
-            <label className="block text-sm font-bold">Data effettiva<input type="date" max={today()} required value={v.date} onChange={(e) => updateSession((old) => ({...old,date:e.target.value,appointmentId:undefined}))} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal" /></label>
-            <label className="block text-sm font-bold sm:col-span-2">Appuntamento collegato<select value={v.appointmentId || ""} onChange={(e) => { const appointment=data.appointments.find((a)=>a.id===e.target.value); if (!appointment) { updateSession((old)=>({...old,appointmentId:undefined})); return; } updateSession((old)=>sessionWithAppointmentSnapshot(old,appointment)); setPrice(centsToEuroInput(appointment.effectivePriceCents)); }} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessun appuntamento</option>{appointmentsForDate.map((a)=><option value={a.id} key={a.id}>{a.time} · {a.duration} min</option>)}</select></label>
+            <Select id="session-patient" data-validation-field="patientId" label="Paziente" value={v.patientId} error={fieldErrors.patientId} onChange={(e) => {updateSession((old) => ({...old,patientId:e.target.value,appointmentId:undefined}));clearFieldError("patientId");}}>{data.patients.map((patient) => <option value={patient.id} key={patient.id}>{fullName(patient)}</option>)}</Select>
+            <Field id="session-date" data-validation-field="date" label="Data effettiva" type="date" max={today()} required value={v.date} error={fieldErrors.date} onChange={(e) => {updateSession((old) => ({...old,date:e.target.value,appointmentId:undefined}));clearFieldError("date");}} />
+            <div className="sm:col-span-2"><Select id="session-appointment" data-validation-field="appointmentId" label="Appuntamento collegato" value={v.appointmentId || ""} error={fieldErrors.appointmentId} onChange={(e) => { clearFieldError("appointmentId"); const appointment=data.appointments.find((a)=>a.id===e.target.value); if (!appointment) { updateSession((old)=>({...old,appointmentId:undefined})); return; } updateSession((old)=>sessionWithAppointmentSnapshot(old,appointment)); setPrice(centsToEuroInput(appointment.effectivePriceCents)); }}><option value="">Nessun appuntamento</option>{appointmentsForDate.map((a)=><option value={a.id} key={a.id}>{a.time} · {a.duration} min</option>)}</Select></div>
           </div>
         </section>
         <section className="card p-5">
           <h2 className="text-sm font-bold">Prestazione</h2>
           <p className="mt-1 text-sm text-slate-500">Questi dati diventano lo storico economico della seduta.</p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-bold">Prestazione<select value={v.serviceId || ""} onChange={(event)=>{const service=data.services.find((item)=>item.id===event.target.value)||null;updateSession((old)=>sessionWithService(old,service));if(service)setPrice(centsToEuroInput(service.defaultPriceCents));}} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessuna prestazione</option>{v.serviceId&&!data.services.some((item)=>item.id===v.serviceId)&&<option value={v.serviceId}>{v.serviceNameSnapshot||"Prestazione non disponibile"} — Non disponibile</option>}{selectableAppointmentServices(data.services,v.serviceId).map((service)=><option value={service.id} key={service.id}>{service.name}{!service.isActive?" — Non attiva":""}</option>)}</select></label>
-            <label className="block text-sm font-bold">Prezzo (facoltativo)<input inputMode="decimal" placeholder="es. 45,00" value={price} onChange={(event)=>setPrice(event.target.value)} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"/><span className="mt-1 block text-xs font-normal text-slate-500">Vuoto = non specificato · 0 = gratuita</span></label>
+            <label className="block text-sm font-bold">Prestazione<select value={v.serviceId || ""} onChange={(event)=>{const service=data.services.find((item)=>item.id===event.target.value)||null;updateSession((old)=>sessionWithService(old,service));if(service){setPrice(centsToEuroInput(service.defaultPriceCents));clearFieldError("duration");clearFieldError("price");}}} className="mt-2 w-full rounded-xl border border-sage-100 bg-white p-3 font-normal"><option value="">Nessuna prestazione</option>{v.serviceId&&!data.services.some((item)=>item.id===v.serviceId)&&<option value={v.serviceId}>{v.serviceNameSnapshot||"Prestazione non disponibile"} — Non disponibile</option>}{selectableAppointmentServices(data.services,v.serviceId).map((service)=><option value={service.id} key={service.id}>{service.name}{!service.isActive?" — Non attiva":""}</option>)}</select></label>
+            <div><Field id="session-duration" data-validation-field="duration" label="Durata (minuti)" type="number" min={1} required value={v.duration || ""} error={fieldErrors.duration} onChange={(event)=>{updateSession((old)=>({...old,duration:event.target.value===""?Number.NaN:Number(event.target.value)}));clearFieldError("duration");}} /></div>
+            <div><Field id="session-price" data-validation-field="price" label="Prezzo (facoltativo)" inputMode="decimal" placeholder="es. 45,00" value={price} error={fieldErrors.price} onChange={(event)=>{setPrice(event.target.value);clearFieldError("price");}}/><span className="mt-1 block text-xs text-slate-500">Vuoto = non specificato · 0 = gratuita</span></div>
           </div>
         </section>
         <section className="card p-5">
@@ -222,10 +230,8 @@ function Form() {
             />
           </label>
         </section>
-        {error&&<p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
-        <button disabled={saving} className="btn btn-primary w-full py-4 text-base disabled:cursor-wait disabled:opacity-60">
-          {saving ? "Salvataggio…" : "Concludi e salva seduta"}
-        </button>
+        {serverError&&<p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{serverError}</p>}
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 -mx-2 rounded-2xl border border-sage-100 bg-white/95 p-2 shadow-lg backdrop-blur sm:bottom-4"><button disabled={saving} aria-busy={saving} className="btn btn-primary w-full py-4 text-base disabled:cursor-wait disabled:opacity-60">{saving ? "Salvataggio…" : "Concludi e salva seduta"}</button></div>
       </form>
       {pendingWithoutActivities && <Modal title="Registrare senza attività svolte?" onClose={() => setPendingWithoutActivities(null)}><p className="text-sm leading-6 text-slate-600">Non hai inserito attività svolte per questa seduta. Vuoi registrarla comunque?</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setPendingWithoutActivities(null)} className="btn btn-quiet">Torna alla seduta</button><button type="button" disabled={saving} onClick={() => void persistSession(pendingWithoutActivities)} className="btn btn-primary disabled:cursor-wait disabled:opacity-60">{saving ? "Salvataggio…" : "Registra comunque"}</button></div></Modal>}
     </AppShell>

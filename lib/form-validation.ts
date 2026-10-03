@@ -44,6 +44,37 @@ export function validateServiceForm(input: { name: string; duration: string; pri
   return errors;
 }
 
+export function validateSessionForm(input: { patientId: string; date: string; duration: number; price: string; latestDate?: string }): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!input.patientId) errors.patientId = "Seleziona un paziente.";
+  if (!input.date) errors.date = "Inserisci una data.";
+  else if (input.latestDate && input.date > input.latestDate) errors.date = "La data della seduta non può essere futura.";
+  if (!Number.isInteger(input.duration) || input.duration <= 0) errors.duration = "Inserisci una durata valida.";
+  try { euroInputToCents(input.price); } catch { errors.price = "Inserisci un prezzo valido con al massimo due decimali."; }
+  return errors;
+}
+
+export function validateClinicalPathwayForm(input: { startedOn?: string; closedOn?: string }): FieldErrors {
+  const errors: FieldErrors = {};
+  if (input.startedOn !== undefined && !input.startedOn) errors.startedOn = "Inserisci la data di inizio.";
+  if (input.closedOn !== undefined) {
+    if (!input.closedOn) errors.closedOn = "Inserisci la data di chiusura.";
+    else if (input.startedOn && input.closedOn < input.startedOn) errors.closedOn = "La data di chiusura non può precedere la data di inizio.";
+  }
+  return errors;
+}
+
+export function validateGoalForm(input: { title: string }): FieldErrors {
+  return input.title.trim() ? {} : { title: "Inserisci un titolo per l’obiettivo." };
+}
+
+export function validateNewAssessmentForm(input: { assessmentType: string; clinicalDate: string }): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!input.assessmentType) errors.assessmentType = "Seleziona il tipo di valutazione.";
+  if (!input.clinicalDate) errors.clinicalDate = "Inserisci la data clinica.";
+  return errors;
+}
+
 export function focusFirstInvalidField(errors: FieldErrors) {
   if (typeof document === "undefined") return;
   const first = Object.keys(errors)[0];
