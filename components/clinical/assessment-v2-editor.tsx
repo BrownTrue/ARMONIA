@@ -8,6 +8,7 @@ import { ClinicalAssessmentPrint } from "@/components/clinical/assessment-print-
 import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
+import { DestructiveActionModal } from "@/components/destructive-action-modal";
 import { ClinicalToolSelector } from "@/components/clinical-tools/tool-selector";
 import { NativeToolEditor } from "@/components/clinical-tools/native-tool-editor";
 import { getClinicalModuleEditor } from "./module-editor-registry";
@@ -162,7 +163,20 @@ function DeleteV2AssessmentModal({ assessment, onClose, onConfirm }: { assessmen
 
 function ClinicalAreasStep({ draft, issues, expanded, setExpanded, onUpdateModule, onUpdateAssessment }: { draft: ClinicalAssessmentV2; issues: AssessmentValidationIssue[]; expanded: Set<string>; setExpanded: React.Dispatch<React.SetStateAction<Set<string>>>; onUpdateModule: (index: number, module: ClinicalModuleInstance) => void; onUpdateAssessment: (assessment: ClinicalAssessmentV2) => void }) {
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<(typeof clinicalModuleRegistry)[number]>();
+  const [removalError, setRemovalError] = useState("");
   const modulesIssue = issues.find((issue) => issue.field === "clinical-modules");
+  const removeModule = (definition: (typeof clinicalModuleRegistry)[number]) => {
+    const key = `${definition.code}@${definition.version}`;
+    setRemovalError("");
+    try {
+      onUpdateAssessment(removeClinicalModule(draft, definition.code, definition.version));
+      setExpanded((current) => { const next = new Set(current); next.delete(key); return next; });
+      setPendingRemoval(undefined);
+    } catch {
+      setRemovalError("Non è stato possibile rimuovere l’area clinica. Riprova.");
+    }
+  };
   const toggleModule = (definition: (typeof clinicalModuleRegistry)[number]) => {
     const key = `${definition.code}@${definition.version}`;
     const module = draft.data.modules.find((item) => item.code === definition.code && item.version === definition.version);
@@ -171,17 +185,14 @@ function ClinicalAreasStep({ draft, issues, expanded, setExpanded, onUpdateModul
       setExpanded((current) => new Set(current).add(key));
       return;
     }
-    if (requiresClinicalModuleRemovalConfirmation(module) && !window.confirm(`Rimuovere ${definition.label}? I dati compilati in questa area verranno eliminati.`)) return;
-    try {
-      onUpdateAssessment(removeClinicalModule(draft, definition.code, definition.version));
-      setExpanded((current) => { const next = new Set(current); next.delete(key); return next; });
-    } catch {
-      window.alert("Non è stato possibile rimuovere l’area clinica. Riprova.");
-    }
+    if (requiresClinicalModuleRemovalConfirmation(module)) { setRemovalError(""); setPendingRemoval(definition); return; }
+    removeModule(definition);
   };
   return <section><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-bold">Aree cliniche</h2><p className="mt-2 text-sm text-slate-500">{draft.data.modules.length ? "Compila soltanto ciò che è pertinente alla valutazione." : "Aggiungi le aree che vuoi esplorare in questa valutazione. Puoi modificarle in qualsiasi momento finché la valutazione è in bozza."}</p></div>{draft.data.modules.length > 0 && <button type="button" onClick={() => setSelectorOpen(true)} className="btn btn-quiet text-sm">Gestisci aree</button>}</div>
     {draft.data.modules.length === 0 ? <div data-validation-field="clinical-modules" tabIndex={-1} aria-invalid={Boolean(modulesIssue)} aria-describedby={modulesIssue ? "clinical-modules-error" : undefined} className={`rounded-2xl border border-dashed px-5 py-8 text-center outline-none focus-visible:ring-2 focus-visible:ring-red-500 ${modulesIssue ? "border-red-300 bg-red-50" : "border-sage-200 bg-sage-50/40"}`}><p className="text-sm text-slate-500">Nessuna area clinica aggiunta.</p><button type="button" onClick={() => setSelectorOpen(true)} className="btn btn-primary mt-4">+ Aggiungi area clinica</button>{modulesIssue && <p id="clinical-modules-error" className="mt-3 text-sm font-semibold text-red-700">{modulesIssue.message}</p>}</div> : <><div className="space-y-4">{draft.data.modules.map((module, index) => { const definition = getClinicalModuleDefinition(module.code, module.version); const Editor = getClinicalModuleEditor(module.code, module.version); const key = `${module.code}@${module.version}`; const open = expanded.has(key); if (!definition || !Editor || !definition.validate(module.data)) return <div key={key} data-validation-field={`clinical-module-${module.code}-${module.version}`} tabIndex={-1} role="alert" className="card border-red-200 p-5 text-sm text-red-700 outline-none focus-visible:ring-2 focus-visible:ring-red-500">Controlla le informazioni di questa area clinica.</div>; return <article key={key} className="overflow-hidden rounded-2xl border border-sage-100 bg-white"><button type="button" className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left" aria-expanded={open} onClick={() => setExpanded((current) => { const next = new Set(current); if (open) next.delete(key); else next.add(key); return next; })}><span><span className="block text-lg font-bold">{definition.label}</span><span className="mt-1 block text-xs text-slate-500">Area inclusa nella valutazione</span></span><span aria-hidden="true" className="text-xl text-sage-700">{open ? "⌃" : "⌄"}</span></button>{open && <div className="border-t border-sage-100 bg-slate-50/30 p-3 sm:p-5"><Editor value={module.data} readOnly={false} onChange={(value) => onUpdateModule(index, { ...module, data: value })} /></div>}</article>; })}</div><button type="button" onClick={() => setSelectorOpen(true)} className="btn btn-quiet mt-4 text-sm">+ Aggiungi area clinica</button></>}
+    {removalError && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{removalError}</p>}
     {selectorOpen && <ClinicalModuleSelector draft={draft} onToggle={toggleModule} onClose={() => setSelectorOpen(false)} />}
+    {pendingRemoval && <DestructiveActionModal title="Rimuovere questa area?" description="I dati compilati in questa area verranno rimossi dalla valutazione." confirmLabel="Rimuovi area" busy={false} error={removalError} onClose={() => { setPendingRemoval(undefined); setRemovalError(""); }} onConfirm={() => removeModule(pendingRemoval)} />}
   </section>;
 }
 
@@ -209,13 +220,14 @@ function AnamnesisStep({ draft, birthDate, readOnly, onUpdate }: CommonStepProps
   const [active, setActive] = useState<Set<AnamnesisSectionCode>>(() => new Set(Object.keys(sections) as AnamnesisSectionCode[]));
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [pendingFocus, setPendingFocus] = useState<AnamnesisSectionCode>();
+  const [pendingRemoval, setPendingRemoval] = useState<AnamnesisSectionCode>();
   const suggested = getSuggestedAnamnesisSectionCodes(birthDate, draft.clinicalDate);
   useEffect(() => { if (!pendingFocus) return; document.getElementById(`anamnesis-${pendingFocus}`)?.focus(); setPendingFocus(undefined); }, [pendingFocus, active]);
   const save = (next: ClinicalAnamnesisSections) => onUpdate(updateSection(draft, "anamnesis", createClinicalAnamnesis(next)));
   const activate = (code: AnamnesisSectionCode) => { setActive((current) => new Set(current).add(code)); setPendingFocus(code); };
   const remove = (code: AnamnesisSectionCode) => { const next = { ...sections }; delete next[code]; save(next); setActive((current) => { const updated = new Set(current); updated.delete(code); return updated; }); };
   const toggle = (code: AnamnesisSectionCode) => {
-    const action = resolveAnamnesisSectionToggle(active.has(code), sections[code], () => window.confirm("Rimuovere questa sezione anamnestica? Il contenuto inserito verrà eliminato."));
+    const action = resolveAnamnesisSectionToggle(active.has(code), sections[code], () => { setPendingRemoval(code); return false; });
     if (action === "activate") activate(code);
     if (action === "deactivate") remove(code);
     return action !== "keep";
@@ -224,7 +236,8 @@ function AnamnesisStep({ draft, birthDate, readOnly, onUpdate }: CommonStepProps
 
   return <StepCard title="Anamnesi" description="Aggiungi solo le sezioni pertinenti al paziente. Nessuna sezione è obbligatoria.">{!readOnly && <><section><h3 className="text-sm font-bold">Sezioni frequenti per questa fascia d’età</h3><p className="mt-1 text-xs leading-5 text-slate-500">Sono soltanto suggerimenti organizzativi: tutte le sezioni restano sempre disponibili.</p><div className="mt-3 flex flex-wrap gap-2">{suggested.map((code) => { const definition = getAnamnesisSection(code); const present = active.has(code); return <button type="button" key={code} aria-pressed={present} onClick={() => toggle(code)} className={`rounded-full border px-3 py-2 text-left text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2 ${present ? "border-sage-500 bg-sage-100 font-bold text-sage-800" : "border-sage-100 bg-white text-slate-700 hover:border-sage-300"}`}>{present ? "✓ " : "+ "}{definition.label}</button>; })}</div><button type="button" aria-expanded={selectorOpen} onClick={() => setSelectorOpen(true)} className="btn btn-quiet mt-4 text-sm">+ Altre sezioni anamnestiche</button></section></>}
     <section><h3 className="text-lg font-bold">Sezioni anamnestiche</h3>{activeDefinitions.length ? <div className="mt-4 space-y-5">{activeDefinitions.map((definition) => <article key={definition.code} className="rounded-2xl border border-sage-100 bg-sage-50/30 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><label htmlFor={`anamnesis-${definition.code}`} className="font-bold">{definition.label}</label>{!readOnly && <button type="button" onClick={() => toggle(definition.code)} className="text-xs font-bold text-red-600 outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2">Rimuovi</button>}</div><textarea id={`anamnesis-${definition.code}`} value={sections[definition.code] || ""} placeholder={definition.placeholder} readOnly={readOnly} onChange={(event) => save({ ...sections, [definition.code]: event.target.value || undefined })} className={`${fieldClass} min-h-28 disabled:bg-slate-50`} /></article>)}</div> : <p className="mt-3 rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-500">Nessuna sezione anamnestica documentata.</p>}</section>
-    {selectorOpen && <AnamnesisSectionSelector active={active} onToggle={toggle} onClose={() => setSelectorOpen(false)} />}</StepCard>;
+    {selectorOpen && <AnamnesisSectionSelector active={active} onToggle={toggle} onClose={() => setSelectorOpen(false)} />}
+    {pendingRemoval && <DestructiveActionModal title="Rimuovere questa sezione anamnestica?" description="I dati inseriti nella sezione verranno eliminati." confirmLabel="Rimuovi sezione" busy={false} onClose={() => setPendingRemoval(undefined)} onConfirm={() => { remove(pendingRemoval); setPendingRemoval(undefined); setSelectorOpen(false); }} />}</StepCard>;
 }
 
 function AnamnesisSectionSelector({ active, onToggle, onClose }: { active: Set<AnamnesisSectionCode>; onToggle: (code: AnamnesisSectionCode) => boolean; onClose: () => void }) {

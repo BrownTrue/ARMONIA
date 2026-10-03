@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import type { CalendarFeedTitleFormat } from "@/lib/calendar-feed/ics";
+import { DestructiveActionModal } from "@/components/destructive-action-modal";
 
 type FeedStatus = {
   active: boolean;
@@ -27,6 +28,7 @@ export function CalendarFeedSettings({ cloudAvailable, googleConnected }: { clou
   const [feedUrl, setFeedUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string }>();
+  const [pendingAction, setPendingAction] = useState<"rotate" | "disable">();
 
   useEffect(() => {
     if (!cloudAvailable) return;
@@ -66,7 +68,7 @@ export function CalendarFeedSettings({ cloudAvailable, googleConnected }: { clou
         setStatus("inactive");
         setFeedUrl(undefined);
         setMessage({ kind: "success", text: "Calendario ARMONIA disattivato." });
-        return;
+        return true;
       }
       const value = await response.json() as FeedStatus;
       setStatus(value.active ? "active" : "inactive");
@@ -77,6 +79,7 @@ export function CalendarFeedSettings({ cloudAvailable, googleConnected }: { clou
       const code = cause instanceof Error ? Number(cause.message) : undefined;
       setStatus("error");
       setMessage({ kind: "error", text: friendlyError(code) });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -122,11 +125,13 @@ export function CalendarFeedSettings({ cloudAvailable, googleConnected }: { clou
           <p className="mt-3 text-sm leading-6 text-slate-500">Se non si apre automaticamente, copia il link e aggiungi una nuova sottoscrizione calendario dalle impostazioni di Apple Calendar.</p>
           <div className="mt-5 rounded-xl border border-sage-100 p-4 text-sm leading-6"><p className="font-bold">Outlook e altri client</p><p className="mt-1"><b>Outlook:</b> Aggiungi calendario → Sottoscrivi dal Web → incolla il link.</p><p className="mt-1"><b>Altri client:</b> cerca l’opzione per aggiungere un calendario tramite URL, iCalendar o WebCal.</p></div>
           <div className="mt-5 border-t border-sage-100 pt-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap"><button type="button" disabled={busy} onClick={() => { if (confirm("Il link attuale smetterà di funzionare. Dovrai aggiornare il calendario sui dispositivi dove lo hai già aggiunto.")) void request("PATCH", { action: "rotate" }).then(value => { if (value) setMessage({ kind: "success", text: "Nuovo link generato. Aggiorna la sottoscrizione sui tuoi dispositivi." }); }); }} className="btn btn-quiet w-full disabled:opacity-50 sm:w-auto">Rigenera link</button><button type="button" disabled={busy} onClick={() => { if (confirm("Il calendario non sarà più aggiornabile dai dispositivi che usano questo link. Gli appuntamenti in ARMONIA non verranno modificati.")) void request("DELETE"); }} className="btn btn-quiet w-full text-red-700 disabled:opacity-50 sm:w-auto">Disattiva calendario</button></div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap"><button type="button" disabled={busy} onClick={() => setPendingAction("rotate")} className="btn btn-quiet w-full disabled:opacity-50 sm:w-auto">Rigenera link</button><button type="button" disabled={busy} onClick={() => setPendingAction("disable")} className="btn btn-quiet w-full text-red-700 disabled:opacity-50 sm:w-auto">Disattiva calendario</button></div>
           </div>
         </>}
         {message && <p role={message.kind === "error" ? "alert" : "status"} className={`mt-4 text-sm font-bold ${message.kind === "error" ? "text-red-600" : "text-sage-700"}`}>{message.text}</p>}
       </>}
     </div>}
+    {pendingAction === "rotate" && <DestructiveActionModal title="Rigenerare il link calendario?" description="Il link attuale smetterà di funzionare e ne verrà generato uno nuovo." confirmLabel="Rigenera link" busyLabel="Generazione…" danger={false} busy={busy} error={message?.kind === "error" ? message.text : undefined} onClose={() => setPendingAction(undefined)} onConfirm={async () => { const value = await request("PATCH", { action: "rotate" }); if (value) { setMessage({ kind: "success", text: "Nuovo link generato. Aggiorna la sottoscrizione sui tuoi dispositivi." }); setPendingAction(undefined); } }} />}
+    {pendingAction === "disable" && <DestructiveActionModal title="Disattivare il calendario?" description="Il link corrente smetterà di aggiornare il calendario collegato." confirmLabel="Disattiva" busyLabel="Disattivazione…" busy={busy} error={message?.kind === "error" ? message.text : undefined} onClose={() => setPendingAction(undefined)} onConfirm={async () => { if (await request("DELETE")) setPendingAction(undefined); }} />}
   </div>;
 }

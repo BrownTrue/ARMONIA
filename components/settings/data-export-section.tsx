@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cloudExportSnapshot, localExportSnapshot } from "@/lib/data-export/reader";
 import { exportArchiveName, exportFiles, zipExport } from "@/lib/data-export/archive";
 import type { DataExportKind } from "@/lib/data-export/types";
+import { Modal } from "@/components/modal";
 
 const actions:[DataExportKind,string][]=[["patients","Esporta pazienti"],["appointments","Esporta appuntamenti"],["sessions","Esporta sedute"],["economy","Esporta dati economici"],["clinical","Esporta valutazioni cliniche"],["worksheets","Esporta schede e attività"],["materials","Esporta materiali"],["all","Esporta tutto"]];
 const singleton = new Set<DataExportKind>(["appointments","sessions","clinical"]);
@@ -17,10 +18,9 @@ function download(bytes:BlobPart,name:string,type:string){
 }
 
 export function DataExportSection({data,user,mode}:{data:AppData;user:User|null;mode:"local"|"cloud"|"error"}){
-  const [busy,setBusy]=useState<DataExportKind|null>(null),[message,setMessage]=useState<{kind:"success"|"error";text:string}|null>(null);
+  const [busy,setBusy]=useState<DataExportKind|null>(null),[message,setMessage]=useState<{kind:"success"|"error";text:string}|null>(null),[allOpen,setAllOpen]=useState(false);
   const run=async(kind:DataExportKind)=>{
     if(busy)return;
-    if(kind==="all"&&!window.confirm("Esportare tutti i dati?\n\nL’esportazione può contenere dati personali e sanitari. Conserva il file in un luogo sicuro."))return;
     setBusy(kind);setMessage(null);
     try{
       if(mode==="error")throw new Error("Archivio dati non disponibile.");
@@ -30,7 +30,8 @@ export function DataExportSection({data,user,mode}:{data:AppData;user:User|null;
       if(singleton.has(kind)&&files.length===1){const file=files[0];download(file.content,file.name.split("/").pop()!,file.name.endsWith(".json")?"application/json;charset=utf-8":"text/csv;charset=utf-8");}
       else download(zipExport(snapshot,kind),kind==="all"?exportArchiveName():`armonia-${kind}-${new Date().toISOString().slice(0,10)}.zip`,"application/zip");
       setMessage({kind:"success",text:"Esportazione completata. Il download è stato avviato."});
-    }catch(cause){setMessage({kind:"error",text:cause instanceof Error&&cause.message.includes("Accedi")?cause.message:"Non è stato possibile esportare i dati. Riprova."});}
+      return true;
+    }catch(cause){setMessage({kind:"error",text:cause instanceof Error&&cause.message.includes("Accedi")?cause.message:"Non è stato possibile esportare i dati. Riprova."});return false;}
     finally{setBusy(null)}
   };
   return <section className="card mt-5 max-w-2xl p-4 sm:p-6" aria-labelledby="data-export-title">
@@ -38,7 +39,8 @@ export function DataExportSection({data,user,mode}:{data:AppData;user:User|null;
     <h2 id="data-export-title" className="mt-1 font-bold">Esporta dati</h2>
     <p className="mt-1 text-sm text-slate-500">Scarica una copia dei dati presenti in ARMONIA.</p>
     <p className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">I file esportati possono contenere dati personali e sanitari. Conservali in un luogo sicuro.</p>
-    <div className="mt-5 grid gap-2 sm:grid-cols-2">{actions.map(([kind,label])=><button key={kind} type="button" disabled={busy!==null} onClick={()=>void run(kind)} className={`btn w-full disabled:cursor-wait disabled:opacity-50 ${kind==="all"?"btn-primary sm:col-span-2":"btn-quiet"}`}>{busy===kind?"Preparazione in corso…":label}</button>)}</div>
+    <div className="mt-5 grid gap-2 sm:grid-cols-2">{actions.map(([kind,label])=><button key={kind} type="button" disabled={busy!==null} onClick={()=>kind==="all"?setAllOpen(true):void run(kind)} className={`btn w-full disabled:cursor-wait disabled:opacity-50 ${kind==="all"?"btn-primary sm:col-span-2":"btn-quiet"}`}>{busy===kind?"Preparazione in corso…":label}</button>)}</div>
     {message&&<p role={message.kind==="error"?"alert":"status"} className={`mt-4 text-sm font-bold ${message.kind==="error"?"text-red-600":"text-sage-700"}`}>{message.text}</p>}
+    {allOpen&&<Modal title="Esportare tutti i dati?" onClose={()=>{if(!busy)setAllOpen(false)}}><p className="text-sm leading-6 text-slate-600">L’esportazione può contenere dati personali e sanitari. Conserva il file in un luogo sicuro.</p>{message?.kind==="error"&&<p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{message.text}</p>}<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={busy!==null} onClick={()=>setAllOpen(false)} className="btn btn-quiet disabled:opacity-50">Annulla</button><button type="button" disabled={busy!==null} aria-busy={busy==="all"} onClick={()=>void run("all").then((success)=>{if(success)setAllOpen(false)})} className="btn btn-primary disabled:cursor-wait disabled:opacity-60">{busy==="all"?"Preparazione in corso…":"Esporta"}</button></div></Modal>}
   </section>;
 }
