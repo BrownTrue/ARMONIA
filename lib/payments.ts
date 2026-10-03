@@ -1,4 +1,5 @@
 import type { Payment, PaymentAllocation, PaymentMethod, Session } from "./types.ts";
+import { euroInputToCents } from "./calendar-v2.ts";
 
 export type PaymentState = "price_unspecified" | "free" | "unpaid" | "partial" | "paid";
 export type PaymentStateSummary = {
@@ -19,6 +20,51 @@ export type CreatePaymentInput = {
   allocations: PaymentAllocationInput[];
   createdAt: string;
 };
+
+export type PaymentFormValidation = {
+  fieldErrors: Record<string, string>;
+  allocationErrors: Record<string, string>;
+  allocationError?: string;
+};
+
+export function safePaymentInputToCents(value: string): number | undefined {
+  try { return euroInputToCents(value); } catch { return undefined; }
+}
+
+export function validatePaymentForm(input: {
+  patientId: string;
+  paidOn: string;
+  amount: string;
+  allocationValues?: Record<string, string>;
+  residualBySession?: Record<string, number>;
+}): PaymentFormValidation {
+  const fieldErrors: Record<string, string> = {};
+  const allocationErrors: Record<string, string> = {};
+  if (!input.patientId) fieldErrors.patientId = "Seleziona un paziente.";
+  if (!input.paidOn) fieldErrors.paidOn = "Inserisci una data.";
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(input.paidOn) || Number.isNaN(new Date(`${input.paidOn}T12:00:00`).getTime())) fieldErrors.paidOn = "Inserisci una data valida.";
+  const amountCents = safePaymentInputToCents(input.amount);
+  if (amountCents === undefined) fieldErrors.amount = "Inserisci un importo valido.";
+  else if (amountCents <= 0) fieldErrors.amount = "L’importo deve essere maggiore di zero.";
+
+  let allocatedCents = 0;
+  for (const [sessionId, value] of Object.entries(input.allocationValues || {})) {
+    if (!value.trim()) continue;
+    const cents = safePaymentInputToCents(value);
+    if (cents === undefined || cents <= 0) {
+      allocationErrors[sessionId] = "Inserisci un importo allocato valido.";
+      continue;
+    }
+    allocatedCents += cents;
+    const residual = input.residualBySession?.[sessionId];
+    if (residual === undefined) allocationErrors[sessionId] = "Questa prestazione non è più disponibile.";
+    else if (cents > residual) allocationErrors[sessionId] = "L’importo supera il residuo della prestazione.";
+  }
+  const allocationError = amountCents !== undefined && amountCents > 0 && allocatedCents > amountCents
+    ? "La somma assegnata alle sedute supera l’importo dell’incasso."
+    : undefined;
+  return { fieldErrors, allocationErrors, allocationError };
+}
 
 const activePaymentIds = (payments: Payment[]) => new Set(payments.filter((payment) => payment.status === "active").map((payment) => payment.id));
 
