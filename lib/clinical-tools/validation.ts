@@ -1,12 +1,12 @@
 import type { ClinicalToolCatalogEntry } from "./types.ts";
 
 const INTEGRATION = new Set(["external", "catalog_only", "integrated"]);
-const LICENSE = new Set(["open_verified", "permission_required", "restricted", "unclear"]);
+const LICENSE = new Set(["open_verified", "permission_required", "restricted", "unclear", "armonia_original"]);
 const REVIEW = new Set(["reviewed", "needs_review"]);
 const RIGHTS = new Set(["allowed", "allowed_with_attribution", "allowed_with_conditions", "allowed_noncommercial_unmodified", "forbidden", "forbidden_except_license", "forbidden_without_permission", "permission_required", "restricted_to_language_translation", "unknown"]);
 const validUrl = (value: string | null) => value === null || (() => { try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; } })();
 
-export function validateClinicalToolCatalog(entries: readonly ClinicalToolCatalogEntry[], expectedCount = 38) {
+export function validateClinicalToolCatalog(entries: readonly ClinicalToolCatalogEntry[], expectedCount = 45) {
   const errors: string[] = [];
   const ids = new Set<string>();
   if (entries.length !== expectedCount) errors.push(`Il catalogo deve contenere ${expectedCount} strumenti, non ${entries.length}.`);
@@ -20,6 +20,12 @@ export function validateClinicalToolCatalog(entries: readonly ClinicalToolCatalo
     if (!INTEGRATION.has(entry.integrationStatus)) errors.push(`Stato integrazione non valido: ${at}.`);
     if (!LICENSE.has(entry.licenseStatus)) errors.push(`Stato licenza non valido: ${at}.`);
     if (!REVIEW.has(entry.catalogReviewStatus)) errors.push(`Stato revisione non valido: ${at}.`);
+    if (entry.origin === "armonia") {
+      if (entry.integrationStatus !== "catalog_only" || entry.licenseStatus !== "armonia_original") errors.push(`Originale ARMONIA con stato incoerente: ${at}.`);
+      if (entry.standardizationStatus !== "non_standardized") errors.push(`Originale ARMONIA senza stato non standardizzato: ${at}.`);
+      if (!entry.materials?.length || !entry.materials.some((material) => material.kind === "zip")) errors.push(`Originale ARMONIA senza materiali completi: ${at}.`);
+      if (new Set(entry.materials?.map((material) => material.id)).size !== entry.materials?.length) errors.push(`Materiale duplicato: ${at}.`);
+    }
     for (const value of [entry.rights.commercialUse, entry.rights.redistribution, entry.rights.modification, entry.rights.softwareIntegration]) if (!RIGHTS.has(value)) errors.push(`Diritto non valido (${value}): ${at}.`);
     if (![entry.officialUrl, entry.officialPurchaseUrl, entry.rights.licenseUrl].every(validUrl)) errors.push(`URL principale non valido: ${at}.`);
     if (entry.references.some((reference) => !reference.title.trim() || !validUrl(reference.url))) errors.push(`Riferimento non valido: ${at}.`);

@@ -1,4 +1,5 @@
 export type ClinicalToolReference = { kind: string; title: string; url: string };
+export type ClinicalToolMaterial = { id: string; label: string; fileName: string; kind: "pdf" | "docx" | "zip"; pageCount?: number };
 export type ClinicalToolRights = {
   licenseType: string;
   commercialUse: string;
@@ -45,8 +46,12 @@ export type ClinicalToolCatalogEntry = {
   officialUrl: string | null;
   officialPurchaseUrl: string | null;
   rights: ClinicalToolRights;
+  origin?: "external" | "armonia";
+  standardizationStatus?: "non_standardized";
+  editorialNotice?: string;
+  materials?: readonly ClinicalToolMaterial[];
   integrationStatus: "external" | "catalog_only" | "integrated";
-  licenseStatus: "open_verified" | "permission_required" | "restricted" | "unclear";
+  licenseStatus: "open_verified" | "permission_required" | "restricted" | "unclear" | "armonia_original";
   partnershipStatus: "none" | "partner";
   suggestedIntegration: string;
   references: readonly ClinicalToolReference[];
@@ -55,4 +60,4 @@ export type ClinicalToolCatalogEntry = {
 
 export type ClinicalToolAudienceFilter = "all" | "pediatric" | "adult";
 export type ClinicalToolAreaFilter = "all" | "language" | "voice" | "swallowing" | "fluency" | "aac" | "literacy";
-export type ClinicalToolStatusFilter = "all" | "integrated" | "open_verified" | "external" | "permission_required";
+export type ClinicalToolStatusFilter = "all" | "integrated" | "armonia_original" | "open_verified" | "external" | "permission_required";

@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
       "./lib/economic-documents/fonts/**/*",
       "./node_modules/pdfkit/js/standard-fonts/**/*",
     ],
+    "/api/clinical-tools/[toolId]/materials/[materialId]": [
+      "./private/clinical-tools/originals/**/*",
+    ],
   },
   async headers() {
     return [
