@@ -1,19 +1,20 @@
 "use client";
 import type { CSSProperties, MouseEvent } from "react";
-import type { Appointment, AppointmentLocation } from "@/lib/types";
-import { appointmentLocationColor, calendarEventColors, compactPatientName } from "@/lib/calendar-visual";
+import type { Appointment, AppointmentLocation, AppointmentService } from "@/lib/types";
+import { calendarEventColors, compactPatientName, getAppointmentDisplayColor } from "@/lib/calendar-visual";
 
-export function CalendarEventCard({ appointment, patientName, locations, density, className = "", style, onClick }: {
+export function CalendarEventCard({ appointment, patientName, locations, services, density, className = "", style, onClick }: {
   appointment: Appointment;
   patientName: string;
   locations: AppointmentLocation[];
+  services: AppointmentService[];
   density: "very-compact" | "compact" | "timed" | "agenda";
   className?: string;
   style?: CSSProperties;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const location = locations.find((item) => item.id === appointment.locationId);
-  const colors = calendarEventColors(appointmentLocationColor(appointment, locations));
+  const colors = calendarEventColors(getAppointmentDisplayColor(appointment, locations, services));
   const cancelled = appointment.type === "cancelled";
   const label = `${patientName}, ${appointment.time}, ${appointment.duration} minuti${appointment.serviceNameSnapshot ? `, ${appointment.serviceNameSnapshot}` : ""}${location ? `, sede ${location.name}` : ""}${cancelled ? ", annullato" : ""}`;
   return <button

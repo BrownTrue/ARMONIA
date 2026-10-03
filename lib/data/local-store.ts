@@ -57,6 +57,7 @@ export function normalizeAppData(value: unknown): AppData {
       profession: typeof profile.profession === "string" ? profile.profession : "",
       email: typeof profile.email === "string" ? profile.email : "",
       studio: typeof profile.studio === "string" ? profile.studio : "",
+      calendarColorMode: profile.calendarColorMode === "service" ? "service" : "location",
     },
   };
 }

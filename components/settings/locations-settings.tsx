@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/modal";
 import { Field } from "@/components/form-controls";
+import { CalendarColorPicker } from "@/components/settings/calendar-color-picker";
 import { useData } from "@/components/data-provider";
-import { LOCATION_COLOR_PALETTE, nextLocationColor } from "@/lib/calendar-v2";
+import { nextCalendarColor } from "@/lib/calendar-v2";
 import type { AppointmentLocation } from "@/lib/types";
 import { uid } from "@/lib/types";
 
@@ -33,7 +34,7 @@ export function LocationsSettings() {
     const timestamp = new Date().toISOString();
     setEditing({
       id: uid(), name: "", address: "", city: "",
-      color: nextLocationColor(data.locations), isActive: true,
+      color: nextCalendarColor(data.locations), isActive: true,
       displayOrder: data.locations.reduce((max, item) => Math.max(max, item.displayOrder), -1) + 1,
       createdAt: timestamp, updatedAt: timestamp,
     });
@@ -84,7 +85,7 @@ function LocationModal({ location, usedColors, onClose, onSave }: { location: Ap
   const [error, setError] = useState<string | null>(null);
   return <Modal title={location.name ? "Modifica sede" : "Nuova sede"} onClose={() => !busy && onClose()}><form onSubmit={async (event) => { event.preventDefault(); const name = value.name.trim(); if (!name) { setError("Inserisci il nome della sede."); return; } setBusy(true); setError(null); try { await onSave({ ...value, name, address: value.address.trim(), city: value.city.trim(), updatedAt: new Date().toISOString() }); } catch (cause) { setError(humanLocationError(cause, "save")); setBusy(false); } }}>
     <div className="space-y-4"><Field label="Nome sede *" required maxLength={120} placeholder="Studio privato" value={value.name} onChange={(event) => setValue((old) => ({ ...old, name: event.target.value }))}/><Field label="Indirizzo" placeholder="Via …" value={value.address} onChange={(event) => setValue((old) => ({ ...old, address: event.target.value }))}/><Field label="Città" placeholder="Avezzano" value={value.city} onChange={(event) => setValue((old) => ({ ...old, city: event.target.value }))}/>
-      <fieldset><legend className="text-sm font-bold">Colore *</legend><p className="mt-1 text-xs text-slate-500">Il colore verrà utilizzato per riconoscere la sede nel calendario.</p><div className="mt-3 grid grid-cols-6 gap-2 sm:grid-cols-12">{LOCATION_COLOR_PALETTE.map((color) => { const selected = value.color.toUpperCase() === color.hex; const alreadyUsed = usedColors.some((item) => item.id !== value.id && item.color.toUpperCase() === color.hex); return <button key={color.hex} type="button" aria-label={`${color.name}${selected ? ", selezionato" : ""}${alreadyUsed ? ", già utilizzato" : ""}`} aria-pressed={selected} title={color.name} onClick={() => setValue((old) => ({ ...old, color: color.hex }))} className={`grid aspect-square min-h-11 place-items-center rounded-xl border-2 outline-none focus-visible:ring-2 focus-visible:ring-sage-600 focus-visible:ring-offset-2 ${selected ? "border-slate-700" : "border-white"}`} style={{ backgroundColor: color.hex }}><span aria-hidden="true" className="text-lg font-black text-white drop-shadow">{selected ? "✓" : ""}</span></button>; })}</div></fieldset>
+      <CalendarColorPicker value={value.color} onChange={(color) => setValue((old) => ({ ...old, color }))} usedColors={usedColors.filter((item) => item.id !== value.id)} description="Il colore verrà utilizzato per riconoscere la sede nel calendario."/>
     </div>{error && <p role="alert" className="mt-4 text-sm font-bold text-red-700">{error}</p>}<div className="form-actions mt-6"><button type="button" disabled={busy} className="btn btn-quiet" onClick={onClose}>Annulla</button><button type="submit" disabled={busy} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Salvataggio…" : "Salva sede"}</button></div>
   </form></Modal>;
 }

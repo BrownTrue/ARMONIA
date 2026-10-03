@@ -10,7 +10,7 @@ import type { Appointment } from "@/lib/types";
 import { fullName, today } from "@/lib/types";
 import { formatEuroCents } from "@/lib/calendar-v2";
 import { MonthView as CalendarMonthView, WeekView as CalendarWeekView, addDays, weekStart } from "@/components/calendar-views";
-import { appointmentLocationColor, calendarEventColors } from "@/lib/calendar-visual";
+import { calendarEventColors, getAppointmentDisplayColor } from "@/lib/calendar-visual";
 import { cancelAppointment, canRegisterAppointmentSession, sessionForAppointment } from "@/lib/appointment-actions";
 
 type View = "month" | "week" | "agenda";
@@ -149,6 +149,7 @@ export default function Calendar() {
           appointments={data.appointments}
           patients={data.patients}
           locations={data.locations}
+          services={data.services}
           onCreate={(date) => setEditor({ date })}
           onEdit={(appointment) => setEditor({ appointment })}
         />
@@ -158,6 +159,7 @@ export default function Calendar() {
           appointments={data.appointments}
           patients={data.patients}
           locations={data.locations}
+          services={data.services}
           onCreate={(date, time) => setEditor({ date, time })}
           onEdit={(appointment) => setEditor({ appointment })}
         />
@@ -167,6 +169,7 @@ export default function Calendar() {
           sessions={data.sessions}
           patients={data.patients}
           locations={data.locations}
+          services={data.services}
           showPast={showPast}
           setShowPast={setShowPast}
           onEdit={(appointment) => setEditor({ appointment })}
@@ -436,6 +439,7 @@ function Agenda({
   sessions,
   patients,
   locations,
+  services,
   showPast,
   setShowPast,
   onEdit,
@@ -444,6 +448,7 @@ function Agenda({
   sessions: ReturnType<typeof useData>["data"]["sessions"];
   patients: ReturnType<typeof useData>["data"]["patients"];
   locations: ReturnType<typeof useData>["data"]["locations"];
+  services: ReturnType<typeof useData>["data"]["services"];
   showPast: boolean;
   setShowPast: (v: boolean) => void;
   onEdit: (a: Appointment) => void;
@@ -492,7 +497,7 @@ function Agenda({
               <div className="space-y-2">
                 {items.map((a) => {
                   const location=locations.find(item=>item.id===a.locationId);
-                  const colors=calendarEventColors(appointmentLocationColor(a,locations));
+                  const colors=calendarEventColors(getAppointmentDisplayColor(a,locations,services));
                   return (
                   <article
                     key={a.id}

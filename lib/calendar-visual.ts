@@ -1,11 +1,23 @@
-import type { Appointment, AppointmentLocation } from "./types";
+import type { Appointment, AppointmentLocation, AppointmentService } from "./types";
 
 export const FALLBACK_APPOINTMENT_COLOR = "#77A886";
+export const CANCELLED_APPOINTMENT_COLOR = "#94A3B8";
 
 const validHex = (value?: string) => value && /^#[0-9A-F]{6}$/i.test(value) ? value.toUpperCase() : FALLBACK_APPOINTMENT_COLOR;
 
 export function appointmentLocationColor(appointment: Appointment, locations: Pick<AppointmentLocation, "id" | "color">[]) {
   return validHex(locations.find((location) => location.id === appointment.locationId)?.color);
+}
+
+export function getAppointmentDisplayColor(
+  appointment: Appointment,
+  locations: Pick<AppointmentLocation, "id" | "color">[],
+  services: Pick<AppointmentService, "id" | "color">[],
+) {
+  if (appointment.type === "cancelled") return CANCELLED_APPOINTMENT_COLOR;
+  const serviceColor = services.find((service) => service.id === appointment.serviceId)?.color;
+  if (serviceColor && /^#[0-9A-F]{6}$/i.test(serviceColor)) return serviceColor.toUpperCase();
+  return appointmentLocationColor(appointment, locations);
 }
 
 export function calendarEventColors(color?: string) {

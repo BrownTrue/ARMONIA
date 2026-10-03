@@ -1,6 +1,6 @@
 import type { Appointment, AppointmentLocation, AppointmentService } from "./types";
 
-export const LOCATION_COLOR_PALETTE = [
+export const CALENDAR_COLOR_PALETTE = [
   { name: "Salvia", hex: "#77A886" },
   { name: "Lavanda", hex: "#9B8CC4" },
   { name: "Azzurro polvere", hex: "#70A6C2" },
@@ -14,14 +14,16 @@ export const LOCATION_COLOR_PALETTE = [
   { name: "Verde eucalipto", hex: "#5F9B88" },
   { name: "Malva", hex: "#B477A0" },
 ] as const;
+export const LOCATION_COLOR_PALETTE = CALENDAR_COLOR_PALETTE;
 
 const MAX_DATABASE_PRICE_CENTS = 2_147_483_647;
 
-export function nextLocationColor(locations: Pick<AppointmentLocation, "color">[]): string {
-  const used = new Set(locations.map((location) => location.color.toUpperCase()));
-  return LOCATION_COLOR_PALETTE.find((color) => !used.has(color.hex))?.hex
-    ?? LOCATION_COLOR_PALETTE[locations.length % LOCATION_COLOR_PALETTE.length].hex;
+export function nextCalendarColor(items: { color?: string | null }[]): string {
+  const used = new Set(items.flatMap((item) => item.color ? [item.color.toUpperCase()] : []));
+  return CALENDAR_COLOR_PALETTE.find((color) => !used.has(color.hex))?.hex
+    ?? CALENDAR_COLOR_PALETTE[items.length % CALENDAR_COLOR_PALETTE.length].hex;
 }
+export const nextLocationColor = nextCalendarColor;
 
 export function euroInputToCents(value: string): number | undefined {
   const normalized = value.trim().replace(",", ".");
