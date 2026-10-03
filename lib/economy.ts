@@ -97,7 +97,7 @@ export function filterEconomySessions(sessions: Session[], filters: EconomyFilte
     && (!filters.serviceKey || economyServiceKey(session) === filters.serviceKey));
 }
 
-export function deliveredValueCents(sessions: Session[]): number {
+export function deliveredValueCents(sessions: Pick<Session, "effectivePriceCents">[]): number {
   return sessions.reduce((total, session) => total + (session.effectivePriceCents ?? 0), 0);
 }
 

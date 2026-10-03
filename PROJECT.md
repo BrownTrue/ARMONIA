@@ -129,7 +129,7 @@ Il backend espone un feed iCalendar privato, read-only e indipendente da Google 
 
 ### Statistiche
 
-È presente una pagina con conteggi di sedute, pazienti attivi, obiettivi raggiunti e andamento recente.
+Statistiche V2 offre una sintesi operativa filtrabile per periodo: sedute registrate, ore lavorate, pazienti seguiti, giorni lavorati, andamento temporale, prestazioni, stato dell'agenda, pazienti ed economia. Le metriche di attività usano le Session realmente registrate e non inferiscono outcome clinici. In cloud la pagina usa un reader Supabase dedicato, paginato e limitato ai soli campi necessari di sedute, appuntamenti, pazienti, pagamenti e catalogo prestazioni; in locale applica le stesse formule all'`AppData` normalizzato.
 
 ## Supabase e deployment
 

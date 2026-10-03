@@ -45,7 +45,7 @@ export function paymentStateForSession(session: Session, payments: Payment[], al
   return { state: allocatedCents === 0 ? "unpaid" : residualCents === 0 ? "paid" : "partial", allocatedCents, residualCents };
 }
 
-export function receivedCentsInPeriod(payments: Payment[], period: PaymentPeriod): number {
+export function receivedCentsInPeriod(payments: Pick<Payment, "amountCents" | "paidAt" | "status">[], period: PaymentPeriod): number {
   return payments.reduce((total, payment) => total + (payment.status === "active" && (!period.from || payment.paidAt >= period.from) && (!period.to || payment.paidAt <= period.to) ? payment.amountCents : 0), 0);
 }
 

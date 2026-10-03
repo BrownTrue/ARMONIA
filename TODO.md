@@ -2,6 +2,8 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- Collaudare manualmente Statistiche V2 su desktop e mobile verificando periodi, KPI, grafico, prestazioni, Agenda, Pazienti, sintesi Economia e intervalli senza sedute. L'implementazione non introduce migration e non usa dati clinici per stimare outcome.
+
 ## Priorità alta
 
 - Se le disconnessioni ricompaiono, recuperare prima di modificare le impostazioni Supabase il buffer diagnostico temporaneo con `JSON.parse(sessionStorage.getItem("armonia-auth-diagnostics-v1") || "[]")` e analizzare gli eventi auth/bootstrap. Persistenza e auto-refresh Supabase non sono stati modificati.
