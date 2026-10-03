@@ -35,7 +35,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Miglioramenti
 
-- Estendere “Modulistica e handout” soltanto in un workstream dedicato: le attestazioni di presenza e di percorso sono placeholder non interattivi; compilazione, dati professionali e generazione documenti non fanno parte della Fase 1.
+- Implementare in un workstream dedicato l'attestazione di percorso logopedico. L'attestazione di presenza è live e genera localmente un PDF non persistito da una Session registrata; non introdurre storico o Storage senza una nuova decisione di prodotto.
 
 - Valutare separatamente in un futuro task UX gli avatar paziente illustrati; non fanno parte di A1A/A1B.
 

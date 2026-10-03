@@ -6,10 +6,12 @@ const attestations = [
   {
     title: "Attestazione di presenza",
     description: "Documento professionale compilabile con i dati della presenza e del professionista.",
+    href: "/risorse/documenti/presenza",
   },
   {
     title: "Attestazione di percorso logopedico",
     description: "Documento compilabile per attestare in modo essenziale un percorso logopedico.",
+    href: undefined,
   },
 ] as const;
 
@@ -26,13 +28,14 @@ export default function ResourceDocumentsPage() {
       <p className="text-xs font-bold uppercase tracking-[.16em] text-sage-600">Modulistica</p>
       <h2 id="attestations-title" className="mt-1 text-2xl font-bold">Attestazioni</h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {attestations.map((attestation) => <article key={attestation.title} className="rounded-[1.5rem] border border-sage-100 bg-white p-5 shadow-[0_12px_32px_rgba(43,69,55,.05)] sm:p-6">
+        {attestations.map((attestation) => <article key={attestation.title} className="flex flex-col rounded-[1.5rem] border border-sage-100 bg-white p-5 shadow-[0_12px_32px_rgba(43,69,55,.05)] sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <span className="rounded-full bg-sage-50 px-3 py-1 text-xs font-bold text-sage-700">Compilabile in ARMONIA</span>
-            <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-bold text-slate-500">Prossimamente</span>
+            {!attestation.href && <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-bold text-slate-500">Prossimamente</span>}
           </div>
           <h3 className="mt-5 text-lg font-bold text-slate-900">{attestation.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{attestation.description}</p>
+          <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{attestation.description}</p>
+          {attestation.href && <Link href={attestation.href} className="mt-5 inline-flex min-h-11 items-center self-start rounded-xl bg-sage-700 px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2">Compila</Link>}
         </article>)}
       </div>
     </section>
