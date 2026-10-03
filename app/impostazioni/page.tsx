@@ -13,12 +13,13 @@ import {resyncAllGoogleAppointments,syncPendingGoogleOperations} from "@/lib/goo
 import {googleSyncErrorPresentation,googleSyncStatusPresentation} from "@/lib/google-calendar/user-facing-status";
 import { CalendarFeedSettings } from "@/components/calendar-feed-settings";
 import { Modal } from "@/components/modal";
+import { DataExportSection } from "@/components/settings/data-export-section";
 type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
 const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
 const emptyProfessionalDetails=(details?:ProfessionalDocumentDetails):ProfessionalDocumentDetails=>details||{userId:"local",taxCode:"",vatNumber:"",address:"",postalCode:"",city:"",province:"",country:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
 export default function Settings() {
   const router = useRouter();
-  const { data, ready, connection, saveProfile, saveProfessionalDocumentDetails, deleteProfessionalDocumentDetails, signOut } = useData();
+  const { data, ready, user, connection, saveProfile, saveProfessionalDocumentDetails, deleteProfessionalDocumentDetails, signOut } = useData();
   const { logoSrc, hasCustomLogo, ready: brandingReady, saveLogo, removeLogo } = useBranding();
   const logoInput = useRef<HTMLInputElement>(null);
   const consumeGoogleOAuthResult=useRef(createGoogleOAuthResultConsumer()).current;
@@ -162,6 +163,7 @@ export default function Settings() {
         <div className="mt-4"><CalendarFeedSettings cloudAvailable={cloudDataMode} googleConnected={Boolean(google?.connected)}/></div>
       </section>
       {calendarsHelpOpen&&<Modal title="Come funzionano i calendari?" onClose={()=>setCalendarsHelpOpen(false)}><div className="space-y-5 text-sm leading-6 text-slate-600"><section><h3 className="font-bold text-slate-800">Google Calendar</h3><p className="mt-1">Per chi usa Google Calendar. ARMONIA crea e aggiorna automaticamente gli appuntamenti nel calendario Google dedicato.</p></section><section><h3 className="font-bold text-slate-800">Calendario ARMONIA</h3><p className="mt-1">Per Apple Calendar, Outlook e altri client compatibili. È un calendario privato in sola lettura. Gli appuntamenti si modificano sempre in ARMONIA.</p><p className="mt-2">Il Calendario ARMONIA espone sempre gli appuntamenti aggiornati, ma è l’app calendario a decidere quando ricontrollarli. Con intervalli lunghi, ad esempio settimanali, le modifiche possono comparire con molto ritardo.</p></section><p className="rounded-xl bg-amber-50 p-4 text-amber-900">Puoi usare entrambi, ma se sono visibili nella stessa app potresti vedere gli stessi appuntamenti due volte.</p></div></Modal>}
+      <DataExportSection data={data} user={user} mode={connection.kind}/>
       <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <h2 className="font-bold">Account</h2>
         <button

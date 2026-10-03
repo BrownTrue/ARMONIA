@@ -55,3 +55,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 - Aggiungere, dopo una progettazione completa e sicura, le operazioni sulle serie “questo e successivi” e “intera serie”.
 - Valutare uno storico revisioni delle valutazioni cliniche completate, con audit log, autore e confronto tra versioni; l’MVP attuale sovrascrive la versione precedente durante una correzione esplicita.
+## Export dati
+
+- [x] User Data Export V1 client-side (CSV/JSON/ZIP, senza binari Storage e senza migration).
+- [ ] Valutare separatamente un futuro backup/restore infrastrutturale; non fa parte dell'export V1.

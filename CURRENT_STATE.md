@@ -162,3 +162,7 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - È stata aggiunta la registrazione retroattiva delle sedute preservando data reale e collegamento all'appuntamento.
 - È stata aggiunta la sincronizzazione Google Calendar e la struttura server-side prevista per persisterla in modalità cloud.
 - Sono state aggiunte serie settimanali materializzate come appuntamenti indipendenti, con riferimento comune nullable e sincronizzazione Google separata per occorrenza.
+## User Data Export V1
+
+- Implementato localmente l'export dati utente dalle Impostazioni, interamente client-side, con lettura cloud paginata e modalità locale compatibile con gli archivi normalizzati.
+- CSV/JSON e ZIP sono generati solo in memoria; i binari Storage, i token e i dati tecnici delle integrazioni sono esclusi. La funzione non è un backup ripristinabile e non richiede migration.

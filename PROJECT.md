@@ -155,3 +155,6 @@ I log server di Google Calendar e della Libreria terapeutica usano una diagnosti
 - La prestazione erogata e il relativo valore storico appartengono alla seduta; appuntamento e catalogo sono soltanto fonti iniziali e non restano collegati in modo live.
 - Risposte server sensibili non memorizzabili e diagnostica priva di identificatori clinici intenzionali.
 - Il restyling UX/UI trasversale dell'app è pianificato come fase pre-lancio separata dai blocchi funzionali già conclusi.
+## Esportazione dati utente
+
+ARMONIA offre un export portabile client-side in CSV/JSON e ZIP. L'export comprende dati professionali, pazienti, agenda, sedute, clinica, economia, schede e metadati dei materiali; non comprende binari Storage, segreti delle integrazioni o funzioni di ripristino.
