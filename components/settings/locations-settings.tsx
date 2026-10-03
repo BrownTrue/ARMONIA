@@ -8,6 +8,7 @@ import { useData } from "@/components/data-provider";
 import { nextCalendarColor } from "@/lib/calendar-v2";
 import type { AppointmentLocation } from "@/lib/types";
 import { uid } from "@/lib/types";
+import { focusFirstInvalidField, validateLocationForm, type FieldErrors } from "@/lib/form-validation";
 
 const sortLocations = (locations: AppointmentLocation[]) => [...locations].sort((a, b) =>
   a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "it"),
@@ -82,10 +83,11 @@ export function LocationsSettings() {
 function LocationModal({ location, usedColors, onClose, onSave }: { location: AppointmentLocation; usedColors: AppointmentLocation[]; onClose: () => void; onSave: (location: AppointmentLocation) => Promise<void> }) {
   const [value, setValue] = useState(location);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  return <Modal title={location.name ? "Modifica sede" : "Nuova sede"} onClose={() => !busy && onClose()}><form onSubmit={async (event) => { event.preventDefault(); const name = value.name.trim(); if (!name) { setError("Inserisci il nome della sede."); return; } setBusy(true); setError(null); try { await onSave({ ...value, name, address: value.address.trim(), city: value.city.trim(), updatedAt: new Date().toISOString() }); } catch (cause) { setError(humanLocationError(cause, "save")); setBusy(false); } }}>
-    <div className="space-y-4"><Field label="Nome sede *" required maxLength={120} placeholder="Studio privato" value={value.name} onChange={(event) => setValue((old) => ({ ...old, name: event.target.value }))}/><Field label="Indirizzo" placeholder="Via …" value={value.address} onChange={(event) => setValue((old) => ({ ...old, address: event.target.value }))}/><Field label="Città" placeholder="Avezzano" value={value.city} onChange={(event) => setValue((old) => ({ ...old, city: event.target.value }))}/>
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  return <Modal title={location.name ? "Modifica sede" : "Nuova sede"} onClose={() => !busy && onClose()}><form noValidate onSubmit={async (event) => { event.preventDefault(); const name = value.name.trim(); const errors=validateLocationForm({name}); if(Object.keys(errors).length){setFieldErrors(errors);setServerError(null);focusFirstInvalidField(errors);return;} setBusy(true); setFieldErrors({}); setServerError(null); try { await onSave({ ...value, name, address: value.address.trim(), city: value.city.trim(), updatedAt: new Date().toISOString() }); } catch (cause) { setServerError(humanLocationError(cause, "save")); setBusy(false); } }}>
+    <div className="space-y-4"><Field id="location-name" data-validation-field="name" label="Nome sede *" required maxLength={120} placeholder="Studio privato" value={value.name} error={fieldErrors.name} onChange={(event) => {setValue((old) => ({ ...old, name: event.target.value }));setFieldErrors({});}}/><Field label="Indirizzo" placeholder="Via …" value={value.address} onChange={(event) => setValue((old) => ({ ...old, address: event.target.value }))}/><Field label="Città" placeholder="Avezzano" value={value.city} onChange={(event) => setValue((old) => ({ ...old, city: event.target.value }))}/>
       <CalendarColorPicker value={value.color} onChange={(color) => setValue((old) => ({ ...old, color }))} usedColors={usedColors.filter((item) => item.id !== value.id)} description="Il colore verrà utilizzato per riconoscere la sede nel calendario."/>
-    </div>{error && <p role="alert" className="mt-4 text-sm font-bold text-red-700">{error}</p>}<div className="form-actions mt-6"><button type="button" disabled={busy} className="btn btn-quiet" onClick={onClose}>Annulla</button><button type="submit" disabled={busy} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Salvataggio…" : "Salva sede"}</button></div>
+    </div>{serverError && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{serverError}</p>}<div className="form-actions mt-6"><button type="button" disabled={busy} className="btn btn-quiet" onClick={onClose}>Annulla</button><button type="submit" disabled={busy} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Salvataggio…" : "Salva sede"}</button></div>
   </form></Modal>;
 }

@@ -6,6 +6,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Collaudare manualmente la Validation UX P1 su nuovo/modifica Paziente, dati amministrativi, nuovo/modifica Appuntamento e ricorrenza, Sedi e Prestazioni, verificando errori inline, scroll/focus al primo campo e distinzione dai fallimenti server.
+
 - Collaudare manualmente la validazione contestuale di Clinical Assessment V2 su desktop e mobile: completamento con data o area mancante, warning nello stepper, navigazione/focus, correzione e successivo completamento. Autosave e QAB restano invariati.
 
 - Se le disconnessioni ricompaiono, recuperare prima di modificare le impostazioni Supabase il buffer diagnostico temporaneo con `JSON.parse(sessionStorage.getItem("armonia-auth-diagnostics-v1") || "[]")` e analizzare gli eventi auth/bootstrap. Persistenza e auto-refresh Supabase non sono stati modificati.

@@ -9,10 +9,10 @@ import {
   copyPatientAddressToRecipient,
   detailsByPatientId,
   isEmptyPatientAdministrativeDetails,
-  isValidAdministrativeEmail,
   normalizePatientAdministrativeDetails,
 } from "@/lib/patient-administrative-details";
 import type { Patient, PatientAdministrativeDetails } from "@/lib/types";
+import { focusFirstInvalidField, validateAdministrativeDetails, type FieldErrors } from "@/lib/form-validation";
 
 const timestamp = () => new Date().toISOString();
 export const blankPatientAdministrativeDetails = (patientId: string): PatientAdministrativeDetails => ({
@@ -59,30 +59,32 @@ function PatientAdministrativeDetailsModal({ patient, existing, onClose, onSave,
 }) {
   const [draft, setDraft] = useState<PatientAdministrativeDetails>(() => existing ? { ...existing } : blankPatientAdministrativeDetails(patient.id));
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState("");
   const remove = async () => {
     if (!existing || !window.confirm("Rimuovere i dati amministrativi di questo paziente?")) return;
-    setSaving(true); setError("");
+    setSaving(true); setServerError("");
     try { await onDelete(patient.id); onClose(); }
-    catch { setError("Non è stato possibile rimuovere i dati amministrativi. Riprova."); setSaving(false); }
+    catch { setServerError("Non è stato possibile rimuovere i dati amministrativi. Riprova."); setSaving(false); }
   };
   return <Modal title={existing ? "Modifica dati amministrativi" : "Completa dati amministrativi"} onClose={() => !saving && onClose()}>
-    <form onSubmit={async (event) => {
+    <form noValidate onSubmit={async (event) => {
       event.preventDefault();
       if (saving) return;
-      if (!isValidAdministrativeEmail(draft.administrativeEmail)) { setError("Inserisci un indirizzo email valido oppure lascia il campo vuoto."); return; }
-      setSaving(true); setError("");
+      const errors = validateAdministrativeDetails({ administrativeEmail: draft.administrativeEmail });
+      if (Object.keys(errors).length) { setFieldErrors(errors); setServerError(""); focusFirstInvalidField(errors); return; }
+      setSaving(true); setFieldErrors({}); setServerError("");
       const normalized = normalizePatientAdministrativeDetails({ ...draft, updatedAt: timestamp() });
       try {
         if (isEmptyPatientAdministrativeDetails(normalized)) {
           if (existing) await onDelete(patient.id);
         } else await onSave(normalized);
         onClose();
-      } catch { setError("Non è stato possibile salvare i dati amministrativi. Riprova."); setSaving(false); }
+      } catch { setServerError("Non è stato possibile salvare i dati amministrativi. Riprova."); setSaving(false); }
     }} className="space-y-6">
-      <PatientAdministrativeDetailsFields patient={patient} value={draft} onChange={setDraft} />
+      <PatientAdministrativeDetailsFields patient={patient} value={draft} onChange={(details)=>{setDraft(details);setFieldErrors({});}} errors={fieldErrors} />
 
-      {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p>}
+      {serverError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{serverError}</p>}
       <div className="flex flex-col gap-3 border-t border-sage-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div>{existing && <button type="button" disabled={saving} onClick={() => void remove()} className="min-h-11 text-sm font-bold text-red-600 disabled:opacity-50">Rimuovi dati amministrativi</button>}</div>
         <div className="form-actions sm:mt-0"><button type="button" disabled={saving} onClick={onClose} className="btn btn-quiet disabled:opacity-50">Annulla</button><button type="submit" disabled={saving} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvataggio…" : "Salva"}</button></div>
@@ -91,7 +93,7 @@ function PatientAdministrativeDetailsModal({ patient, existing, onClose, onSave,
   </Modal>;
 }
 
-export function PatientAdministrativeDetailsFields({ patient, value: draft, onChange: setDraft }: { patient: Patient; value: PatientAdministrativeDetails; onChange: (details: PatientAdministrativeDetails) => void }) {
+export function PatientAdministrativeDetailsFields({ patient, value: draft, onChange: setDraft, errors = {} }: { patient: Patient; value: PatientAdministrativeDetails; onChange: (details: PatientAdministrativeDetails) => void; errors?: FieldErrors }) {
   const update = (field: keyof PatientAdministrativeDetails, value: string) => setDraft({ ...draft, [field]: value });
   return <>
     <AdministrativeSection title="Dati fiscali del paziente">
@@ -124,7 +126,7 @@ export function PatientAdministrativeDetailsFields({ patient, value: draft, onCh
       </div>}
     </AdministrativeSection>
     <AdministrativeSection title="Email amministrativa">
-      <AdministrativeField label="Email amministrativa" type="email" value={draft.administrativeEmail} onChange={(value) => update("administrativeEmail", value)} autoComplete="email" />
+      <AdministrativeField id="administrative-email" data-validation-field="administrativeEmail" label="Email amministrativa" type="email" value={draft.administrativeEmail} error={errors.administrativeEmail} onChange={(value) => update("administrativeEmail", value)} autoComplete="email" />
       <p className="mt-2 text-xs leading-5 text-slate-500">Per future comunicazioni o documenti amministrativi.</p>
     </AdministrativeSection>
   </>;
@@ -134,8 +136,8 @@ function AdministrativeSection({ title, children }: { title: string; children: R
   return <section className="rounded-2xl border border-sage-100 bg-sage-50/30 p-4 sm:p-5"><h3 className="mb-4 font-bold text-slate-800">{title}</h3>{children}</section>;
 }
 
-function AdministrativeField({ label, value, onChange, wrapperClassName = "", className = "", ...props }: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & { label: string; value?: string; onChange: (value: string) => void; wrapperClassName?: string }) {
-  return <div className={wrapperClassName}><Field {...props} label={label} value={value || ""} onChange={(event) => onChange(event.target.value)} className={className} /></div>;
+function AdministrativeField({ label, value, onChange, wrapperClassName = "", className = "", error, ...props }: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & { label: string; value?: string; onChange: (value: string) => void; wrapperClassName?: string; error?: string }) {
+  return <div className={wrapperClassName}><Field {...props} label={label} value={value || ""} error={error} onChange={(event) => onChange(event.target.value)} className={className} /></div>;
 }
 
 function SubjectOption({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
