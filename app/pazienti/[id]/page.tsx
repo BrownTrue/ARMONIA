@@ -28,6 +28,7 @@ export default function PatientPage() {
     [detail, setDetail] = useState<Session | null>(null),
     [goalEdit, setGoalEdit] = useState<Goal | "new" | null>(null),
     [newGoalPathwayId, setNewGoalPathwayId] = useState<string | undefined>(),
+    [deletePatientOpen, setDeletePatientOpen] = useState(false),
     [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
     [activityQuery, setActivityQuery] = useState(""),
     [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview");
@@ -102,7 +103,7 @@ export default function PatientPage() {
           <button onClick={() => setEdit(true)} className="btn btn-quiet w-full px-3 text-sm sm:w-auto">
             Modifica paziente
           </button>
-          <details className="relative"><summary aria-label="Altre azioni paziente" className="grid min-h-11 cursor-pointer list-none place-items-center rounded-xl px-4 text-xl font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">•••</summary><div className="absolute right-0 z-10 mt-2 min-w-44 rounded-xl border border-sage-100 bg-white p-2 shadow-lg"><button onClick={() => { if (confirm("Eliminare il paziente e tutti i dati collegati?")) { deletePatient(p.id); router.push("/pazienti"); } }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina paziente</button></div></details>
+          <details className="relative"><summary aria-label="Altre azioni paziente" className="grid min-h-11 cursor-pointer list-none place-items-center rounded-xl px-4 text-xl font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">•••</summary><div className="absolute right-0 z-10 mt-2 min-w-44 rounded-xl border border-sage-100 bg-white p-2 shadow-lg"><button onClick={() => setDeletePatientOpen(true)} className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina paziente</button></div></details>
         </div>
       </header>
       <nav aria-label="Sezioni paziente" className="mt-5 grid grid-cols-4 gap-0 border-b border-slate-200 sm:mt-7 sm:flex sm:gap-3">
@@ -183,8 +184,22 @@ export default function PatientPage() {
           />
         </Modal>
       )}
+      {deletePatientOpen && <DeletePatientModal patientName={fullName(p)} onClose={() => setDeletePatientOpen(false)} onConfirm={async () => { await deletePatient(p.id); router.push("/pazienti"); }} />}
     </AppShell>
   );
+}
+
+function DeletePatientModal({ patientName, onClose, onConfirm }: { patientName: string; onClose: () => void; onConfirm: () => Promise<void> }) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+  const remove = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setError("");
+    try { await onConfirm(); }
+    catch { setError("Non è stato possibile eliminare il paziente. Riprova tra poco."); setDeleting(false); }
+  };
+  return <Modal title="Eliminare questo paziente?" onClose={() => { if (!deleting) onClose(); }}><div className="space-y-4 text-sm leading-6 text-slate-600"><p>Stai per eliminare definitivamente <strong>{patientName}</strong> e i dati collegati secondo il comportamento attuale di ARMONIA. Questa operazione non può essere annullata.</p>{error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 font-medium text-red-700">{error}</p>}</div><div className="form-actions mt-6"><button type="button" disabled={deleting} onClick={onClose} className="btn btn-quiet disabled:opacity-50">Annulla</button><button type="button" disabled={deleting} aria-busy={deleting} onClick={() => void remove()} className="btn bg-red-600 text-white disabled:cursor-wait disabled:opacity-60">{deleting ? "Eliminazione…" : error ? "Riprova eliminazione" : "Elimina paziente"}</button></div></Modal>;
 }
 
 function PatientEconomyDatum({label,value}:{label:string;value:string}) { return <div className="min-w-0"><p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-400">{label}</p><p className="mt-1 break-words font-bold text-slate-800">{value}</p></div>; }

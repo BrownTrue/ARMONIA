@@ -27,6 +27,8 @@ export default function Settings() {
   const [v, setV] = useState<Profile>(data.profile),
     [professionalDetails,setProfessionalDetails]=useState<ProfessionalDocumentDetails>(()=>emptyProfessionalDetails(data.professionalDocumentDetails)),
     [saved, setSaved] = useState(false),
+    [profileSaving,setProfileSaving]=useState(false),
+    [profileError,setProfileError]=useState(""),
     [google,setGoogle]=useState<GoogleStatus|null>(null),
     [googlePrefs,setGooglePrefs]=useState<GoogleCalendarPreferences>({enabled:false,nameFormat:"first_initial",reminderMinutes:30}),
     [syncState,setSyncState]=useState<GoogleSyncState>({pending:0,syncing:false}),
@@ -62,10 +64,15 @@ export default function Settings() {
         className="card mt-8 max-w-2xl p-4 sm:p-6"
         onSubmit={async (e) => {
           e.preventDefault();
-          await saveProfile(v);
-          const hasAdministrativeValues=[professionalDetails.taxCode,professionalDetails.vatNumber,professionalDetails.address,professionalDetails.postalCode,professionalDetails.city,professionalDetails.province,professionalDetails.country].some((value)=>Boolean(value?.trim()));
-          if(hasAdministrativeValues)await saveProfessionalDocumentDetails(professionalDetails);else if(data.professionalDocumentDetails)await deleteProfessionalDocumentDetails();
-          setSaved(true);
+          if(profileSaving)return;
+          setProfileSaving(true);setSaved(false);setProfileError("");
+          try{
+            await saveProfile(v);
+            const hasAdministrativeValues=[professionalDetails.taxCode,professionalDetails.vatNumber,professionalDetails.address,professionalDetails.postalCode,professionalDetails.city,professionalDetails.province,professionalDetails.country].some((value)=>Boolean(value?.trim()));
+            if(hasAdministrativeValues)await saveProfessionalDocumentDetails(professionalDetails);else if(data.professionalDocumentDetails)await deleteProfessionalDocumentDetails();
+            setSaved(true);
+          }catch{setProfileError("Non è stato possibile salvare le modifiche. Riprova.");}
+          finally{setProfileSaving(false);}
         }}
       >
         <h2 className="font-bold">Dati professionali e documenti</h2>
@@ -110,7 +117,8 @@ export default function Settings() {
           <Field label="Provincia" value={professionalDetails.province||""} onChange={setProfessional("province")}/>
           <Field label="Paese" value={professionalDetails.country||""} onChange={setProfessional("country")}/>
         </div>
-        <button className="btn btn-primary mt-6 w-full sm:w-auto">Salva dati professionali</button>
+        <button disabled={profileSaving} aria-busy={profileSaving} className="btn btn-primary mt-6 w-full disabled:cursor-wait disabled:opacity-60 sm:w-auto">{profileSaving?"Salvataggio…":"Salva dati professionali"}</button>
+        {profileError&&<p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{profileError}</p>}
         {saved && (
           <span className="mt-3 block text-sm font-bold text-sage-700 sm:ml-3 sm:inline">
             Modifiche salvate ✓
