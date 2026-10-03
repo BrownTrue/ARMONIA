@@ -84,15 +84,17 @@ export default function Calendar() {
           <button
             onClick={() => setEditor({ date: today() })}
             disabled={!data.patients.length}
+            aria-describedby={!data.patients.length ? "calendar-patient-required" : undefined}
             title={!data.patients.length ? "Crea prima un paziente" : undefined}
             className="btn btn-primary order-first min-h-11 disabled:cursor-not-allowed disabled:opacity-50 sm:order-none sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:text-sm"
           >
             <span className="sm:hidden">+ Nuovo</span><span className="hidden sm:inline">+ Nuovo appuntamento</span>
           </button>
-          <Link href="/sedute/nuova" aria-label="Registra seduta" aria-disabled={!data.patients.length} title={!data.patients.length ? "Crea prima un paziente" : "Registra seduta"} className={`btn btn-quiet grid min-h-11 place-items-center px-0 sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:bg-transparent sm:text-sm sm:text-slate-600 sm:hover:bg-sage-50 ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}><span aria-hidden="true" className="sm:hidden">✎</span><span className="hidden sm:inline">Registra seduta</span></Link>
+          <Link href="/sedute/nuova" aria-label="Registra seduta" aria-disabled={!data.patients.length} aria-describedby={!data.patients.length ? "calendar-patient-required" : undefined} title={!data.patients.length ? "Crea prima un paziente" : "Registra seduta"} className={`btn btn-quiet grid min-h-11 place-items-center px-0 sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:bg-transparent sm:text-sm sm:text-slate-600 sm:hover:bg-sage-50 ${!data.patients.length ? "pointer-events-none opacity-50" : ""}`}><span aria-hidden="true" className="sm:hidden">✎</span><span className="hidden sm:inline">Registra seduta</span></Link>
           <button type="button" onClick={() => setSettingsOpen(true)} className="btn btn-quiet grid min-h-11 place-items-center px-0 sm:!min-h-9 sm:!px-3 sm:!py-1.5 sm:bg-transparent sm:text-sm sm:text-slate-600 sm:hover:bg-sage-50" aria-label="Apri impostazioni calendario" title="Impostazioni calendario"><span aria-hidden="true">⚙</span><span className="ml-1 hidden sm:inline">Impostazioni calendario</span></button>
         </div>
       </header>
+      {!data.patients.length && <p id="calendar-patient-required" className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900">Per creare un appuntamento o registrare una seduta devi prima aggiungere un paziente. <Link href="/pazienti" className="font-bold underline underline-offset-2">Crea paziente</Link></p>}
       <div className="mb-3 flex flex-row items-center justify-between gap-2 sm:mb-5 sm:flex-wrap">
         <div
           aria-label="Vista calendario"

@@ -31,11 +31,15 @@ export default function Materials() {
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("tutti"),
     [storage, setStorage] = useState<{quotaBytes:number;usedBytes:number;reservedBytes:number;requiresReconciliation?:boolean}|null>(null),
+    [storageStatus, setStorageStatus] = useState<"idle"|"loading"|"available"|"error">("idle"),
+    [favoriteError, setFavoriteError] = useState<string>(),
+    [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set()),
     [deleteError, setDeleteError] = useState<string>(),
     [deleteTarget,setDeleteTarget]=useState<Material|null>(null),
     [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const deletingRef = useRef(new Set<string>());
-  const loadStorage=()=>{if(connection.kind!=="cloud")return Promise.resolve();return fetch("/api/materials/storage",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject()).then(setStorage).catch(()=>setStorage(null))};
+  const favoriteRef = useRef(new Set<string>());
+  const loadStorage=async()=>{if(connection.kind!=="cloud"){setStorage(null);setStorageStatus("idle");return}setStorageStatus("loading");try{const response=await fetch("/api/materials/storage",{cache:"no-store"});if(!response.ok)throw new Error("storage_unavailable");setStorage(await response.json());setStorageStatus("available")}catch{setStorage(null);setStorageStatus("error")}};
   useEffect(()=>{void loadStorage()},[connection.kind]);
   const list = data.materials.filter(
     (m) =>
@@ -46,8 +50,13 @@ export default function Materials() {
         (filter === "preferiti" && m.favorite) ||
         m.category === filter),
   );
-  const favorite = async (m: Material) =>
-    saveMaterial({ ...m, favorite: !m.favorite });
+  const favorite = async (m: Material) => {
+    if(favoriteRef.current.has(m.id))return;
+    favoriteRef.current.add(m.id);setFavoriteIds(current=>new Set(current).add(m.id));setFavoriteError(undefined);
+    try{await saveMaterial({ ...m, favorite: !m.favorite })}
+    catch{setFavoriteError("Non è stato possibile aggiornare i preferiti. Riprova.")}
+    finally{favoriteRef.current.delete(m.id);setFavoriteIds(current=>{const next=new Set(current);next.delete(m.id);return next})}
+  };
   const removeMaterial=async(m:Material)=>{
     if(deletingRef.current.has(m.id))return;
     deletingRef.current.add(m.id);setDeletingIds(current=>new Set(current).add(m.id));setDeleteError(undefined);
@@ -69,6 +78,8 @@ export default function Materials() {
         </button>
       </header>
       {connection.kind === "cloud" && storage && <StorageUsage storage={storage}/>}
+      {connection.kind === "cloud" && storageStatus === "error" && <div role="status" className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span>Spazio utilizzato temporaneamente non disponibile.</span><button type="button" className="font-bold text-sage-700 underline underline-offset-2" onClick={() => void loadStorage()}>Riprova</button></div>}
+      {favoriteError && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{favoriteError}</p>}
       {deleteError && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{deleteError}</p>}
       <input
         value={query}
@@ -117,9 +128,12 @@ export default function Materials() {
                   </p>
                 </div>
                 <button
-                  aria-label="Preferito"
-                  onClick={() => favorite(m)}
-                  className="text-xl"
+                  type="button"
+                  disabled={favoriteIds.has(m.id)}
+                  aria-busy={favoriteIds.has(m.id)}
+                  aria-label={m.favorite ? `Rimuovi ${m.title} dai preferiti` : `Aggiungi ${m.title} ai preferiti`}
+                  onClick={() => void favorite(m)}
+                  className="grid h-11 w-11 place-items-center text-xl disabled:cursor-wait disabled:opacity-60"
                 >
                   {m.favorite ? "★" : "☆"}
                 </button>

@@ -44,6 +44,7 @@ export default function Settings() {
     [googleActionBusy,setGoogleActionBusy]=useState(false),
     [googleActionError,setGoogleActionError]=useState("");
   useEffect(() => { if (ready) { setV(data.profile); setProfessionalDetails(emptyProfessionalDetails(data.professionalDocumentDetails)); } }, [ready, data.profile, data.professionalDocumentDetails]);
+  useEffect(() => { if (!saved) return; const timeout = window.setTimeout(() => setSaved(false), 4000); return () => window.clearTimeout(timeout); }, [saved]);
   useEffect(()=>{setGooglePrefs(getGoogleCalendarPreferences());setSyncState(getGoogleSyncState());return subscribeGoogleSync(()=>setSyncState(getGoogleSyncState()))},[]);
   useEffect(()=>{fetch("/api/google-calendar/status",{cache:"no-store"}).then(r=>r.json()).then((status:GoogleStatus)=>{setGoogle(status);const result=new URLSearchParams(window.location.search).get("google"),oauthResult=consumeGoogleOAuthResult(result);if(oauthResult==="reconnected"){clearGoogleSyncError();setGoogleNotice({kind:"success",text:"Google Calendar è stato ricollegato. Le operazioni rimaste in attesa possono ora essere ritentate."})}else if(result?.startsWith("reconnect-")){const text=result==="reconnect-calendar-unavailable"?"Il calendario Armonia esistente non è accessibile con l’account autorizzato. La connessione precedente non è stata modificata.":result==="reconnect-missing-refresh-token"?"Google non ha fornito una nuova autorizzazione persistente. La connessione precedente non è stata modificata.":"Riconnessione Google non riuscita. La connessione precedente non è stata modificata.";setGoogleNotice({kind:"error",text})}if(status.connected){const current=getGoogleCalendarPreferences(),preferences={...current,enabled:status.syncEnabled??true,nameFormat:cloudDataMode&&status.nameFormat?status.nameFormat:current.nameFormat,reminderMinutes:cloudDataMode&&status.reminderMinutes!==undefined?status.reminderMinutes:current.reminderMinutes};saveGoogleCalendarPreferences(preferences);setGooglePrefs(preferences);if(oauthResult==="connected")void queueAllGoogleAppointments(data.appointments,data.patients)}if(oauthResult)router.replace("/impostazioni",{scroll:false})}).catch(()=>setGoogle({configured:true,connected:false,error:"Non è stato possibile verificare il collegamento a Google Calendar."}))},[ready,consumeGoogleOAuthResult,router]);
   const updateGooglePreferences=(patch:Partial<GoogleCalendarPreferences>)=>{const next={...googlePrefs,...patch};setGooglePrefs(next);void persistGoogleCalendarPreferences(next).then(()=>{if(google?.connected)queueAllGoogleAppointments(data.appointments,data.patients)}).catch(error=>setGoogle(old=>({...old!,error:error instanceof Error?error.message:"Salvataggio non riuscito"})))};
@@ -125,11 +126,7 @@ export default function Settings() {
         </div>
         <button disabled={profileSaving} aria-busy={profileSaving} className="btn btn-primary mt-6 w-full disabled:cursor-wait disabled:opacity-60 sm:w-auto">{profileSaving?"Salvataggio…":"Salva dati professionali"}</button>
         {profileError&&<p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{profileError}</p>}
-        {saved && (
-          <span className="mt-3 block text-sm font-bold text-sage-700 sm:ml-3 sm:inline">
-            Modifiche salvate ✓
-          </span>
-        )}
+        {saved && <p role="status" className="mt-3 text-sm font-bold text-sage-700">Modifiche salvate.</p>}
       </form>
       <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <div><h2 className="font-bold">Logo dei documenti</h2><p className="mt-1 text-sm text-slate-500">Completa l’identità professionale usata nelle stampe. PNG, JPG o WebP · massimo 2 MB.</p></div>
@@ -185,12 +182,14 @@ export default function Settings() {
         <h2 className="font-bold">Account</h2>
         <button
           disabled={connection.kind === "local"}
+          aria-describedby={connection.kind === "local" ? "local-signout-hint" : undefined}
           title={connection.kind === "local" ? "Funzione non disponibile in modalità locale" : undefined}
           onClick={async () => { await signOut(); router.replace("/login"); }}
           className={`btn mt-4 ${connection.kind === "local" ? "cursor-not-allowed bg-slate-100 text-slate-400" : "btn-quiet"}`}
         >
           Esci dall’app
         </button>
+        {connection.kind === "local" && <p id="local-signout-hint" className="mt-2 text-sm text-slate-500">Stai usando ARMONIA in modalità locale: non c’è una sessione account da chiudere.</p>}
       </section>
     </AppShell>
   );
