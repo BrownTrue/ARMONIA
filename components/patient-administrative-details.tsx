@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useData } from "./data-provider";
 import { Field } from "./form-controls";
 import { Modal } from "./modal";
+import { DestructiveActionModal } from "./destructive-action-modal";
 import {
   administrativeDetailsSummary,
   copyPatientAddressToRecipient,
@@ -61,10 +62,11 @@ function PatientAdministrativeDetailsModal({ patient, existing, onClose, onSave,
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState("");
+  const [removeOpen, setRemoveOpen] = useState(false);
   const remove = async () => {
-    if (!existing || !window.confirm("Rimuovere i dati amministrativi di questo paziente?")) return;
+    if (!existing || saving) return;
     setSaving(true); setServerError("");
-    try { await onDelete(patient.id); onClose(); }
+    try { await onDelete(patient.id); setRemoveOpen(false); onClose(); }
     catch { setServerError("Non è stato possibile rimuovere i dati amministrativi. Riprova."); setSaving(false); }
   };
   return <Modal title={existing ? "Modifica dati amministrativi" : "Completa dati amministrativi"} onClose={() => !saving && onClose()}>
@@ -86,10 +88,11 @@ function PatientAdministrativeDetailsModal({ patient, existing, onClose, onSave,
 
       {serverError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{serverError}</p>}
       <div className="flex flex-col gap-3 border-t border-sage-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>{existing && <button type="button" disabled={saving} onClick={() => void remove()} className="min-h-11 text-sm font-bold text-red-600 disabled:opacity-50">Rimuovi dati amministrativi</button>}</div>
+        <div>{existing && <button type="button" disabled={saving} onClick={() => { setServerError(""); setRemoveOpen(true); }} className="min-h-11 text-sm font-bold text-red-600 disabled:opacity-50">Rimuovi dati amministrativi</button>}</div>
         <div className="form-actions sm:mt-0"><button type="button" disabled={saving} onClick={onClose} className="btn btn-quiet disabled:opacity-50">Annulla</button><button type="submit" disabled={saving} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvataggio…" : "Salva"}</button></div>
       </div>
     </form>
+    {removeOpen && <DestructiveActionModal title="Rimuovere i dati amministrativi?" description="I dati fiscali e di intestazione di questo paziente verranno eliminati. I dati anagrafici e clinici resteranno invariati." confirmLabel="Rimuovi dati" busy={saving} error={serverError} onClose={() => setRemoveOpen(false)} onConfirm={remove}/>}
   </Modal>;
 }
 

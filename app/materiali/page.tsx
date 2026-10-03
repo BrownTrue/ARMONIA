@@ -10,6 +10,7 @@ import { fullName, uid } from "@/lib/types";
 import { formatStorageBytes, materialUploadErrorMessage, STORAGE_QUOTA_BYTES, validateMaterialFileDeclaration } from "@/lib/therapeutic-library/files";
 import { materialDeleteErrorMessage, materialSaveErrorMessage } from "@/lib/therapeutic-library/material-api";
 import { acquireSingleFlight, releaseSingleFlight } from "@/lib/therapeutic-library/single-flight";
+import { DestructiveActionModal } from "@/components/destructive-action-modal";
 const cats = [
   "articolazione",
   "fonologia",
@@ -31,6 +32,7 @@ export default function Materials() {
     [filter, setFilter] = useState("tutti"),
     [storage, setStorage] = useState<{quotaBytes:number;usedBytes:number;reservedBytes:number;requiresReconciliation?:boolean}|null>(null),
     [deleteError, setDeleteError] = useState<string>(),
+    [deleteTarget,setDeleteTarget]=useState<Material|null>(null),
     [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const deletingRef = useRef(new Set<string>());
   const loadStorage=()=>{if(connection.kind!=="cloud")return Promise.resolve();return fetch("/api/materials/storage",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject()).then(setStorage).catch(()=>setStorage(null))};
@@ -46,6 +48,13 @@ export default function Materials() {
   );
   const favorite = async (m: Material) =>
     saveMaterial({ ...m, favorite: !m.favorite });
+  const removeMaterial=async(m:Material)=>{
+    if(deletingRef.current.has(m.id))return;
+    deletingRef.current.add(m.id);setDeletingIds(current=>new Set(current).add(m.id));setDeleteError(undefined);
+    try{await deleteMaterial(m.id);await loadStorage();setDeleteTarget(null)}
+    catch(cause){setDeleteError(materialDeleteErrorMessage(cause))}
+    finally{deletingRef.current.delete(m.id);setDeletingIds(current=>{const next=new Set(current);next.delete(m.id);return next})}
+  };
   return (
     <AppShell>
       <header className="page-header mb-8">
@@ -144,23 +153,7 @@ export default function Materials() {
                 <button
                   disabled={deletingIds.has(m.id)}
                   className="btn text-sm text-red-600 disabled:cursor-wait disabled:opacity-50"
-                  onClick={async () => {
-                    if (deletingRef.current.has(m.id)) return;
-                    if (!confirm("Eliminare questo materiale e il relativo file?")) return;
-                    if (deletingRef.current.has(m.id)) return;
-                    deletingRef.current.add(m.id);
-                    setDeletingIds(current => new Set(current).add(m.id));
-                    setDeleteError(undefined);
-                    try {
-                      await deleteMaterial(m.id);
-                      await loadStorage();
-                    } catch (cause) {
-                      setDeleteError(materialDeleteErrorMessage(cause));
-                    } finally {
-                      deletingRef.current.delete(m.id);
-                      setDeletingIds(current => { const next = new Set(current); next.delete(m.id); return next; });
-                    }
-                  }}
+                  onClick={() => {setDeleteError(undefined);setDeleteTarget(m)}}
                 >
                   {deletingIds.has(m.id) ? "Eliminazione…" : "Elimina"}
                 </button>
@@ -181,7 +174,8 @@ export default function Materials() {
           />
         </Modal>
       )}
-      {preview && <MaterialPreview material={preview} onDone={() => setPreview(null)}/>} 
+      {preview && <MaterialPreview material={preview} onDone={() => setPreview(null)}/>}
+      {deleteTarget&&<DestructiveActionModal title="Eliminare questo materiale?" description={`“${deleteTarget.title}” e il relativo file verranno eliminati. L’operazione non può essere annullata.`} confirmLabel="Elimina materiale" busy={deletingIds.has(deleteTarget.id)} error={deleteError} onClose={()=>setDeleteTarget(null)} onConfirm={()=>removeMaterial(deleteTarget)}/>}
     </AppShell>
   );
 }

@@ -61,7 +61,7 @@ export function AssessmentV2Editor({ source }: { source: ClinicalAssessmentV2 })
       await queueRef.current.enqueue(() => autosaveClinicalAssessmentDraft(candidate));
       if (revision === revisionRef.current) { setDirty(false); setSaveState("saved"); }
     } catch (cause) {
-      setSaveState("error"); setMessage(cause instanceof Error ? cause.message : "Salvataggio non riuscito."); throw cause;
+      setSaveState("error"); setMessage("Non è stato possibile salvare la valutazione. Controlla la connessione e riprova."); throw cause;
     }
   };
   useEffect(() => {
@@ -122,20 +122,20 @@ export function AssessmentV2Editor({ source }: { source: ClinicalAssessmentV2 })
       setClosing(false);
     }
   };
-  const complete = async () => { setCompleteOpen(false); setMessage(""); if (!validateForCompletion()) return; try { await forceSave(); await completeClinicalAssessment(draft.id); const completed = { ...draftRef.current, status: "completed" as const, updatedAt: new Date().toISOString() }; draftRef.current = completed; setDraft(completed); setDirty(false); setValidationIssues([]); setSaveState("saved"); setMessage("Valutazione completata. Ora è disponibile in sola lettura."); } catch (cause) { setSaveState("error"); setMessage(cause instanceof Error ? cause.message : "Non è stato possibile completare la valutazione."); } };
+  const complete = async () => { setCompleteOpen(false); setMessage(""); if (!validateForCompletion()) return; try { await forceSave(); await completeClinicalAssessment(draft.id); const completed = { ...draftRef.current, status: "completed" as const, updatedAt: new Date().toISOString() }; draftRef.current = completed; setDraft(completed); setDirty(false); setValidationIssues([]); setSaveState("saved"); setMessage("Valutazione completata. Ora è disponibile in sola lettura."); } catch { setSaveState("error"); setMessage("Non è stato possibile completare la valutazione. Controlla la connessione e riprova."); } };
   const startCorrection = () => { originalCompletedRef.current = draftRef.current; setCorrecting(true); setCorrectOpen(false); setDirty(false); setValidationIssues([]); setMessage(""); };
   const cancelCorrection = () => { const original = originalCompletedRef.current; if (original) { draftRef.current = original; setDraft(original); } setCorrecting(false); setDirty(false); setValidationIssues([]); setSaveState("saved"); setMessage(""); originalCompletedRef.current = null; };
-  const saveCorrection = async () => { setMessage(""); if (!validateForCompletion()) return; try { const corrected = await correctClinicalAssessment(draftRef.current); if (corrected.schemaVersion !== 2) throw new Error("La correzione restituita non è compatibile con questa valutazione."); draftRef.current = corrected; setDraft(corrected); setCorrecting(false); setDirty(false); setValidationIssues([]); setSaveState("saved"); originalCompletedRef.current = null; setMessage("Correzioni salvate. La valutazione resta completata."); } catch (cause) { setSaveState("error"); setMessage(cause instanceof Error ? cause.message : "Non è stato possibile salvare le correzioni."); } };
+  const saveCorrection = async () => { setMessage(""); if (!validateForCompletion()) return; try { const corrected = await correctClinicalAssessment(draftRef.current); if (corrected.schemaVersion !== 2) throw new Error("incompatible_assessment"); draftRef.current = corrected; setDraft(corrected); setCorrecting(false); setDirty(false); setValidationIssues([]); setSaveState("saved"); originalCompletedRef.current = null; setMessage("Correzioni salvate. La valutazione resta completata."); } catch { setSaveState("error"); setMessage("Non è stato possibile salvare le correzioni. Controlla la connessione e riprova."); } };
   const removeAssessment = async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setMessage("");
     try {
       await deleteClinicalAssessment(draft.id);
       router.push(`/pazienti/${id}?tab=clinical`);
-    } catch (cause) {
+    } catch {
       setDeleteOpen(false);
       setSaveState("error");
-      setMessage(cause instanceof Error ? cause.message : "Non è stato possibile eliminare la valutazione.");
+      setMessage("Non è stato possibile eliminare la valutazione. Riprova.");
     }
   };
 
@@ -175,8 +175,8 @@ function ClinicalAreasStep({ draft, issues, expanded, setExpanded, onUpdateModul
     try {
       onUpdateAssessment(removeClinicalModule(draft, definition.code, definition.version));
       setExpanded((current) => { const next = new Set(current); next.delete(key); return next; });
-    } catch (cause) {
-      window.alert(cause instanceof Error ? cause.message : "Impossibile rimuovere l’area.");
+    } catch {
+      window.alert("Non è stato possibile rimuovere l’area clinica. Riprova.");
     }
   };
   return <section><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-bold">Aree cliniche</h2><p className="mt-2 text-sm text-slate-500">{draft.data.modules.length ? "Compila soltanto ciò che è pertinente alla valutazione." : "Aggiungi le aree che vuoi esplorare in questa valutazione. Puoi modificarle in qualsiasi momento finché la valutazione è in bozza."}</p></div>{draft.data.modules.length > 0 && <button type="button" onClick={() => setSelectorOpen(true)} className="btn btn-quiet text-sm">Gestisci aree</button>}</div>

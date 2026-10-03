@@ -9,6 +9,7 @@ import { nextCalendarColor } from "@/lib/calendar-v2";
 import type { AppointmentLocation } from "@/lib/types";
 import { uid } from "@/lib/types";
 import { focusFirstInvalidField, validateLocationForm, type FieldErrors } from "@/lib/form-validation";
+import { DestructiveActionModal } from "@/components/destructive-action-modal";
 
 const sortLocations = (locations: AppointmentLocation[]) => [...locations].sort((a, b) =>
   a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "it"),
@@ -30,6 +31,7 @@ export function LocationsSettings() {
   const [editing, setEditing] = useState<AppointmentLocation | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [deleteTarget,setDeleteTarget]=useState<AppointmentLocation|null>(null);
 
   const openNew = () => {
     const timestamp = new Date().toISOString();
@@ -52,10 +54,10 @@ export function LocationsSettings() {
   };
 
   const remove = async (location: AppointmentLocation) => {
-    if (!confirm(`Eliminare la sede “${location.name}”? Questa azione è disponibile solo se non è mai stata usata.`)) return;
     setBusyId(location.id); setNotice(null);
     try {
       await deleteAppointmentLocation(location.id);
+      setDeleteTarget(null);
       setNotice({ kind: "success", text: "Sede eliminata." });
     } catch (cause) {
       setNotice({ kind: "error", text: humanLocationError(cause, "delete") });
@@ -71,12 +73,13 @@ export function LocationsSettings() {
     {!locations.length ? <div className="mt-5 rounded-2xl border border-dashed border-sage-200 bg-sage-50/50 p-5 text-center sm:p-7"><p className="font-bold">Non hai ancora aggiunto sedi.</p><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Aggiungine una per distinguere rapidamente dove si svolgono i tuoi appuntamenti.</p><button type="button" className="btn btn-primary mt-4" onClick={openNew}>Aggiungi sede</button></div> : <ul className="mt-5 space-y-3">
       {locations.map((location) => <li key={location.id} className={`rounded-2xl border p-4 ${location.isActive ? "border-sage-100 bg-white" : "border-slate-200 bg-slate-50"}`}>
         <div className="flex min-w-0 items-start gap-3"><span className="mt-1 h-4 w-4 shrink-0 rounded-full ring-2 ring-white shadow" style={{ backgroundColor: location.color }} aria-label={`Colore ${location.color}`}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="break-words font-bold">{location.name}</p><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${location.isActive ? "bg-sage-50 text-sage-700" : "bg-slate-200 text-slate-600"}`}>{location.isActive ? "Attiva" : "Non attiva"}</span></div>{(location.address || location.city) && <p className="mt-1 break-words text-sm text-slate-500">{[location.address, location.city].filter(Boolean).join(" · ")}</p>}</div></div>
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-sage-50 pt-3"><button type="button" className="btn btn-quiet flex-1 sm:flex-none" onClick={() => setEditing(location)}>Modifica</button><button type="button" disabled={busyId === location.id} className="btn btn-quiet flex-1 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none" onClick={() => void toggleActive(location)}>{location.isActive ? "Disattiva" : "Riattiva"}</button><button type="button" disabled={busyId === location.id} className="min-h-11 rounded-xl px-3 text-sm font-bold text-slate-500 hover:bg-red-50 hover:text-red-700 focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50" onClick={() => void remove(location)}>Elimina</button></div>
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-sage-50 pt-3"><button type="button" className="btn btn-quiet flex-1 sm:flex-none" onClick={() => setEditing(location)}>Modifica</button><button type="button" disabled={busyId === location.id} className="btn btn-quiet flex-1 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none" onClick={() => void toggleActive(location)}>{location.isActive ? "Disattiva" : "Riattiva"}</button><button type="button" disabled={busyId === location.id} className="min-h-11 rounded-xl px-3 text-sm font-bold text-slate-500 hover:bg-red-50 hover:text-red-700 focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50" onClick={() => {setNotice(null);setDeleteTarget(location)}}>Elimina</button></div>
       </li>)}
     </ul>}
     {editing && (
       <LocationModal location={editing} usedColors={data.locations} onClose={() => setEditing(null)} onSave={async (location) => { await saveAppointmentLocation(location); setEditing(null); setNotice({ kind: "success", text: "Sede salvata." }); }}/>
     )}
+    {deleteTarget&&<DestructiveActionModal title="Eliminare questa sede?" description={`La sede “${deleteTarget.name}” può essere eliminata soltanto se non è mai stata usata. In caso contrario potrai disattivarla.`} confirmLabel="Elimina sede" busy={busyId===deleteTarget.id} error={notice?.kind==="error"?notice.text:undefined} onClose={()=>setDeleteTarget(null)} onConfirm={()=>remove(deleteTarget)}/>}
   </section>;
 }
 
