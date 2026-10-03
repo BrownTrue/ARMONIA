@@ -7,6 +7,7 @@ import { centsToEuroInput, euroInputToCents, selectableAppointmentServices } fro
 import { resolveNewSessionDraft, sessionWithAppointmentSnapshot, sessionWithService } from "@/lib/economy";
 import { fullName, today, uid } from "@/lib/types";
 import type { Session } from "@/lib/types";
+import { Modal } from "@/components/modal";
 function Form() {
   const q = useSearchParams(),
     router = useRouter(),
@@ -16,6 +17,8 @@ function Form() {
   const [price, setPrice] = useState("");
   const [error, setError] = useState("");
   const [appointmentMissing, setAppointmentMissing] = useState(false);
+  const [pendingWithoutActivities, setPendingWithoutActivities] = useState<Session | null>(null);
+  const [saving, setSaving] = useState(false);
   const initializedRef = useRef(false);
   useEffect(() => {
     if (initializedRef.current || !ready) return;
@@ -70,6 +73,12 @@ function Form() {
       ))}
     </div>
   );
+  const persistSession = async (session: Session) => {
+    setSaving(true);
+    setError("");
+    try { await saveSession(session); router.push("/pazienti/" + p.id); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Non è stato possibile salvare la seduta."); setSaving(false); }
+  };
   return (
     <AppShell>
       <header className="mb-7">
@@ -93,8 +102,9 @@ function Form() {
           setError("");
           let effectivePriceCents: number | undefined;
           try { effectivePriceCents = euroInputToCents(price); } catch (cause) { setError(cause instanceof Error ? cause.message : "Inserisci un prezzo valido."); return; }
-          await saveSession({...v,effectivePriceCents,activities:String(f.get('activities')||''),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')});
-          router.push("/pazienti/" + p.id);
+          const session={...v,effectivePriceCents,activities:String(f.get('activities')||'').trim(),result:String(f.get('result')||''),nextPlan:String(f.get('nextPlan')||''),homework:String(f.get('homework')||''),notes:String(f.get('notes')||'')};
+          if (!session.activities) { setPendingWithoutActivities(session); return; }
+          await persistSession(session);
         }}
       >
         <section className="card p-5">
@@ -117,7 +127,7 @@ function Form() {
           <label className="text-sm font-bold">Attività svolte</label>
           <textarea
             aria-label="Attività svolte"
-            name="activities" required
+            name="activities"
             defaultValue={v.activities}
             placeholder="Esercizi, giochi e attività…"
             className="mt-3 min-h-24 w-full rounded-xl border border-sage-100 p-3"
@@ -213,10 +223,11 @@ function Form() {
           </label>
         </section>
         {error&&<p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
-        <button className="btn btn-primary w-full py-4 text-base">
-          Concludi e salva seduta
+        <button disabled={saving} className="btn btn-primary w-full py-4 text-base disabled:cursor-wait disabled:opacity-60">
+          {saving ? "Salvataggio…" : "Concludi e salva seduta"}
         </button>
       </form>
+      {pendingWithoutActivities && <Modal title="Registrare senza attività svolte?" onClose={() => setPendingWithoutActivities(null)}><p className="text-sm leading-6 text-slate-600">Non hai inserito attività svolte per questa seduta. Vuoi registrarla comunque?</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setPendingWithoutActivities(null)} className="btn btn-quiet">Torna alla seduta</button><button type="button" disabled={saving} onClick={() => void persistSession(pendingWithoutActivities)} className="btn btn-primary disabled:cursor-wait disabled:opacity-60">{saving ? "Salvataggio…" : "Registra comunque"}</button></div></Modal>}
     </AppShell>
   );
 }

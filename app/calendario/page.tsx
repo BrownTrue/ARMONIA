@@ -11,6 +11,7 @@ import { fullName, today } from "@/lib/types";
 import { formatEuroCents } from "@/lib/calendar-v2";
 import { MonthView as CalendarMonthView, WeekView as CalendarWeekView, addDays, weekStart } from "@/components/calendar-views";
 import { appointmentLocationColor, calendarEventColors } from "@/lib/calendar-visual";
+import { cancelAppointment, canRegisterAppointmentSession, sessionForAppointment } from "@/lib/appointment-actions";
 
 type View = "month" | "week" | "agenda";
 type Editor = {
@@ -37,10 +38,11 @@ const patientName = (
 };
 
 export default function Calendar() {
-  const { data, deleteAppointment } = useData();
+  const { data, saveAppointment } = useData();
   const [view, setView] = useState<View>("agenda"),
     [cursor, setCursor] = useState(() => atNoon(today())),
     [editor, setEditor] = useState<Editor>(null),
+    [cancelCandidate, setCancelCandidate] = useState<Appointment | null>(null),
     [showPast, setShowPast] = useState(false),
     [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
@@ -162,12 +164,12 @@ export default function Calendar() {
       ) : (
         <Agenda
           appointments={data.appointments}
+          sessions={data.sessions}
           patients={data.patients}
           locations={data.locations}
           showPast={showPast}
           setShowPast={setShowPast}
           onEdit={(appointment) => setEditor({ appointment })}
-          onDelete={deleteAppointment}
         />
       )}{" "}
       <div aria-hidden="true" className="h-[calc(4.5rem+env(safe-area-inset-bottom))] md:hidden" />
@@ -185,30 +187,23 @@ export default function Calendar() {
             initialTime={editor.time}
             onDone={() => setEditor(null)}
           />
-          {editor.appointment && (
+          {editor.appointment && (() => {
+            const linkedSession = sessionForAppointment(editor.appointment.id, data.sessions);
+            return (
             <div className="mt-4 border-t border-sage-100 pt-4">
-              {data.sessions.some((session) => session.appointmentId === editor.appointment!.id) ? (
-                <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-sage-50 p-3 text-sm"><b>Seduta già registrata</b><Link href={`/pazienti/${editor.appointment.patientId}`} className="font-bold text-sage-700">Apri e modifica</Link></div>
-              ) : (
+              {linkedSession ? (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-sage-50 p-3 text-sm"><b>Seduta registrata</b><Link href={`/pazienti/${editor.appointment.patientId}?tab=activity`} className="font-bold text-sage-700">Apri seduta →</Link></div>
+              ) : canRegisterAppointmentSession(editor.appointment, data.sessions) ? (
                 <Link href={`/sedute/nuova?a=${editor.appointment.id}`} className="btn btn-primary mb-3 inline-block">Registra seduta</Link>
+              ) : (
+                <p className="mb-3 rounded-xl bg-slate-100 p-3 text-sm font-semibold text-slate-600">Appuntamento annullato</p>
               )}
-              <div>
-              <button
-                onClick={() => {
-                  if (confirm("Eliminare questo appuntamento?")) {
-                    deleteAppointment(editor.appointment!.id);
-                    setEditor(null);
-                  }
-                }}
-                className="btn text-red-600"
-              >
-                Elimina appuntamento
-              </button>
-              </div>
+              {editor.appointment.type !== "cancelled" && <button type="button" onClick={() => setCancelCandidate(editor.appointment!)} className="btn text-red-600">Annulla appuntamento</button>}
             </div>
-          )}
+          )})()}
         </Modal>
       )}
+      {cancelCandidate && <Modal title="Annullare questo appuntamento?" onClose={() => setCancelCandidate(null)}><p className="text-sm leading-6 text-slate-600">Sei sicuro di voler annullare l’appuntamento con {patientName(cancelCandidate,data.patients)} del {atNoon(cancelCandidate.date).toLocaleDateString("it-IT")} alle {cancelCandidate.time}?</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCancelCandidate(null)} className="btn btn-quiet">Indietro</button><button type="button" onClick={async () => { await saveAppointment(cancelAppointment(cancelCandidate)); setCancelCandidate(null); setEditor(null); }} className="btn text-red-700">Annulla appuntamento</button></div></Modal>}
       {settingsOpen && <CalendarSettingsPanel onClose={() => setSettingsOpen(false)}/>}
     </AppShell>
   );
@@ -438,21 +433,25 @@ function LegacyWeekView({
 
 function Agenda({
   appointments,
+  sessions,
   patients,
   locations,
   showPast,
   setShowPast,
   onEdit,
-  onDelete,
 }: {
   appointments: Appointment[];
+  sessions: ReturnType<typeof useData>["data"]["sessions"];
   patients: ReturnType<typeof useData>["data"]["patients"];
   locations: ReturnType<typeof useData>["data"]["locations"];
   showPast: boolean;
   setShowPast: (v: boolean) => void;
   onEdit: (a: Appointment) => void;
-  onDelete: (id: string) => void;
 }) {
+  const sessionsByAppointmentId = useMemo(
+    () => new Map(sessions.filter((session) => session.appointmentId).map((session) => [session.appointmentId!, session])),
+    [sessions],
+  );
   const currentTime = new Date().toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit", hour12:false});
   const list = [...appointments]
     .filter((a) => showPast || a.date > today() || (a.date === today() && a.time >= currentTime))
@@ -509,17 +508,24 @@ function Agenda({
                       <b className="text-sm sm:text-base">{a.time}</b>
                       <p className="text-xs text-sage-700 sm:text-sm">{a.duration} min</p>
                     </div>
-                    <div className="min-w-44 flex-1">
-                      <h4 className={`font-bold ${a.type==="cancelled"?"line-through":""}`}>{patientName(a, patients)}</h4>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h4 className={`min-w-0 font-bold ${a.type==="cancelled"?"line-through":""}`}>{patientName(a, patients)}</h4>
+                        {a.type === "cancelled" ? (
+                          <span className="inline-flex min-h-11 items-center rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">Annullato</span>
+                        ) : sessionsByAppointmentId.has(a.id) ? (
+                          <Link href={`/pazienti/${a.patientId}?tab=activity`} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} className="inline-flex min-h-11 items-center rounded-full bg-sage-100 px-3 text-xs font-bold text-sage-800 hover:bg-sage-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500">✓ Seduta registrata</Link>
+                        ) : (
+                          <Link href={`/sedute/nuova?a=${a.id}`} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} className="inline-flex min-h-11 items-center rounded-full border border-sage-300 bg-white px-3 text-xs font-bold text-sage-800 hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500">Registra seduta</Link>
+                        )}
+                      </div>
                       <p className="truncate text-xs text-slate-500 sm:text-sm">{a.serviceNameSnapshot||labels[a.type]}{location?` · ${location.name}`:""}</p>
                     </div>
                     <button
-                      aria-label={`Elimina appuntamento di ${patientName(a,patients)}`}
-                      title="Elimina appuntamento"
-                      className="ml-auto rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600 focus-visible:ring-2 focus-visible:ring-red-500"
-                      onClick={event=>{event.stopPropagation();
-                        confirm("Eliminare questo appuntamento?") &&
-                        onDelete(a.id);}}
+                      aria-label={`Apri azioni appuntamento di ${patientName(a,patients)}`}
+                      title="Azioni appuntamento"
+                      className="ml-auto min-h-11 min-w-11 rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-sage-50 hover:text-sage-700 focus-visible:ring-2 focus-visible:ring-sage-500"
+                      onClick={event=>{event.stopPropagation();onEdit(a);}}
                     >
                       <span aria-hidden="true">⋯</span>
                     </button>
