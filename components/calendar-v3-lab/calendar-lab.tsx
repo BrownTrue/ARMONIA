@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useRef } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import styles from "./calendar-v3-lab.module.css";
+import { AppointmentDrawer } from "./appointment-drawer";
 import {
   CALENDAR_LAB_CONFIG,
   addCalendarDays,
@@ -27,6 +28,17 @@ import {
   calendarLabReducer,
   createCalendarLabState,
 } from "@/lib/calendar-v3-lab/reducer";
+import {
+  appointmentDraftFromEvent,
+  calendarLabEventContentDensity,
+  calendarLabSessionLabel,
+  createAppointmentDraft,
+  eventFromAppointmentDraft,
+  nextCalendarLabEventId,
+  selectionFromGridClick,
+  type CalendarAppointmentDraft,
+} from "@/lib/calendar-v3-lab/appointment-editor";
+import { normalizeCalendarSelection, type CalendarSelection } from "@/lib/calendar-v3-lab/selection";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -38,6 +50,8 @@ export function CalendarLab() {
   const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
   const scrollRef = useRef<HTMLDivElement>(null);
   const weekHeaderRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
   const days = useMemo(() => calendarWeekDays(state.cursorDate), [state.cursorDate]);
   const visibleEvents = state.events.filter((event) =>
     !state.hiddenFilters.includes(event.locationName ?? "") &&
@@ -48,6 +62,12 @@ export function CalendarLab() {
   const labToday = calendarDateFromInstant(LAB_NOW);
   const labNowMinutes = timeToMinutes(calendarTimeFromInstant(LAB_NOW));
   const currentDayIndex = days.indexOf(labToday);
+  const selectedEvent = state.events.find((event) => event.id === state.selectedEventId);
+  const drawerDraft = selectedEvent
+    ? appointmentDraftFromEvent(selectedEvent)
+    : state.selection
+      ? createAppointmentDraft(state.selection)
+      : null;
 
   useEffect(() => {
     const initialMinute = getInitialScrollMinute(days, LAB_NOW);
@@ -59,6 +79,34 @@ export function CalendarLab() {
 
   const moveWeek = (amount: number) => {
     dispatch({ type: "set_cursor_date", date: addCalendarDays(state.cursorDate, amount * 7) });
+  };
+
+  const openCreate = (selection: CalendarSelection, origin: HTMLElement) => {
+    returnFocusRef.current = origin;
+    dispatch({ type: "select_event", eventId: null });
+    dispatch({ type: "set_selection", selection });
+  };
+
+  const openEdit = (eventId: string, origin: HTMLElement) => {
+    returnFocusRef.current = origin;
+    dispatch({ type: "set_selection", selection: null });
+    dispatch({ type: "select_event", eventId });
+  };
+
+  const closeDrawer = () => {
+    dispatch({ type: "set_selection", selection: null });
+    dispatch({ type: "select_event", eventId: null });
+  };
+
+  const saveAppointment = (draft: CalendarAppointmentDraft) => {
+    if (!days.includes(draft.date as CalendarDate)) {
+      dispatch({ type: "set_cursor_date", date: draft.date as CalendarDate });
+    }
+    if (selectedEvent) {
+      dispatch({ type: "update_event", event: eventFromAppointmentDraft(draft, selectedEvent.id, selectedEvent) });
+      return;
+    }
+    dispatch({ type: "add_event", event: eventFromAppointmentDraft(draft, nextCalendarLabEventId(state.events)) });
   };
 
   return (
@@ -78,7 +126,10 @@ export function CalendarLab() {
               onClick={() => dispatch({ type: "set_sidebar_open", open: !state.sidebarOpen })}
             ><SidebarIcon /></IconButton>
             <IconButton label="Cerca nel calendario — disponibile in una fase successiva"><SearchIcon /></IconButton>
-            <IconButton label="Nuovo appuntamento — disponibile in una fase successiva"><ComposeIcon /></IconButton>
+            <IconButton label="Nuovo appuntamento" onClick={(event) => openCreate(
+              normalizeCalendarSelection(state.cursorDate, 9 * 60, 9 * 60 + 45),
+              event.currentTarget,
+            )}><ComposeIcon /></IconButton>
           </div>
 
           <p className={styles.periodLabel} aria-live="polite">{periodLabel}</p>
@@ -121,9 +172,33 @@ export function CalendarLab() {
                 <TimeGutter />
                 <div className={styles.daysGrid}>
                   {days.map((day) => (
-                    <div key={day} className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""}`} aria-label={formatFullDate(day)}>
+                    <div
+                      key={day}
+                      tabIndex={-1}
+                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""}`}
+                      aria-label={formatFullDate(day)}
+                      onMouseMove={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        const rectangle = event.currentTarget.getBoundingClientRect();
+                        setHoveredSlot(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE, 15));
+                      }}
+                      onMouseLeave={() => setHoveredSlot((current) => current?.date === day ? null : current)}
+                      onClick={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        const rectangle = event.currentTarget.getBoundingClientRect();
+                        openCreate(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE), event.currentTarget);
+                      }}
+                    >
+                      {hoveredSlot?.date === day ? <span
+                        className={styles.slotHover}
+                        style={{
+                          top: (hoveredSlot.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE,
+                          height: CALENDAR_LAB_CONFIG.slotMinutes * PIXELS_PER_MINUTE,
+                        }}
+                        aria-hidden="true"
+                      /> : null}
                       {eventLayouts.filter((event) => event.date === day).map((event) => (
-                        <EventChip key={event.id} event={event} selected={state.selectedEventId === event.id} onSelect={() => dispatch({ type: "select_event", eventId: event.id })} />
+                        <EventChip key={event.id} event={event} selected={state.selectedEventId === event.id} onSelect={openEdit} />
                       ))}
                     </div>
                   ))}
@@ -143,12 +218,20 @@ export function CalendarLab() {
             </div>
           </section>
         </div>
+        {drawerDraft ? <AppointmentDrawer
+          key={selectedEvent?.id ?? `${state.selection?.date}-${state.selection?.startMinutes}`}
+          initialDraft={drawerDraft}
+          event={selectedEvent}
+          returnFocus={returnFocusRef.current}
+          onClose={closeDrawer}
+          onSave={saveAppointment}
+        /> : null}
       </div>
     </main>
   );
 }
 
-function IconButton({ label, expanded, onClick, children }: { label: string; expanded?: boolean; onClick?: () => void; children: React.ReactNode }) {
+function IconButton({ label, expanded, onClick, children }: { label: string; expanded?: boolean; onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }) {
   return <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={expanded} onClick={onClick}>{children}</button>;
 }
 
@@ -162,21 +245,25 @@ function TimeGutter() {
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
 }
 
-function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayout; selected: boolean; onSelect: () => void }) {
+function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayout; selected: boolean; onSelect: (eventId: string, origin: HTMLElement) => void }) {
   const color = calendarLabEventColor(event);
   const duration = event.endMinutes - event.startMinutes;
   const top = (event.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE;
   const height = duration * PIXELS_PER_MINUTE;
   const compact = duration <= 30;
-  const roomy = duration >= 60;
   const narrowCluster = event.columnCount >= 3;
+  const contentDensity = calendarLabEventContentDensity(duration, narrowCluster);
+  const showTime = contentDensity !== "name";
+  const showService = contentDensity === "service" || contentDensity === "details";
+  const showDetails = contentDensity === "details";
+  const showSessionIndicator = showTime && event.status !== "cancelled";
   const displayName = narrowCluster
     ? event.patientName.split(" ").map((part) => part[0]).join("")
     : event.patientName;
   return (
     <button
       type="button"
-      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""}`}
+      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""}`}
       style={{
         top,
         height: Math.max(height - 2, 18),
@@ -185,14 +272,21 @@ function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayou
         "--event-tint": colorToTint(color),
       } as React.CSSProperties}
       aria-pressed={selected}
-      aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti${event.status === "cancelled" ? ", annullato" : ""}`}
-      onClick={onSelect}
+      aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti, ${calendarLabSessionLabel(event)}`}
+      onClick={(clickEvent) => {
+        clickEvent.stopPropagation();
+        onSelect(event.id, clickEvent.currentTarget);
+      }}
     >
       <strong>{displayName}</strong>
-      {!compact && !narrowCluster ? <span>{minutesToTime(event.startMinutes)} · {duration} min</span> : null}
-      {roomy && !narrowCluster && event.serviceName ? <span>{event.serviceName}</span> : null}
-      {roomy && !narrowCluster && event.locationName ? <span className={styles.eventTertiary}>{event.locationName}</span> : null}
-      {roomy && !narrowCluster && event.status !== "cancelled" ? <span className={styles.sessionState}>{event.sessionState === "registered" ? "✓ Seduta registrata" : "• Da registrare"}</span> : null}
+      {showTime ? <span>{minutesToTime(event.startMinutes)} · {duration} min</span> : null}
+      {showService && event.serviceName ? <span>{event.serviceName}</span> : null}
+      {showDetails && event.locationName ? <span className={styles.eventTertiary}>{event.locationName}</span> : null}
+      {showSessionIndicator ? <span
+        className={`${styles.sessionIndicator} ${event.sessionState === "registered" ? "" : styles.sessionPending}`}
+        role="img"
+        aria-label={event.sessionState === "registered" ? "Seduta registrata" : "Da registrare"}
+      >{event.sessionState === "registered" ? "✓" : "•"}</span> : null}
     </button>
   );
 }

@@ -59,12 +59,12 @@
 .dayColumn { position: relative; border-left: 1px solid rgba(57,75,64,.075); transition: background .15s ease; }
 .dayColumn:hover { background: rgba(93,132,111,.018); }
 .todayColumn { background: rgba(96,143,118,.022); }
+.slotHover { position: absolute; inset-inline: 1px; z-index: 1; pointer-events: none; border-top: 1px solid rgba(95,143,118,.35); background: rgba(95,143,118,.055); }
 .event { position: absolute; z-index: 4; overflow: hidden; border: 0; border-left: 3px solid var(--event-color); border-radius: 6px; background: var(--event-tint); padding: 5px 7px; color: #27352d; text-align: left; display: flex; flex-direction: column; gap: 1px; box-shadow: inset 0 0 0 1px rgba(38,56,45,.035); transition: filter .14s ease, box-shadow .14s ease, transform .14s ease; cursor: pointer; }
 .event:hover { z-index: 8; filter: saturate(1.08) brightness(.985); box-shadow: 0 2px 7px rgba(47,67,55,.12), inset 0 0 0 1px rgba(38,56,45,.05); transform: translateY(-1px); }
 .event strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.25; font-weight: 700; }
 .event span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 1.25; color: #536158; }
 .event .eventTertiary { color: #748078; }
-.event .sessionState { margin-top: 2px; color: #456e59; font-weight: 650; }
 .eventCompact { justify-content: center; padding-block: 1px; }
 .eventCompact strong { font-size: 10px; }
 .eventNarrow { padding-inline: 4px 2px; }
@@ -72,8 +72,48 @@
 .eventCancelled { background: rgba(156,163,175,.14); border-left-color: #9ca3af; color: #68716c; }
 .eventCancelled strong { text-decoration: line-through; text-decoration-thickness: 1px; }
 .eventSelected { z-index: 9; box-shadow: 0 0 0 2px #fff, 0 0 0 4px color-mix(in srgb, var(--event-color) 75%, #365b48); }
+.eventWithState { padding-right: 20px; }
+.sessionIndicator { position: absolute; top: 5px; right: 6px; width: 10px; height: 10px; display: grid; place-items: center; color: #4f7761 !important; font-size: 9px !important; font-weight: 800; line-height: 1 !important; }
+.sessionPending { color: #7e8a82 !important; font-size: 13px !important; }
 .currentTime { position: absolute; z-index: 10; height: 1px; background: #d8796f; pointer-events: none; }
 .currentTime span { position: absolute; left: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: #d8796f; box-shadow: 0 0 0 2px #fff; }
+.drawerLayer { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(27,37,31,.07); }
+.appointmentDrawer { width: min(410px, 100vw); height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fbfcfa; border-left: 1px solid #dfe6df; box-shadow: -18px 0 48px rgba(35,50,41,.14); animation: drawer-enter .2s ease-out; }
+.drawerHeader { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 18px; border-bottom: 1px solid #e4e9e4; background: #fff; }
+.drawerHeader > div { min-width: 0; }
+.drawerHeader span { color: #718078; font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.drawerHeader h2 { margin: 5px 0 0; color: #26342c; font-size: 21px; line-height: 1.15; letter-spacing: -.025em; outline: none; }
+.drawerHeader p { margin: 7px 0 0; color: #758179; font-size: 13px; text-transform: capitalize; }
+.drawerHeader > button { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: #69766e; font-size: 24px; line-height: 1; }
+.drawerHeader > button:hover { background: #eef2ee; color: #2e3d34; }
+.drawerForm { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.drawerBody { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 22px 24px 32px; scrollbar-width: thin; }
+.appointmentState { width: fit-content; margin: 0 0 18px; padding: 6px 9px; border-radius: 8px; background: #e7f0e9; color: #416c55; font-size: 12px; font-weight: 700; }
+.appointmentCancelled { background: #eef0ef; color: #737b76; }
+.drawerField { display: grid; gap: 7px; margin-bottom: 18px; }
+.drawerField label { color: #45534a; font-size: 12px; font-weight: 700; }
+.drawerField input, .drawerField select { width: 100%; min-height: 44px; border: 1px solid #d8dfd9; border-radius: 11px; background: #fff; padding: 0 12px; color: #29372f; font: inherit; font-size: 14px; outline: none; }
+.drawerField input:focus, .drawerField select:focus { border-color: #6f9c82; box-shadow: 0 0 0 3px rgba(95,143,118,.13); }
+.drawerField input[aria-invalid="true"], .drawerField select[aria-invalid="true"] { border-color: #b86d65; }
+.drawerField > p { margin: -1px 0 0; color: #a45149; font-size: 12px; line-height: 1.4; }
+.compactFields { display: grid; grid-template-columns: 1.2fr .9fr .9fr; gap: 10px; align-items: start; }
+.compactFields .drawerField { margin-bottom: 0; }
+.patientPicker { position: relative; }
+.patientOptions { position: absolute; inset: calc(100% + 5px) 0 auto; z-index: 5; max-height: 200px; overflow-y: auto; padding: 5px; border: 1px solid #dfe5df; border-radius: 12px; background: #fff; box-shadow: 0 14px 32px rgba(41,58,48,.14); }
+.patientOptions button { width: 100%; min-height: 40px; display: flex; align-items: center; border: 0; border-radius: 8px; background: transparent; padding: 0 10px; color: #35443b; font-size: 14px; text-align: left; }
+.patientOptions button:hover, .patientOptions button[aria-selected="true"] { background: #edf3ee; }
+.patientOptions p { margin: 0; padding: 10px; color: #7b867f; font-size: 13px; }
+.locationControl { position: relative; }
+.locationControl > span { position: absolute; z-index: 1; left: 13px; top: 50%; width: 9px; height: 9px; border-radius: 3px; transform: translateY(-50%); }
+.locationControl > span + select { padding-left: 31px; }
+.drawerActions { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 9px; padding: 14px 24px max(14px, env(safe-area-inset-bottom)); border-top: 1px solid #e2e8e2; background: rgba(255,255,255,.97); }
+.drawerActions button { min-height: 40px; border-radius: 10px; padding: 0 14px; font-size: 13px; font-weight: 700; }
+.secondaryAction { border: 1px solid #dce3dc; background: #fff; color: #526158; }
+.primaryAction { border: 1px solid #5f8f76; background: #5f8f76; color: #fff; box-shadow: 0 4px 12px rgba(66,105,83,.16); }
+.drawerHeader button:focus-visible, .drawerField input:focus-visible, .drawerField select:focus-visible, .patientOptions button:focus-visible, .drawerActions button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 2px; }
+.drawerActions button:hover { filter: brightness(.98); }
+
+@keyframes drawer-enter { from { transform: translateX(22px); opacity: .7; } to { transform: translateX(0); opacity: 1; } }
 .mobileFallback { display: none; }
 
 @media (max-width: 1120px) {
@@ -82,6 +122,9 @@
   .calendarPane { --calendar-time-gutter: 52px; --calendar-day-columns: repeat(7, minmax(76px, 1fr)); }
   .weekHeader, .timeGrid { min-width: 660px; }
   .event { padding-inline: 5px; }
+  .eventWithState { padding-right: 18px; }
+  .drawerLayer { background: rgba(27,37,31,.11); }
+  .appointmentDrawer { width: min(400px, 100vw); }
 }
 
 @media (max-width: 767px) {
@@ -94,4 +137,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar, .iconButton, .textButton, .viewButton, .event { transition: none; }
+  .appointmentDrawer { animation: none; }
 }

@@ -17,6 +17,8 @@ export type CalendarLabAction =
   | { type: "set_sidebar_open"; open: boolean }
   | { type: "select_event"; eventId: string | null }
   | { type: "set_selection"; selection: CalendarSelection | null }
+  | { type: "add_event"; event: CalendarLabEvent }
+  | { type: "update_event"; event: CalendarLabEvent }
   | { type: "toggle_filter"; filter: string }
   | { type: "reset"; events: readonly CalendarLabEvent[] };
 
@@ -45,6 +47,15 @@ export function calendarLabReducer(
       return { ...state, selectedEventId: action.eventId };
     case "set_selection":
       return { ...state, selection: action.selection };
+    case "add_event":
+      return { ...state, events: [...state.events, action.event], selection: null, selectedEventId: null };
+    case "update_event":
+      return {
+        ...state,
+        events: state.events.map((event) => event.id === action.event.id ? action.event : event),
+        selection: null,
+        selectedEventId: null,
+      };
     case "toggle_filter":
       return {
         ...state,
