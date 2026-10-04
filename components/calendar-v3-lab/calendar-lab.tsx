@@ -7,7 +7,6 @@ import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
 import {
   CALENDAR_LAB_CONFIG,
-  addCalendarDays,
   calendarDateFromInstant,
   calendarTimeFromInstant,
   getInitialScrollMinute,
@@ -82,10 +81,18 @@ import {
 } from "@/lib/calendar-v3-lab/event-resize";
 import {
   calendarLabDaySummary,
+  calendarLabPeriodLabel,
   calendarLabVisibleDates,
   navigateCalendarLabDate,
   type CalendarLabView,
 } from "@/lib/calendar-v3-lab/view";
+import {
+  CALENDAR_MONTH_VISIBLE_EVENT_LIMIT,
+  calendarMonthDays,
+  calendarMonthEventSlice,
+  calendarMonthEventsByDate,
+  isCalendarDateInMonth,
+} from "@/lib/calendar-v3-lab/month-view";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -110,6 +117,7 @@ export function CalendarLab() {
   const [eventResize, setEventResize] = useState<CalendarEventResizeState>(IDLE_CALENDAR_EVENT_RESIZE);
   const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
   const [commandPaletteOrigin, setCommandPaletteOrigin] = useState<HTMLElement | null>(null);
+  const [expandedMonthDate, setExpandedMonthDate] = useState<CalendarDate | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
@@ -128,7 +136,8 @@ export function CalendarLab() {
     !state.hiddenFilters.includes(event.serviceName ?? ""),
   );
   const eventLayouts = useMemo(() => layoutCalendarLabEvents(visibleEvents), [visibleEvents]);
-  const periodLabel = state.view === "day" ? formatFullDate(state.cursorDate) : formatPeriod(days);
+  const periodLabel = calendarLabPeriodLabel(state.view, state.cursorDate);
+  const monthEventsByDate = useMemo(() => calendarMonthEventsByDate(visibleEvents), [visibleEvents]);
   const daySummary = useMemo(
     () => calendarLabDaySummary(visibleEvents, state.cursorDate),
     [state.cursorDate, visibleEvents],
@@ -155,18 +164,25 @@ export function CalendarLab() {
     openCreate(normalizeCalendarSelection(state.cursorDate, 9 * 60, 9 * 60 + 45), origin);
   };
 
+  const openMonthCreate = (date: CalendarDate, origin: HTMLElement) => {
+    setExpandedMonthDate(null);
+    dispatch({ type: "set_cursor_date", date });
+    openCreate(normalizeCalendarSelection(date, 9 * 60, 9 * 60 + 45), origin);
+  };
+
   const openCommandPalette = (origin: HTMLElement) => {
     setContextMenu(null);
     setCommandPaletteOrigin(origin);
   };
 
   useEffect(() => {
+    if (state.view === "month") return;
     const initialMinute = getInitialScrollMinute(days, LAB_NOW);
     const weekHeaderHeight = weekHeaderRef.current?.getBoundingClientRect().height ?? 0;
     scrollRef.current?.scrollTo({
       top: Math.max(0, weekHeaderHeight + (initialMinute - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE),
     });
-  }, [days]);
+  }, [days, state.view]);
 
   useEffect(() => {
     const cancelDrag = (event: KeyboardEvent) => {
@@ -535,7 +551,10 @@ export function CalendarLab() {
     setContextMenu(null);
     if (currentMenu.kind === "empty") {
       if (action === "create") openCreate(currentMenu.selection, currentMenu.origin);
-      else if (action === "go_to_day") dispatch({ type: "set_cursor_date", date: currentMenu.selection.date });
+      else if (action === "go_to_day") {
+        dispatch({ type: "set_cursor_date", date: currentMenu.selection.date });
+        if (state.view === "month") dispatch({ type: "set_view", view: "day" });
+      }
       return;
     }
 
@@ -562,7 +581,7 @@ export function CalendarLab() {
     else if (command === "today") {
       goToToday();
       window.requestAnimationFrame(() => origin?.focus());
-    } else if (command === "week" || command === "day") {
+    } else if (command === "week" || command === "day" || command === "month") {
       dispatch({ type: "set_view", view: command });
       setCommandPaletteOrigin(null);
       window.requestAnimationFrame(() => origin?.focus());
@@ -574,7 +593,7 @@ export function CalendarLab() {
       <div className={styles.mobileFallback}>
         <span className={styles.mobileMark}>Calendar V3 Lab</span>
         <h1>La vista mobile verrà progettata separatamente.</h1>
-        <p>Questa fase valuta le viste desktop Giorno e Settimana di ARMONIA. Apri il laboratorio da uno schermo di almeno 768 px.</p>
+        <p>Questa fase valuta le viste desktop Giorno, Settimana e Mese di ARMONIA. Apri il laboratorio da uno schermo di almeno 768 px.</p>
       </div>
 
       <div className={styles.desktopApp}>
@@ -593,18 +612,18 @@ export function CalendarLab() {
 
           <div className={`${styles.toolbarCluster} ${styles.toolbarRight}`}>
             <button type="button" className={styles.textButton} onClick={goToToday}>Oggi</button>
-            <IconButton label={state.view === "day" ? "Giorno precedente" : "Settimana precedente"} onClick={() => movePeriod(-1)}><Chevron direction="left" /></IconButton>
-            <IconButton label={state.view === "day" ? "Giorno successivo" : "Settimana successiva"} onClick={() => movePeriod(1)}><Chevron direction="right" /></IconButton>
+            <IconButton label={state.view === "day" ? "Giorno precedente" : state.view === "month" ? "Mese precedente" : "Settimana precedente"} onClick={() => movePeriod(-1)}><Chevron direction="left" /></IconButton>
+            <IconButton label={state.view === "day" ? "Giorno successivo" : state.view === "month" ? "Mese successivo" : "Settimana successiva"} onClick={() => movePeriod(1)}><Chevron direction="right" /></IconButton>
             <label className={styles.viewSelector}>
               <span className={styles.srOnly}>Vista calendario</span>
               <select
-                aria-label={`Vista corrente: ${state.view === "day" ? "Giorno" : "Settimana"}`}
+                aria-label={`Vista corrente: ${state.view === "day" ? "Giorno" : state.view === "month" ? "Mese" : "Settimana"}`}
                 value={state.view}
                 onChange={(event) => dispatch({ type: "set_view", view: event.target.value as CalendarLabView })}
               >
                 <option value="day">Giorno</option>
                 <option value="week">Settimana</option>
-                <option value="month" disabled>Mese · Prossimamente</option>
+                <option value="month">Mese</option>
               </select>
               <Chevron direction="down" />
             </label>
@@ -631,8 +650,43 @@ export function CalendarLab() {
             </div>
           </aside>
 
-          <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : "settimanale"}, ${periodLabel}`}>
-            <div ref={scrollRef} className={styles.scrollArea}>
+          <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""} ${state.view === "month" ? styles.calendarPaneMonth : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : state.view === "month" ? "mensile" : "settimanale"}, ${periodLabel}`}>
+            {state.view === "month" ? <MonthCalendar
+              containerRef={scrollRef}
+              days={days}
+              cursorDate={state.cursorDate}
+              today={labToday}
+              eventsByDate={monthEventsByDate}
+              expandedDate={expandedMonthDate}
+              onCreate={openMonthCreate}
+              onOpenEvent={(eventId, date, origin) => {
+                setExpandedMonthDate(null);
+                dispatch({ type: "set_cursor_date", date });
+                openEdit(eventId, origin);
+              }}
+              onToggleOverflow={(date) => {
+                dispatch({ type: "set_cursor_date", date });
+                setExpandedMonthDate((current) => current === date ? null : date);
+              }}
+              onCloseOverflow={() => setExpandedMonthDate(null)}
+              onEmptyContextMenu={(date, anchorPoint, origin) => {
+                dispatch({ type: "set_cursor_date", date });
+                setExpandedMonthDate(null);
+                setCommandPaletteOrigin(null);
+                setContextMenu({
+                  kind: "empty",
+                  anchorPoint,
+                  origin,
+                  selection: normalizeCalendarSelection(date, 9 * 60, 9 * 60 + 45),
+                });
+              }}
+              onEventContextMenu={(eventId, date, anchorPoint, origin) => {
+                dispatch({ type: "set_cursor_date", date });
+                setExpandedMonthDate(null);
+                setCommandPaletteOrigin(null);
+                setContextMenu({ kind: "event", eventId, anchorPoint, origin });
+              }}
+            /> : <div ref={scrollRef} className={styles.scrollArea}>
               <div ref={weekHeaderRef} className={`${styles.weekHeader} ${state.view === "day" ? styles.dayViewHeader : ""}`}>
                 <div className={styles.gutterHeader}><span>CEST</span></div>
                 {state.view === "day"
@@ -826,7 +880,7 @@ export function CalendarLab() {
                   ) : null}
                 </div>
               </div>
-            </div>
+            </div>}
           </section>
         </div>
         {drawerDraft ? <AppointmentDrawer
@@ -888,6 +942,163 @@ function DayViewHeading({ date, summary }: { date: CalendarDate; summary: { appo
     <h1>{heading}</h1>
     <p>{summaryLabel}</p>
   </div>;
+}
+
+function MonthCalendar({ containerRef, days, cursorDate, today, eventsByDate, expandedDate, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu }: {
+  containerRef: React.Ref<HTMLDivElement>;
+  days: CalendarDate[];
+  cursorDate: CalendarDate;
+  today: CalendarDate;
+  eventsByDate: Map<CalendarDate, CalendarLabEvent[]>;
+  expandedDate: CalendarDate | null;
+  onCreate: (date: CalendarDate, origin: HTMLElement) => void;
+  onOpenEvent: (eventId: string, date: CalendarDate, origin: HTMLElement) => void;
+  onToggleOverflow: (date: CalendarDate) => void;
+  onCloseOverflow: () => void;
+  onEmptyContextMenu: (date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+  onEventContextMenu: (eventId: string, date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+}) {
+  return <div ref={containerRef} className={styles.monthView}>
+    <div className={styles.monthWeekdays} aria-hidden="true">
+      {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'].map((label) => <span key={label}>{label}</span>)}
+    </div>
+    <div className={styles.monthGrid}>
+      {days.map((date) => <MonthDayCell
+        key={date}
+        date={date}
+        cursorDate={cursorDate}
+        today={today}
+        events={eventsByDate.get(date) ?? []}
+        expanded={expandedDate === date}
+        onCreate={onCreate}
+        onOpenEvent={onOpenEvent}
+        onToggleOverflow={onToggleOverflow}
+        onCloseOverflow={onCloseOverflow}
+        onEmptyContextMenu={onEmptyContextMenu}
+        onEventContextMenu={onEventContextMenu}
+      />)}
+    </div>
+  </div>;
+}
+
+function MonthDayCell({ date, cursorDate, today, events, expanded, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu }: {
+  date: CalendarDate;
+  cursorDate: CalendarDate;
+  today: CalendarDate;
+  events: CalendarLabEvent[];
+  expanded: boolean;
+  onCreate: (date: CalendarDate, origin: HTMLElement) => void;
+  onOpenEvent: (eventId: string, date: CalendarDate, origin: HTMLElement) => void;
+  onToggleOverflow: (date: CalendarDate) => void;
+  onCloseOverflow: () => void;
+  onEmptyContextMenu: (date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+  onEventContextMenu: (eventId: string, date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+}) {
+  const overflowButtonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const { visible, hiddenCount } = calendarMonthEventSlice(events, CALENDAR_MONTH_VISIBLE_EVENT_LIMIT);
+  const outsideMonth = !isCalendarDateInMonth(date, cursorDate);
+
+  useEffect(() => {
+    if (!expanded) return;
+    popoverRef.current?.querySelector<HTMLButtonElement>("[data-month-event]")?.focus();
+    const close = (event: KeyboardEvent | PointerEvent) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        onCloseOverflow();
+        window.requestAnimationFrame(() => overflowButtonRef.current?.focus());
+        return;
+      }
+      if (popoverRef.current?.contains(event.target as Node) || overflowButtonRef.current?.contains(event.target as Node)) return;
+      onCloseOverflow();
+    };
+    document.addEventListener("keydown", close);
+    document.addEventListener("pointerdown", close);
+    return () => {
+      document.removeEventListener("keydown", close);
+      document.removeEventListener("pointerdown", close);
+    };
+  }, [expanded, onCloseOverflow]);
+
+  return <div className={`${styles.monthDayCell} ${outsideMonth ? styles.monthDayOutside : ""} ${date === cursorDate ? styles.monthDaySelected : ""} ${date === today ? styles.monthDayToday : ""}`}>
+    <button
+      type="button"
+      className={styles.monthDayCreate}
+      aria-label={`Crea appuntamento, ${formatFullDate(date)}`}
+      onClick={(event) => onCreate(date, event.currentTarget)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onEmptyContextMenu(date, { x: event.clientX, y: event.clientY }, event.currentTarget);
+      }}
+    ><span>{Number(date.slice(8))}</span></button>
+    <div className={styles.monthEvents}>
+      {visible.map((event) => <MonthEventButton
+        key={event.id}
+        event={event}
+        onOpen={(origin) => onOpenEvent(event.id, date, origin)}
+        onOpenContextMenu={(anchorPoint, origin) => onEventContextMenu(event.id, date, anchorPoint, origin)}
+      />)}
+      {hiddenCount > 0 ? <button
+        ref={overflowButtonRef}
+        type="button"
+        className={styles.monthMore}
+        aria-expanded={expanded}
+        aria-haspopup="dialog"
+        onClick={() => onToggleOverflow(date)}
+      >+ {hiddenCount} {hiddenCount === 1 ? "altro" : "altri"}</button> : null}
+    </div>
+    {expanded ? <div ref={popoverRef} className={styles.monthOverflow} role="dialog" aria-label={`Appuntamenti di ${formatFullDate(date)}`}>
+      <div className={styles.monthOverflowHeader}>
+        <strong>{formatFullDate(date)}</strong>
+        <button type="button" aria-label="Chiudi elenco appuntamenti" onClick={() => {
+          onCloseOverflow();
+          window.requestAnimationFrame(() => overflowButtonRef.current?.focus());
+        }}>×</button>
+      </div>
+      <div className={styles.monthOverflowList}>
+        {events.map((event, index) => <MonthEventButton
+          key={event.id}
+          event={event}
+          focusMarker={index === 0}
+          onOpen={(origin) => onOpenEvent(event.id, date, origin)}
+          onOpenContextMenu={(anchorPoint, origin) => onEventContextMenu(event.id, date, anchorPoint, origin)}
+        />)}
+      </div>
+    </div> : null}
+  </div>;
+}
+
+function MonthEventButton({ event, focusMarker = false, onOpen, onOpenContextMenu }: {
+  event: CalendarLabEvent;
+  focusMarker?: boolean;
+  onOpen: (origin: HTMLElement) => void;
+  onOpenContextMenu: (anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+}) {
+  const color = calendarLabEventColor(event);
+  return <button
+    type="button"
+    className={`${styles.monthEvent} ${event.status === "cancelled" ? styles.monthEventCancelled : ""}`}
+    style={{ "--event-color": color, "--event-tint": colorToTint(color) } as React.CSSProperties}
+    aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${calendarLabSessionLabel(event)}`}
+    data-month-event={focusMarker ? "first" : ""}
+    onClick={(clickEvent) => onOpen(clickEvent.currentTarget)}
+    onContextMenu={(contextEvent) => {
+      contextEvent.preventDefault();
+      contextEvent.stopPropagation();
+      onOpenContextMenu({ x: contextEvent.clientX, y: contextEvent.clientY }, contextEvent.currentTarget);
+    }}
+    onKeyDown={(keyboardEvent) => {
+      if (keyboardEvent.key !== "ContextMenu" && !(keyboardEvent.shiftKey && keyboardEvent.key === "F10")) return;
+      keyboardEvent.preventDefault();
+      const rectangle = keyboardEvent.currentTarget.getBoundingClientRect();
+      onOpenContextMenu({ x: rectangle.left + 20, y: rectangle.top + 20 }, keyboardEvent.currentTarget);
+    }}
+  >
+    <span aria-hidden="true" />
+    <strong>{event.patientName}</strong>
+    <small>{minutesToTime(event.startMinutes)}</small>
+  </button>;
 }
 
 function TimeGutter() {
@@ -1047,19 +1258,16 @@ function ContextMenuEventHeader({ event }: { event: CalendarLabEvent }) {
 }
 
 function MiniCalendar({ cursorDate, visibleDates, view, today, onSelect }: { cursorDate: CalendarDate; visibleDates: CalendarDate[]; view: CalendarLabView; today: CalendarDate; onSelect: (date: CalendarDate) => void }) {
-  const first = `${cursorDate.slice(0, 7)}-01` as CalendarDate;
   const month = Number(cursorDate.slice(5, 7));
   const year = Number(cursorDate.slice(0, 4));
-  const firstWeekday = new Date(`${first}T12:00:00Z`).getUTCDay();
-  const offset = firstWeekday === 0 ? 6 : firstWeekday - 1;
-  const cells = Array.from({ length: 42 }, (_, index) => addCalendarDays(first, index - offset));
+  const cells = calendarMonthDays(cursorDate);
   return <section className={styles.miniCalendar} aria-label="Mini calendario">
-    <div className={styles.miniTitle}><strong>{MONTHS[month - 1]} {year}</strong><span>{view === "day" ? "Giorno" : "Settimana"}</span></div>
+    <div className={styles.miniTitle}><strong>{MONTHS[month - 1]} {year}</strong><span>{view === "day" ? "Giorno" : view === "month" ? "Mese" : "Settimana"}</span></div>
     <div className={styles.miniWeekdays}>{["L", "M", "M", "G", "V", "S", "D"].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>
     <div className={styles.miniDays}>{cells.map((date) => {
       const outside = date.slice(5, 7) !== cursorDate.slice(5, 7);
-      const visible = visibleDates.includes(date);
-      return <button key={date} type="button" onClick={() => onSelect(date)} className={`${outside ? styles.outsideMonth : ""} ${visible ? styles.inWeek : ""} ${view === "day" && date === cursorDate ? styles.miniSelectedDay : ""} ${date === today ? styles.miniToday : ""}`} aria-label={formatFullDate(date)} aria-current={date === cursorDate ? "date" : undefined}>{Number(date.slice(8))}</button>;
+      const visible = view === "month" ? date === cursorDate : visibleDates.includes(date);
+      return <button key={date} type="button" onClick={() => onSelect(date)} className={`${outside ? styles.outsideMonth : ""} ${visible ? styles.inWeek : ""} ${(view === "day" || view === "month") && date === cursorDate ? styles.miniSelectedDay : ""} ${date === today ? styles.miniToday : ""}`} aria-label={formatFullDate(date)} aria-current={date === cursorDate ? "date" : undefined}>{Number(date.slice(8))}</button>;
     })}</div>
   </section>;
 }
@@ -1069,15 +1277,6 @@ function FilterSection({ title, items, hidden, onToggle }: { title: string; item
     const active = !hidden.includes(item.label);
     return <button key={item.label} type="button" aria-pressed={active} onClick={() => onToggle(item.label)}><span style={{ background: active ? item.color : "transparent", borderColor: item.color }} />{item.label}</button>;
   })}</div></section>;
-}
-
-function formatPeriod(days: CalendarDate[]) {
-  const firstDay = Number(days[0].slice(8));
-  const lastDay = Number(days[6].slice(8));
-  const firstMonth = Number(days[0].slice(5, 7));
-  const lastMonth = Number(days[6].slice(5, 7));
-  const year = days[6].slice(0, 4);
-  return firstMonth === lastMonth ? `${firstDay} – ${lastDay} ${MONTHS[lastMonth - 1]} ${year}` : `${firstDay} ${MONTHS[firstMonth - 1]} – ${lastDay} ${MONTHS[lastMonth - 1]} ${year}`;
 }
 
 function formatOccupiedTime(minutes: number) {

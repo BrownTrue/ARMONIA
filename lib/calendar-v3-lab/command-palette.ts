@@ -17,7 +17,7 @@ export const CALENDAR_COMMANDS: readonly CalendarCommand[] = Object.freeze([
   { id: "today", label: "Vai a oggi", keywords: ["oggi", "torna", "data corrente"], shortcut: "T", enabled: true },
   { id: "go_to_date", label: "Vai a una data…", keywords: ["data", "giorno", "vai"], enabled: true },
   { id: "week", label: "Vista settimana", keywords: ["vista", "settimana", "week"], enabled: true },
-  { id: "month", label: "Vista mese", keywords: ["vista", "mese", "month"], enabled: false, badge: "Prossimamente" },
+  { id: "month", label: "Vista mese", keywords: ["vista", "mese", "month"], enabled: true },
   { id: "day", label: "Vista giorno", keywords: ["vista", "giorno", "day"], enabled: true },
 ]);
 
