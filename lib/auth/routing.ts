@@ -11,6 +11,7 @@ const PRIVATE_ROOTS = [
   "/statistiche",
   "/impostazioni",
   "/risorse",
+  "/onboarding",
 ] as const;
 
 export type ServerAuthState = "authenticated" | "unauthenticated" | "error";
@@ -65,7 +66,7 @@ export function authRoutingDecision(input: {
   if (isApiRoute(pathname) || isPublicCapabilityRoute(pathname)) return { type: "pass" };
 
   if (localMode) {
-    if (pathname === "/" || pathname === "/reset-password" || isAccountEntryPage(pathname) || isAuthCallbackRoute(pathname)) {
+    if (pathname === "/" || pathname === "/reset-password" || pathname === "/onboarding" || isAccountEntryPage(pathname) || isAuthCallbackRoute(pathname)) {
       return { type: "redirect", destination: safeNextPath(requestedNext) };
     }
     return { type: "pass" };

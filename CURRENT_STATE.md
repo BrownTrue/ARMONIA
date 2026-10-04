@@ -175,3 +175,8 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 - Policy password condivisa fra registrazione, reset e cambio da Impostazioni: almeno 10 caratteri, maiuscola, minuscola e numero.
 - In Impostazioni è disponibile “Account e sicurezza”; l’email mostrata proviene da Supabase Auth e non dal profilo professionale.
 - Nessuna migration o modifica Supabase. Prima del collaudo cloud occorre autorizzare nel Dashboard Supabase la redirect URL `/auth/recovery` per produzione e sviluppo locale.
+# Auth / Account V2 — Fase 4B implementata localmente
+
+- La migration `031_profile_onboarding.sql` è applicata e committata: gli utenti storici risultano già completati, mentre i nuovi Profile partono con `onboarding_completed_at = NULL`.
+- Il primo accesso cloud usa una singola pagina `/onboarding` con Nome, Cognome, Professione e Studio/Centro facoltativo. Il timestamp viene scritto nello stesso update del Profile soltanto dopo validazione e salvataggio riuscito.
+- La guard riusa il Profile già caricato dal bootstrap del `DataProvider`, impedisce l’accesso alle route applicative senza mostrare il gestionale e non aggiunge query Profile nel middleware. La modalità locale bypassa completamente l’onboarding.

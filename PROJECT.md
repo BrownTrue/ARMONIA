@@ -161,3 +161,6 @@ ARMONIA offre un export portabile client-side in CSV/JSON e ZIP. L'export compre
 # Auth e sicurezza account
 
 ARMONIA cloud supporta registrazione con verifica email, recupero password e cambio password autenticato. La policy password è applicativa e condivisa; il recupero usa una callback PKCE dedicata, non espone l’esistenza degli account e richiede un nuovo login dopo il reset. La modalità locale non simula account o recuperi password.
+# Onboarding account cloud
+
+I nuovi account cloud completano una sola configurazione professionale essenziale prima di accedere al gestionale. Lo stato canonico è `profiles.onboarding_completed_at`; i dati restano nello stesso Profile modificabile dalle Impostazioni. La guard applicativa riusa il bootstrap dati esistente, mentre autenticazione e protezione anonima restano nel middleware. Gli account storici sono esclusi tramite backfill e la modalità locale non simula onboarding cloud.

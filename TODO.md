@@ -78,3 +78,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 - [ ] Aggiungere alla allowlist Redirect URLs Supabase `https://<dominio-produzione>/auth/recovery` e, per sviluppo, `http://localhost:3000/auth/recovery`.
 - [ ] Collaudare richiesta recupero per email esistente e inesistente, link valido, link scaduto/riutilizzato, cambio password e nuovo login.
 - [ ] Verificare da mobile e desktop il cambio password in Impostazioni e che un account storico con password più debole continui ad accedere senza reset forzato.
+# Auth / Account V2 — collaudo Fase 4B
+
+- [ ] Collaudare nuovo account: conferma email, login, onboarding obbligatorio, validazione, completamento e ingresso in Oggi.
+- [ ] Verificare che logout/login non riproponga onboarding e che un account storico con campi facoltativi vuoti continui ad accedere normalmente.
+- [ ] Verificare bypass local mode, accesso anonimo negato a `/onboarding` e modifica successiva degli stessi dati nelle Impostazioni.
