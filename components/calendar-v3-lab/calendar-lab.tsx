@@ -4,6 +4,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import styles from "./calendar-v3-lab.module.css";
 import { AppointmentDrawer } from "./appointment-drawer";
 import { ContextMenu } from "./context-menu";
+import { CommandPalette } from "./command-palette";
 import {
   CALENDAR_LAB_CONFIG,
   addCalendarDays,
@@ -57,6 +58,10 @@ import {
   duplicateCalendarLabEvent,
   type CalendarContextMenuAction,
 } from "@/lib/calendar-v3-lab/context-menu";
+import {
+  isCalendarShortcutTypingTarget,
+  type CalendarCommandId,
+} from "@/lib/calendar-v3-lab/command-palette";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -72,10 +77,12 @@ export function CalendarLab() {
   const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
   const scrollRef = useRef<HTMLDivElement>(null);
   const weekHeaderRef = useRef<HTMLDivElement>(null);
+  const commandButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
   const [dragSelection, setDragSelection] = useState<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
+  const [commandPaletteOrigin, setCommandPaletteOrigin] = useState<HTMLElement | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const pointerClientYRef = useRef(0);
@@ -96,6 +103,23 @@ export function CalendarLab() {
     : state.selection
       ? createAppointmentDraft(state.selection)
       : null;
+
+  const goToToday = () => {
+    setContextMenu(null);
+    setCommandPaletteOrigin(null);
+    dispatch({ type: "set_cursor_date", date: labToday });
+  };
+
+  const openDefaultCreate = (origin: HTMLElement) => {
+    setContextMenu(null);
+    setCommandPaletteOrigin(null);
+    openCreate(normalizeCalendarSelection(state.cursorDate, 9 * 60, 9 * 60 + 45), origin);
+  };
+
+  const openCommandPalette = (origin: HTMLElement) => {
+    setContextMenu(null);
+    setCommandPaletteOrigin(origin);
+  };
 
   useEffect(() => {
     const initialMinute = getInitialScrollMinute(days, LAB_NOW);
@@ -150,6 +174,33 @@ export function CalendarLab() {
     frameId = window.requestAnimationFrame(advance);
     return () => window.cancelAnimationFrame(frameId);
   }, [dragSelection.status]);
+
+  useEffect(() => {
+    const handleCalendarShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle") return;
+      if (isCalendarShortcutTypingTarget(event.target)) return;
+      const key = event.key.toLocaleLowerCase("it");
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && key === "k") {
+        event.preventDefault();
+        if (!commandPaletteOrigin) {
+          const origin = document.activeElement instanceof HTMLElement ? document.activeElement : commandButtonRef.current;
+          if (origin) openCommandPalette(origin);
+        }
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (key === "t") {
+        event.preventDefault();
+        goToToday();
+      } else if (key === "c") {
+        event.preventDefault();
+        const origin = document.activeElement instanceof HTMLElement ? document.activeElement : commandButtonRef.current;
+        if (origin) openDefaultCreate(origin);
+      }
+    };
+    document.addEventListener("keydown", handleCalendarShortcut);
+    return () => document.removeEventListener("keydown", handleCalendarShortcut);
+  }, [commandPaletteOrigin, drawerDraft, state.cursorDate]);
 
   const moveWeek = (amount: number) => {
     dispatch({ type: "set_cursor_date", date: addCalendarDays(state.cursorDate, amount * 7) });
@@ -212,6 +263,18 @@ export function CalendarLab() {
     }
   };
 
+  const handleCalendarCommand = (command: Exclude<CalendarCommandId, "go_to_date">) => {
+    const origin = commandPaletteOrigin ?? commandButtonRef.current;
+    if (command === "create" && origin) openDefaultCreate(origin);
+    else if (command === "today") {
+      goToToday();
+      window.requestAnimationFrame(() => origin?.focus());
+    } else if (command === "week") {
+      setCommandPaletteOrigin(null);
+      window.requestAnimationFrame(() => origin?.focus());
+    }
+  };
+
   return (
     <main className={styles.shell}>
       <div className={styles.mobileFallback}>
@@ -228,17 +291,14 @@ export function CalendarLab() {
               expanded={state.sidebarOpen}
               onClick={() => dispatch({ type: "set_sidebar_open", open: !state.sidebarOpen })}
             ><SidebarIcon /></IconButton>
-            <IconButton label="Cerca nel calendario — disponibile in una fase successiva"><SearchIcon /></IconButton>
-            <IconButton label="Nuovo appuntamento" onClick={(event) => openCreate(
-              normalizeCalendarSelection(state.cursorDate, 9 * 60, 9 * 60 + 45),
-              event.currentTarget,
-            )}><ComposeIcon /></IconButton>
+            <IconButton buttonRef={commandButtonRef} label="Cerca o esegui un comando, ⌘K o Ctrl+K" onClick={(event) => openCommandPalette(event.currentTarget)}><SearchIcon /></IconButton>
+            <IconButton label="Nuovo appuntamento" onClick={(event) => openDefaultCreate(event.currentTarget)}><ComposeIcon /></IconButton>
           </div>
 
           <p className={styles.periodLabel} aria-live="polite">{periodLabel}</p>
 
           <div className={`${styles.toolbarCluster} ${styles.toolbarRight}`}>
-            <button type="button" className={styles.textButton} onClick={() => dispatch({ type: "set_cursor_date", date: labToday })}>Oggi</button>
+            <button type="button" className={styles.textButton} onClick={goToToday}>Oggi</button>
             <IconButton label="Settimana precedente" onClick={() => moveWeek(-1)}><Chevron direction="left" /></IconButton>
             <IconButton label="Settimana successiva" onClick={() => moveWeek(1)}><Chevron direction="right" /></IconButton>
             <button type="button" className={styles.viewButton} aria-label="Vista corrente: Settimana">Settimana <Chevron direction="down" /></button>
@@ -300,6 +360,7 @@ export function CalendarLab() {
                         if (event.target !== event.currentTarget) return;
                         event.preventDefault();
                         const rectangle = event.currentTarget.getBoundingClientRect();
+                        setCommandPaletteOrigin(null);
                         setContextMenu({
                           kind: "empty",
                           anchorPoint: { x: event.clientX, y: event.clientY },
@@ -400,7 +461,10 @@ export function CalendarLab() {
                           selected={state.selectedEventId === event.id}
                           menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
                           onSelect={openEdit}
-                          onOpenContextMenu={(eventId, anchorPoint, origin) => setContextMenu({ kind: "event", eventId, anchorPoint, origin })}
+                          onOpenContextMenu={(eventId, anchorPoint, origin) => {
+                            setCommandPaletteOrigin(null);
+                            setContextMenu({ kind: "event", eventId, anchorPoint, origin });
+                          }}
                         />
                       ))}
                     </div>
@@ -440,13 +504,24 @@ export function CalendarLab() {
           onAction={handleContextMenuAction}
           onClose={() => setContextMenu(null)}
         /> : null}
+        {commandPaletteOrigin ? <CommandPalette
+          origin={commandPaletteOrigin}
+          onCommand={handleCalendarCommand}
+          onGoToDate={(date) => {
+            const origin = commandPaletteOrigin;
+            setCommandPaletteOrigin(null);
+            dispatch({ type: "set_cursor_date", date });
+            window.requestAnimationFrame(() => origin?.focus());
+          }}
+          onClose={() => setCommandPaletteOrigin(null)}
+        /> : null}
       </div>
     </main>
   );
 }
 
-function IconButton({ label, expanded, onClick, children }: { label: string; expanded?: boolean; onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }) {
-  return <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={expanded} onClick={onClick}>{children}</button>;
+function IconButton({ label, expanded, buttonRef, onClick, children }: { label: string; expanded?: boolean; buttonRef?: React.Ref<HTMLButtonElement>; onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }) {
+  return <button ref={buttonRef} type="button" className={styles.iconButton} aria-label={label} aria-expanded={expanded} onClick={onClick}>{children}</button>;
 }
 
 function DayHeader({ day, today }: { day: CalendarDate; today: CalendarDate }) {

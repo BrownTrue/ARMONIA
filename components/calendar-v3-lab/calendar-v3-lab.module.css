@@ -91,6 +91,34 @@
 .contextMenu .contextMenuDestructive { color: #9a514a; }
 .contextMenu .contextMenuDestructive:hover, .contextMenu .contextMenuDestructive:focus-visible { background: #f8efed; color: #87443e; }
 .contextMenuSeparator { height: 1px; margin: 4px 7px; background: #e8ece8; }
+.commandPaletteLayer { position: fixed; inset: 0; z-index: 70; display: flex; align-items: flex-start; justify-content: center; padding: min(14vh, 120px) 20px 20px; background: rgba(32,44,36,.12); }
+.commandPalette { width: min(540px, calc(100vw - 40px)); overflow: hidden; border: 1px solid rgba(53,71,60,.14); border-radius: 16px; background: rgba(255,255,255,.99); box-shadow: 0 24px 70px rgba(35,50,41,.2), 0 3px 12px rgba(35,50,41,.08); }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.commandSearch { min-height: 58px; display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 9px; padding: 0 12px 0 17px; border-bottom: 1px solid #e8ece8; }
+.commandSearch > span { color: #7c8981; font-size: 22px; line-height: 1; }
+.commandSearch input { min-width: 0; height: 52px; border: 0; outline: none; background: transparent; color: #2c3b32; font: inherit; font-size: 16px; }
+.commandSearch input::placeholder { color: #9aa39d; }
+.commandSearch kbd, .commandList kbd { border: 1px solid #e0e5e1; border-radius: 6px; background: #f5f7f5; padding: 2px 6px; color: #7a867e; font: inherit; font-size: 10px; white-space: nowrap; }
+.commandSearch button { width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: #78847c; font-size: 20px; }
+.commandSearch button:hover, .commandSearch button:focus-visible { background: #eef2ee; color: #35443b; outline: none; }
+.commandSectionLabel { padding: 13px 17px 6px; color: #89958d; font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.commandList { max-height: min(390px, 55vh); overflow-y: auto; padding: 3px 7px 9px; }
+.commandList button { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-radius: 9px; background: transparent; padding: 0 11px; color: #38463d; font: inherit; font-size: 13px; text-align: left; }
+.commandList button[aria-selected="true"] { background: #edf3ee; color: #294035; }
+.commandList button:disabled { color: #9da6a0; cursor: not-allowed; }
+.commandList button:disabled[aria-selected="true"] { background: transparent; }
+.commandList small { color: #8c978f; font-size: 10px; }
+.commandEmpty { margin: 0; padding: 24px 11px 28px; color: #849087; font-size: 13px; text-align: center; }
+.commandDateForm { display: grid; gap: 14px; padding: 18px; }
+.commandDateForm > label { color: #35443b; font-size: 14px; font-weight: 750; }
+.commandDateForm > input { width: 100%; min-height: 44px; border: 1px solid #d8dfd9; border-radius: 10px; background: #fff; padding: 0 12px; color: #29372f; font: inherit; }
+.commandDateForm > input:focus-visible { border-color: #6f9c82; box-shadow: 0 0 0 3px rgba(95,143,118,.13); outline: none; }
+.commandDateForm > div { display: flex; justify-content: flex-end; gap: 8px; }
+.commandDateForm button { min-height: 38px; border: 1px solid #dce3dc; border-radius: 9px; background: #fff; padding: 0 12px; color: #526158; font: inherit; font-size: 12px; font-weight: 700; }
+.commandDateForm button[type="submit"] { border-color: #5f8f76; background: #5f8f76; color: #fff; }
+.commandDateForm button:disabled { opacity: .48; cursor: not-allowed; }
+.commandDateForm .commandBack { width: fit-content; min-height: 30px; border: 0; padding: 0 4px; color: #6e7c73; font-weight: 600; }
+.commandDateForm button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 2px; }
 .drawerLayer { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(27,37,31,.07); }
 .appointmentDrawer { width: min(410px, 100vw); height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fbfcfa; border-left: 1px solid #dfe6df; box-shadow: -18px 0 48px rgba(35,50,41,.14); animation: drawer-enter .2s ease-out; }
 .drawerHeader { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 18px; border-bottom: 1px solid #e4e9e4; background: #fff; }
