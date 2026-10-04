@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
 import { safeNextPath } from "@/lib/auth/routing";
+import { EMAIL_NOT_CONFIRMED_MESSAGE, PENDING_SIGNUP_KEY } from "@/lib/auth/signup";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,19 +30,28 @@ export default function LoginPage() {
             setBusy(true);
             setError("");
             const form = new FormData(event.currentTarget);
-            const message = await signIn(String(form.get("email") || ""), String(form.get("password") || ""));
+            const email = String(form.get("email") || "").trim();
+            const message = await signIn(email, String(form.get("password") || ""));
             setBusy(false);
-            if (message) setError(message);
+            if (message) {
+              setError(message);
+              if (message === EMAIL_NOT_CONFIRMED_MESSAGE) {
+                const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+                sessionStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, next }));
+              }
+            }
             else router.replace(safeNextPath(new URLSearchParams(window.location.search).get("next")));
           }}
         >
           <Field label="Email" name="email" type="email" autoComplete="email" required />
           <Field label="Password" name="password" type="password" autoComplete="current-password" required />
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          {error === EMAIL_NOT_CONFIRMED_MESSAGE && <Link href="/check-email" className="block text-center text-sm font-bold text-sage-700">Reinvia l’email di conferma</Link>}
           <button disabled={busy} className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-60">
             {busy ? "Accesso in corso…" : "Accedi"}
           </button>
         </form>
+        <p className="mt-6 text-center text-sm text-slate-600">Non hai un account? <Link href="/signup" className="font-bold text-sage-700">Crea account</Link></p>
       </section>
     </main>
   );

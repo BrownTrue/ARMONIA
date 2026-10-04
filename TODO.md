@@ -6,7 +6,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
-- Collaudare manualmente AUTH / Account V2 Fase 1 in cloud: apertura anonima di una pagina privata e ritorno al deep link dopo login, refresh diretto di una pagina privata autenticata, `/` e `/login` con/senza sessione, logout reale, errore temporaneo di verifica e modalità locale. Signup, recupero password, onboarding e gestione account restano fasi successive separate.
+- AUTH / Account V2 Fase 1 è verificata in produzione: mantenere nei collaudi regressivi apertura anonima di una pagina privata, ritorno al deep link dopo login, refresh diretto, logout reale, errore temporaneo e modalità locale.
+- Prima del collaudo cloud di AUTH / Account V2 Fase 2, verificare nel Dashboard Supabase che la conferma email sia attiva, che Site URL corrisponda all'origine Production e che Redirect URLs includa esattamente la callback Production `/auth/callback` (oltre all'equivalente locale usato per il test). Poi collaudare registrazione, email, callback, resend, account già presente e Profile creato dal trigger. Recupero password, onboarding e Settings V2 restano fasi successive.
 
 - Collaudare manualmente la Validation UX P1 su nuovo/modifica Paziente, dati amministrativi, nuovo/modifica Appuntamento e ricorrenza, Sedi e Prestazioni, verificando errori inline, scroll/focus al primo campo e distinzione dai fallimenti server.
 - Collaudare manualmente la Validation UX P1 su nuova/modifica Seduta, apertura/modifica/chiusura Percorso clinico, Obiettivi e creazione Valutazione: verificare errori inline, riepilogo del form lungo, focus al primo campo, conferme applicative di cancellazione e mancata rimozione ottimistica in caso di errore.

@@ -1,6 +1,6 @@
 export const DEFAULT_AUTHENTICATED_PATH = "/oggi";
 
-const PUBLIC_PATHS = new Set(["/about", "/privacy", "/login"]);
+const PUBLIC_PATHS = new Set(["/about", "/privacy", "/login", "/signup", "/check-email", "/auth/error"]);
 const PRIVATE_ROOTS = [
   "/oggi",
   "/calendario",
@@ -19,6 +19,12 @@ export type AuthRoutingDecision = { type: "pass" } | { type: "redirect"; destina
 export const isPublicPage = (pathname: string) => PUBLIC_PATHS.has(pathname);
 export const isPublicCapabilityRoute = (pathname: string) => pathname.startsWith("/calendar/");
 export const isApiRoute = (pathname: string) => pathname === "/api" || pathname.startsWith("/api/");
+export const isAuthCallbackRoute = (pathname: string) => pathname === "/auth/callback";
+
+const isAccountEntryPage = (pathname: string) => pathname === "/login"
+  || pathname === "/signup"
+  || pathname === "/check-email"
+  || pathname === "/auth/error";
 
 const isAllowedPrivatePath = (pathname: string) => PRIVATE_ROOTS.some(
   (root) => pathname === root || pathname.startsWith(`${root}/`),
@@ -58,7 +64,7 @@ export function authRoutingDecision(input: {
   if (isApiRoute(pathname) || isPublicCapabilityRoute(pathname)) return { type: "pass" };
 
   if (localMode) {
-    if (pathname === "/" || pathname === "/login") {
+    if (pathname === "/" || isAccountEntryPage(pathname) || isAuthCallbackRoute(pathname)) {
       return { type: "redirect", destination: safeNextPath(requestedNext) };
     }
     return { type: "pass" };
@@ -70,13 +76,13 @@ export function authRoutingDecision(input: {
     return { type: "pass" };
   }
 
-  if (pathname === "/login") {
+  if (isAccountEntryPage(pathname)) {
     return authState === "authenticated"
       ? { type: "redirect", destination: safeNextPath(requestedNext) }
       : { type: "pass" };
   }
 
-  if (isPublicPage(pathname) || authState === "authenticated" || authState === "error") {
+  if (isPublicPage(pathname) || isAuthCallbackRoute(pathname) || authState === "authenticated" || authState === "error") {
     return { type: "pass" };
   }
   return { type: "redirect", destination: loginPathFor(destination) };
