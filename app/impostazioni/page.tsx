@@ -15,6 +15,7 @@ import { CalendarFeedSettings } from "@/components/calendar-feed-settings";
 import { Modal } from "@/components/modal";
 import { DataExportSection } from "@/components/settings/data-export-section";
 import { DestructiveActionModal } from "@/components/destructive-action-modal";
+import { AccountSecurity } from "@/components/settings/account-security";
 type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
 const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
 const emptyProfessionalDetails=(details?:ProfessionalDocumentDetails):ProfessionalDocumentDetails=>details||{userId:"local",taxCode:"",vatNumber:"",address:"",postalCode:"",city:"",province:"",country:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
@@ -178,6 +179,7 @@ export default function Settings() {
       {googleAction==="resync"&&<DestructiveActionModal title="Risincronizzare tutti gli appuntamenti?" description="È un’operazione eccezionale: tutti gli appuntamenti ARMONIA verranno rimessi in coda per riallineare Google Calendar." confirmLabel="Avvia risincronizzazione" busyLabel="Preparazione…" danger={false} busy={googleActionBusy} error={googleActionError} onClose={()=>setGoogleAction(null)} onConfirm={async()=>{if(googleActionFlight.current)return;googleActionFlight.current=true;setGoogleActionBusy(true);setGoogleActionError("");try{await resyncAllGoogleAppointments(()=>queueAllGoogleAppointments(data.appointments,data.patients));setGoogleAction(null)}catch{setGoogleActionError("Non è stato possibile avviare la risincronizzazione completa. Riprova.")}finally{googleActionFlight.current=false;setGoogleActionBusy(false)}}}/>}
       {removeLogoOpen&&<DestructiveActionModal title="Rimuovere il logo?" description="Il logo non verrà più utilizzato nei documenti generati da ARMONIA." confirmLabel="Rimuovi logo" busyLabel="Rimozione…" busy={brandingBusy} error={brandingMessage?.kind==="error"?brandingMessage.text:undefined} onClose={()=>setRemoveLogoOpen(false)} onConfirm={async()=>{setBrandingBusy(true);setBrandingMessage(null);try{await removeLogo();setBrandingMessage({kind:"success",text:"Logo rimosso. È stato ripristinato il logo Armonia."});setRemoveLogoOpen(false)}catch{setBrandingMessage({kind:"error",text:"Non è stato possibile rimuovere il logo. Riprova."})}finally{setBrandingBusy(false)}}}/>}
       <DataExportSection data={data} user={user} mode={connection.kind}/>
+      <AccountSecurity />
       <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <h2 className="font-bold">Account</h2>
         <button

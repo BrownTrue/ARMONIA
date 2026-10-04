@@ -169,3 +169,9 @@ La presenza delle migration nel repository non dimostra che siano state applicat
 
 - Implementato localmente l'export dati utente dalle Impostazioni, interamente client-side, con lettura cloud paginata e modalità locale compatibile con gli archivi normalizzati.
 - CSV/JSON e ZIP sono generati solo in memoria; i binari Storage, i token e i dati tecnici delle integrazioni sono esclusi. La funzione non è un backup ripristinabile e non richiede migration.
+# Auth / Account V2 — Fase 3 implementata localmente
+
+- Recupero password cloud con richiesta anti-enumeration, callback PKCE dedicata, sessione recovery verificata e nuova autenticazione dopo il cambio password.
+- Policy password condivisa fra registrazione, reset e cambio da Impostazioni: almeno 10 caratteri, maiuscola, minuscola e numero.
+- In Impostazioni è disponibile “Account e sicurezza”; l’email mostrata proviene da Supabase Auth e non dal profilo professionale.
+- Nessuna migration o modifica Supabase. Prima del collaudo cloud occorre autorizzare nel Dashboard Supabase la redirect URL `/auth/recovery` per produzione e sviluppo locale.

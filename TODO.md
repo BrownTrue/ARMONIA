@@ -73,3 +73,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 - [x] User Data Export V1 client-side (CSV/JSON/ZIP, senza binari Storage e senza migration).
 - [ ] Valutare separatamente un futuro backup/restore infrastrutturale; non fa parte dell'export V1.
+# Auth / Account V2 — verifica manuale Fase 3
+
+- [ ] Aggiungere alla allowlist Redirect URLs Supabase `https://<dominio-produzione>/auth/recovery` e, per sviluppo, `http://localhost:3000/auth/recovery`.
+- [ ] Collaudare richiesta recupero per email esistente e inesistente, link valido, link scaduto/riutilizzato, cambio password e nuovo login.
+- [ ] Verificare da mobile e desktop il cambio password in Impostazioni e che un account storico con password più debole continui ad accedere senza reset forzato.

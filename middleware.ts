@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authRoutingDecision, type ServerAuthState } from "@/lib/auth/routing";
 import { refreshSupabaseSession, responseWithRefreshedCookies } from "@/lib/supabase/middleware";
 import { isLocalDataMode } from "@/lib/data-mode";
+import { RECOVERY_COOKIE } from "@/lib/auth/password";
 
 export async function middleware(request: NextRequest) {
   const localMode = isLocalDataMode();
@@ -15,6 +16,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
+  if (!localMode && pathname === "/reset-password" && !request.cookies.get(RECOVERY_COOKIE)) {
+    return responseWithRefreshedCookies(response, new URL("/forgot-password?reason=invalid", request.url));
+  }
   const destination = `${pathname}${request.nextUrl.search}`;
   const decision = authRoutingDecision({
     pathname,

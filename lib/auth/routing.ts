@@ -1,6 +1,6 @@
 export const DEFAULT_AUTHENTICATED_PATH = "/oggi";
 
-const PUBLIC_PATHS = new Set(["/about", "/privacy", "/login", "/signup", "/check-email", "/auth/error"]);
+const PUBLIC_PATHS = new Set(["/about", "/privacy", "/login", "/signup", "/check-email", "/forgot-password", "/reset-password", "/auth/error"]);
 const PRIVATE_ROOTS = [
   "/oggi",
   "/calendario",
@@ -19,11 +19,12 @@ export type AuthRoutingDecision = { type: "pass" } | { type: "redirect"; destina
 export const isPublicPage = (pathname: string) => PUBLIC_PATHS.has(pathname);
 export const isPublicCapabilityRoute = (pathname: string) => pathname.startsWith("/calendar/");
 export const isApiRoute = (pathname: string) => pathname === "/api" || pathname.startsWith("/api/");
-export const isAuthCallbackRoute = (pathname: string) => pathname === "/auth/callback";
+export const isAuthCallbackRoute = (pathname: string) => pathname === "/auth/callback" || pathname === "/auth/recovery";
 
 const isAccountEntryPage = (pathname: string) => pathname === "/login"
   || pathname === "/signup"
   || pathname === "/check-email"
+  || pathname === "/forgot-password"
   || pathname === "/auth/error";
 
 const isAllowedPrivatePath = (pathname: string) => PRIVATE_ROOTS.some(
@@ -64,7 +65,7 @@ export function authRoutingDecision(input: {
   if (isApiRoute(pathname) || isPublicCapabilityRoute(pathname)) return { type: "pass" };
 
   if (localMode) {
-    if (pathname === "/" || isAccountEntryPage(pathname) || isAuthCallbackRoute(pathname)) {
+    if (pathname === "/" || pathname === "/reset-password" || isAccountEntryPage(pathname) || isAuthCallbackRoute(pathname)) {
       return { type: "redirect", destination: safeNextPath(requestedNext) };
     }
     return { type: "pass" };
@@ -77,6 +78,9 @@ export function authRoutingDecision(input: {
   }
 
   if (isAccountEntryPage(pathname)) {
+    if (pathname === "/forgot-password" && authState === "authenticated") {
+      return { type: "redirect", destination: "/impostazioni" };
+    }
     return authState === "authenticated"
       ? { type: "redirect", destination: safeNextPath(requestedNext) }
       : { type: "pass" };

@@ -1,5 +1,6 @@
 import type { AuthError } from "@supabase/supabase-js";
 import { safeNextPath } from "./routing.ts";
+import { PASSWORD_POLICY_TEXT, passwordPolicyError } from "./password.ts";
 
 export const PENDING_SIGNUP_KEY = "armonia-pending-signup-v1";
 export const EMAIL_NOT_CONFIRMED_MESSAGE = "Conferma il tuo indirizzo email prima di accedere.";
@@ -12,7 +13,8 @@ export function validateSignup(input: SignupFields): SignupErrors {
   const email = input.email.trim();
   if (!email) errors.email = "Inserisci l’email.";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Inserisci un indirizzo email valido.";
-  if (!input.password) errors.password = "Inserisci una password.";
+  const passwordError = passwordPolicyError(input.password);
+  if (passwordError) errors.password = passwordError;
   if (!input.confirmPassword) errors.confirmPassword = "Conferma la password.";
   else if (input.password !== input.confirmPassword) errors.confirmPassword = "Le password non coincidono.";
   return errors;
@@ -31,7 +33,7 @@ export function mapAuthError(error: Pick<AuthError, "message" | "status" | "code
   const message = error.message.toLowerCase();
   if (code === "email_not_confirmed" || message.includes("email not confirmed")) return EMAIL_NOT_CONFIRMED_MESSAGE;
   if (code === "email_address_invalid" || message.includes("invalid email")) return "Inserisci un indirizzo email valido.";
-  if (code === "weak_password" || message.includes("password should be") || message.includes("weak password")) return "La password non rispetta i requisiti di sicurezza. Scegline una più lunga.";
+  if (code === "weak_password" || message.includes("password should be") || message.includes("weak password")) return PASSWORD_POLICY_TEXT;
   if (status === 429 || code.includes("rate_limit") || message.includes("rate limit")) return "Hai effettuato troppi tentativi. Attendi qualche minuto e riprova.";
   if (message.includes("fetch") || message.includes("network")) return "Non è stato possibile contattare il servizio. Controlla la connessione e riprova.";
   if (code.includes("email_confirmed") || message.includes("already confirmed")) return "L’indirizzo potrebbe essere già confermato. Prova ad accedere normalmente.";

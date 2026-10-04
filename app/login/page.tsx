@@ -45,6 +45,7 @@ export default function LoginPage() {
         >
           <Field label="Email" name="email" type="email" autoComplete="email" required />
           <Field label="Password" name="password" type="password" autoComplete="current-password" required />
+          <div className="text-right"><Link href="/forgot-password" className="text-sm font-bold text-sage-700">Password dimenticata?</Link></div>
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {error === EMAIL_NOT_CONFIRMED_MESSAGE && <Link href="/check-email" className="block text-center text-sm font-bold text-sage-700">Reinvia l’email di conferma</Link>}
           <button disabled={busy} className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-60">

@@ -158,3 +158,6 @@ I log server di Google Calendar e della Libreria terapeutica usano una diagnosti
 ## Esportazione dati utente
 
 ARMONIA offre un export portabile client-side in CSV/JSON e ZIP. L'export comprende dati professionali, pazienti, agenda, sedute, clinica, economia, schede e metadati dei materiali; non comprende binari Storage, segreti delle integrazioni o funzioni di ripristino.
+# Auth e sicurezza account
+
+ARMONIA cloud supporta registrazione con verifica email, recupero password e cambio password autenticato. La policy password è applicativa e condivisa; il recupero usa una callback PKCE dedicata, non espone l’esistenza degli account e richiede un nuovo login dopo il reset. La modalità locale non simula account o recuperi password.

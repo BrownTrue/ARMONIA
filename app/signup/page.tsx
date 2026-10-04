@@ -8,6 +8,7 @@ import { Field } from "@/components/form-controls";
 import { safeNextPath } from "@/lib/auth/routing";
 import { authEmailRedirectUrl, mapAuthError, PENDING_SIGNUP_KEY, validateSignup, type SignupErrors } from "@/lib/auth/signup";
 import { createClient } from "@/lib/supabase/client";
+import { PASSWORD_POLICY_TEXT } from "@/lib/auth/password";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export default function SignupPage() {
       }}>
         <Field id="signup-email" label="Email *" name="email" type="email" autoComplete="email" error={errors.email} required />
         <Field id="signup-password" label="Password *" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" error={errors.password} aria-describedby="signup-password-requirements" required />
-        <p id="signup-password-requirements" className="-mt-2 text-xs text-slate-500">Usa una password lunga e difficile da indovinare. ARMONIA verificherà i requisiti di sicurezza configurati per l’account.</p>
+        <p id="signup-password-requirements" className="-mt-2 text-xs text-slate-500">{PASSWORD_POLICY_TEXT}</p>
         <Field id="signup-confirmPassword" label="Conferma password *" name="confirmPassword" type={showPassword ? "text" : "password"} autoComplete="new-password" error={errors.confirmPassword} required />
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600"><input type="checkbox" checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} className="h-4 w-4 accent-sage-700" />Mostra password</label>
         {notice && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{notice}</p>}

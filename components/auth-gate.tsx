@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { isCloudConfigured, useData } from "@/components/data-provider";
 import { loginPathFor, safeNextPath } from "@/lib/auth/routing";
 
-const PUBLIC_PATHS = new Set(["/login", "/signup", "/check-email", "/auth/error", "/about", "/privacy"]);
-const ACCOUNT_ENTRY_PATHS = new Set(["/login", "/signup", "/check-email", "/auth/error"]);
+const PUBLIC_PATHS = new Set(["/login", "/signup", "/check-email", "/forgot-password", "/reset-password", "/auth/error", "/about", "/privacy"]);
+const ACCOUNT_ENTRY_PATHS = new Set(["/login", "/signup", "/check-email", "/forgot-password", "/auth/error"]);
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,7 +20,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     const searchParams = new URLSearchParams(window.location.search);
     const query = searchParams.toString();
     if (authStatus === "unauthenticated" && !isPublicPath) router.replace(loginPathFor(`${pathname}${query ? `?${query}` : ""}`));
-    if (user && isAccountEntryPath) router.replace(safeNextPath(searchParams.get("next")));
+    if (user && isAccountEntryPath) router.replace(pathname === "/forgot-password" ? "/impostazioni" : safeNextPath(searchParams.get("next")));
   }, [authStatus, isAccountEntryPath, isPublicPath, pathname, router, user]);
 
   if (!isCloudConfigured) return <>{children}</>;
