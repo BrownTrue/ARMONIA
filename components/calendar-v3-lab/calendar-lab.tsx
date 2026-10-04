@@ -62,6 +62,16 @@ import {
   isCalendarShortcutTypingTarget,
   type CalendarCommandId,
 } from "@/lib/calendar-v3-lab/command-palette";
+import {
+  IDLE_CALENDAR_EVENT_MOVE,
+  beginCalendarEventMove,
+  calendarDayFromClientX,
+  cancelCalendarEventMove,
+  completeCalendarEventMove,
+  isCalendarLabEventDraggable,
+  moveCalendarEvent,
+  type CalendarEventMoveState,
+} from "@/lib/calendar-v3-lab/event-move";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -77,16 +87,23 @@ export function CalendarLab() {
   const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
   const scrollRef = useRef<HTMLDivElement>(null);
   const weekHeaderRef = useRef<HTMLDivElement>(null);
+  const daysGridRef = useRef<HTMLDivElement>(null);
   const commandButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
   const [dragSelection, setDragSelection] = useState<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
+  const [eventMove, setEventMove] = useState<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
   const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
   const [commandPaletteOrigin, setCommandPaletteOrigin] = useState<HTMLElement | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
+  const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
+  const eventMoveOriginRef = useRef<HTMLButtonElement | null>(null);
   const pointerClientYRef = useRef(0);
+  const movePointerClientXRef = useRef(0);
+  const movePointerClientYRef = useRef(0);
   const suppressNextClickRef = useRef(false);
+  const suppressNextEventClickRef = useRef(false);
   const days = useMemo(() => calendarWeekDays(state.cursorDate), [state.cursorDate]);
   const visibleEvents = state.events.filter((event) =>
     !state.hiddenFilters.includes(event.locationName ?? "") &&
@@ -131,8 +148,20 @@ export function CalendarLab() {
 
   useEffect(() => {
     const cancelDrag = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const currentMove = eventMoveRef.current;
+      if (currentMove.status !== "idle") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const origin = eventMoveOriginRef.current;
+        if (origin?.hasPointerCapture(currentMove.pointerId)) origin.releasePointerCapture(currentMove.pointerId);
+        eventMoveRef.current = cancelCalendarEventMove();
+        setEventMove(IDLE_CALENDAR_EVENT_MOVE);
+        eventMoveOriginRef.current = null;
+        return;
+      }
       const current = dragSelectionRef.current;
-      if (event.key !== "Escape" || current.status === "idle") return;
+      if (current.status === "idle") return;
       event.preventDefault();
       const origin = dragOriginRef.current;
       if (origin?.hasPointerCapture(current.pointerId)) origin.releasePointerCapture(current.pointerId);
@@ -176,8 +205,40 @@ export function CalendarLab() {
   }, [dragSelection.status]);
 
   useEffect(() => {
+    if (eventMove.status !== "moving") return;
+    let frameId = 0;
+    const advance = () => {
+      const current = eventMoveRef.current;
+      const scrollArea = scrollRef.current;
+      const grid = daysGridRef.current;
+      if (current.status !== "moving" || !scrollArea || !grid) return;
+      const scrollRectangle = scrollArea.getBoundingClientRect();
+      const velocity = calendarDragAutoScrollVelocity(movePointerClientYRef.current, scrollRectangle.top, scrollRectangle.bottom);
+      if (velocity !== 0) {
+        const previousScrollTop = scrollArea.scrollTop;
+        scrollArea.scrollTop += velocity;
+        if (scrollArea.scrollTop !== previousScrollTop) {
+          const gridRectangle = grid.getBoundingClientRect();
+          const next = moveCalendarEvent(current, {
+            pointerId: current.pointerId,
+            date: calendarDayFromClientX(movePointerClientXRef.current, gridRectangle.left, gridRectangle.width, days),
+            pointerMinute: yToSnappedMinute(movePointerClientYRef.current - gridRectangle.top, PIXELS_PER_MINUTE),
+            clientX: movePointerClientXRef.current,
+            clientY: movePointerClientYRef.current,
+          });
+          eventMoveRef.current = next;
+          setEventMove(next);
+        }
+      }
+      frameId = window.requestAnimationFrame(advance);
+    };
+    frameId = window.requestAnimationFrame(advance);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [days, eventMove.status]);
+
+  useEffect(() => {
     const handleCalendarShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle") return;
+      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
       if (isCalendarShortcutTypingTarget(event.target)) return;
       const key = event.key.toLocaleLowerCase("it");
       if ((event.metaKey || event.ctrlKey) && !event.altKey && key === "k") {
@@ -218,9 +279,100 @@ export function CalendarLab() {
     dispatch({ type: "select_event", eventId });
   };
 
+  const eventMoveTarget = (clientX: number, clientY: number) => {
+    const gridRectangle = daysGridRef.current?.getBoundingClientRect();
+    if (!gridRectangle) return null;
+    return {
+      date: calendarDayFromClientX(clientX, gridRectangle.left, gridRectangle.width, days),
+      pointerMinute: yToSnappedMinute(clientY - gridRectangle.top, PIXELS_PER_MINUTE),
+    };
+  };
+
+  const beginEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (drawerDraft) return;
+    const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
+    if (!target) return;
+    const next = beginCalendarEventMove({
+      event,
+      pointerId: pointerEvent.pointerId,
+      pointerType: pointerEvent.pointerType,
+      isPrimary: pointerEvent.isPrimary,
+      button: pointerEvent.button,
+      pointerMinute: target.pointerMinute,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "idle") return;
+    setContextMenu(null);
+    setCommandPaletteOrigin(null);
+    setHoveredSlot(null);
+    movePointerClientXRef.current = pointerEvent.clientX;
+    movePointerClientYRef.current = pointerEvent.clientY;
+    eventMoveOriginRef.current = pointerEvent.currentTarget;
+    eventMoveRef.current = next;
+    setEventMove(next);
+    pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
+  };
+
+  const updateEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = eventMoveRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
+    if (!target) return;
+    movePointerClientXRef.current = pointerEvent.clientX;
+    movePointerClientYRef.current = pointerEvent.clientY;
+    const next = moveCalendarEvent(current, {
+      pointerId: pointerEvent.pointerId,
+      ...target,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "moving") pointerEvent.preventDefault();
+    eventMoveRef.current = next;
+    setEventMove(next);
+  };
+
+  const finishEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = eventMoveRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
+    if (!target) return;
+    const completion = completeCalendarEventMove(current, {
+      pointerId: pointerEvent.pointerId,
+      ...target,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    eventMoveRef.current = completion.state;
+    setEventMove(completion.state);
+    eventMoveOriginRef.current = null;
+    if (completion.wasMove && completion.event) {
+      pointerEvent.preventDefault();
+      suppressNextEventClickRef.current = true;
+      dispatch({ type: "move_event", event: completion.event });
+      window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
+    }
+  };
+
+  const abortEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = eventMoveRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    eventMoveRef.current = cancelCalendarEventMove();
+    setEventMove(IDLE_CALENDAR_EVENT_MOVE);
+    eventMoveOriginRef.current = null;
+  };
+
   const closeDrawer = () => {
     dragSelectionRef.current = IDLE_CALENDAR_DRAG_SELECTION;
     setDragSelection(IDLE_CALENDAR_DRAG_SELECTION);
+    eventMoveRef.current = IDLE_CALENDAR_EVENT_MOVE;
+    setEventMove(IDLE_CALENDAR_EVENT_MOVE);
     dispatch({ type: "set_selection", selection: null });
     dispatch({ type: "select_event", eventId: null });
   };
@@ -333,15 +485,15 @@ export function CalendarLab() {
               </div>
               <div className={styles.timeGrid} style={{ height: GRID_HEIGHT }}>
                 <TimeGutter />
-                <div className={styles.daysGrid}>
+                <div ref={daysGridRef} className={styles.daysGrid}>
                   {days.map((day) => (
                     <div
                       key={day}
                       tabIndex={-1}
-                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""} ${dragSelection.status !== "idle" && dragSelection.date === day ? styles.dayColumnSelecting : ""}`}
+                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""} ${dragSelection.status !== "idle" && dragSelection.date === day ? styles.dayColumnSelecting : ""} ${eventMove.status === "moving" && eventMove.preview.date === day ? styles.dayColumnSelecting : ""}`}
                       aria-label={formatFullDate(day)}
                       onMouseMove={(event) => {
-                        if (dragSelection.status !== "idle") return;
+                        if (dragSelection.status !== "idle" || eventMove.status !== "idle") return;
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
                         setHoveredSlot(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE, 15));
@@ -454,13 +606,38 @@ export function CalendarLab() {
                         {dragSelection.selection.durationMinutes >= 45 ? <strong>{minutesToTime(dragSelection.selection.startMinutes)} – {minutesToTime(dragSelection.selection.endMinutes)}</strong> : null}
                         {dragSelection.selection.durationMinutes >= 60 ? <span>{dragSelection.selection.durationMinutes} min</span> : null}
                       </span> : null}
+                      {eventMove.status === "moving" && eventMove.preview.date === day ? <span
+                        className={styles.moveGhost}
+                        style={{
+                          top: (eventMove.preview.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE,
+                          height: Math.max((eventMove.preview.endMinutes - eventMove.preview.startMinutes) * PIXELS_PER_MINUTE - 2, 18),
+                          "--event-color": calendarLabEventColor(eventMove.preview),
+                          "--event-tint": colorToTint(calendarLabEventColor(eventMove.preview)),
+                        } as React.CSSProperties}
+                        aria-hidden="true"
+                      >
+                        <strong>{eventMove.preview.patientName}</strong>
+                        <span>{minutesToTime(eventMove.preview.startMinutes)} – {minutesToTime(eventMove.preview.endMinutes)}</span>
+                      </span> : null}
                       {eventLayouts.filter((event) => event.date === day).map((event) => (
                         <EventChip
                           key={event.id}
                           event={event}
                           selected={state.selectedEventId === event.id}
                           menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
-                          onSelect={openEdit}
+                          moving={eventMove.status === "moving" && eventMove.before.id === event.id}
+                          draggable={isCalendarLabEventDraggable(event)}
+                          onSelect={(eventId, origin) => {
+                            if (suppressNextEventClickRef.current) {
+                              suppressNextEventClickRef.current = false;
+                              return;
+                            }
+                            openEdit(eventId, origin);
+                          }}
+                          onPointerDown={beginEventMove}
+                          onPointerMove={updateEventMove}
+                          onPointerUp={finishEventMove}
+                          onPointerCancel={abortEventMove}
                           onOpenContextMenu={(eventId, anchorPoint, origin) => {
                             setCommandPaletteOrigin(null);
                             setContextMenu({ kind: "event", eventId, anchorPoint, origin });
@@ -534,12 +711,18 @@ function TimeGutter() {
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
 }
 
-function EventChip({ event, selected, menuOpen, onSelect, onOpenContextMenu }: {
+function EventChip({ event, selected, menuOpen, moving, draggable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
   event: CalendarLabEventLayout;
   selected: boolean;
   menuOpen: boolean;
+  moving: boolean;
+  draggable: boolean;
   onSelect: (eventId: string, origin: HTMLElement) => void;
   onOpenContextMenu: (eventId: string, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+  onPointerDown: (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerMove: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   const color = calendarLabEventColor(event);
   const duration = event.endMinutes - event.startMinutes;
@@ -558,7 +741,7 @@ function EventChip({ event, selected, menuOpen, onSelect, onOpenContextMenu }: {
   return (
     <button
       type="button"
-      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""}`}
+      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""}`}
       style={{
         top,
         height: Math.max(height - 2, 18),
@@ -570,6 +753,10 @@ function EventChip({ event, selected, menuOpen, onSelect, onOpenContextMenu }: {
       aria-haspopup="menu"
       aria-expanded={menuOpen}
       aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti, ${calendarLabSessionLabel(event)}`}
+      onPointerDown={(pointerEvent) => onPointerDown(event, pointerEvent)}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onClick={(clickEvent) => {
         clickEvent.stopPropagation();
         onSelect(event.id, clickEvent.currentTarget);
