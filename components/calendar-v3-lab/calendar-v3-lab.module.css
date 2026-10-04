@@ -82,6 +82,15 @@
 .sessionPending { color: #7e8a82 !important; font-size: 13px !important; }
 .currentTime { position: absolute; z-index: 10; height: 1px; background: #d8796f; pointer-events: none; }
 .currentTime span { position: absolute; left: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: #d8796f; box-shadow: 0 0 0 2px #fff; }
+.contextMenu { position: fixed; z-index: 55; width: clamp(220px, 18vw, 250px); overflow: hidden; border: 1px solid rgba(54,72,61,.14); border-radius: 12px; background: rgba(255,255,255,.985); padding: 5px; color: #2f3d35; box-shadow: 0 14px 38px rgba(35,50,41,.17), 0 2px 8px rgba(35,50,41,.08); }
+.contextMenuHeader { display: grid; gap: 2px; padding: 8px 10px 9px; }
+.contextMenuHeader strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }
+.contextMenuHeader span { color: #78847c; font-size: 11px; line-height: 1.35; }
+.contextMenu button { width: 100%; min-height: 38px; display: flex; align-items: center; border: 0; border-radius: 8px; background: transparent; padding: 0 10px; color: #38463d; font: inherit; font-size: 13px; text-align: left; }
+.contextMenu button:hover, .contextMenu button:focus-visible { background: #eef3ef; color: #26362d; outline: none; }
+.contextMenu .contextMenuDestructive { color: #9a514a; }
+.contextMenu .contextMenuDestructive:hover, .contextMenu .contextMenuDestructive:focus-visible { background: #f8efed; color: #87443e; }
+.contextMenuSeparator { height: 1px; margin: 4px 7px; background: #e8ece8; }
 .drawerLayer { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(27,37,31,.07); }
 .appointmentDrawer { width: min(410px, 100vw); height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fbfcfa; border-left: 1px solid #dfe6df; box-shadow: -18px 0 48px rgba(35,50,41,.14); animation: drawer-enter .2s ease-out; }
 .drawerHeader { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 18px; border-bottom: 1px solid #e4e9e4; background: #fff; }

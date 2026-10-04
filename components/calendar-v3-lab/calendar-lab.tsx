@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import styles from "./calendar-v3-lab.module.css";
 import { AppointmentDrawer } from "./appointment-drawer";
+import { ContextMenu } from "./context-menu";
 import {
   CALENDAR_LAB_CONFIG,
   addCalendarDays,
@@ -18,6 +19,7 @@ import {
 import {
   CALENDAR_LAB_EVENTS,
   calendarLabEventColor,
+  type CalendarLabEvent,
 } from "@/lib/calendar-v3-lab/fixtures";
 import {
   CALENDAR_LAB_PIXELS_PER_HOUR,
@@ -49,12 +51,22 @@ import {
   moveCalendarDragSelection,
   type CalendarDragSelectionState,
 } from "@/lib/calendar-v3-lab/drag-selection";
+import {
+  EMPTY_SLOT_CONTEXT_ITEMS,
+  contextMenuItemsForEvent,
+  duplicateCalendarLabEvent,
+  type CalendarContextMenuAction,
+} from "@/lib/calendar-v3-lab/context-menu";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
 const MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
 const GRID_HEIGHT = (CALENDAR_LAB_CONFIG.endHour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR;
 const PIXELS_PER_MINUTE = CALENDAR_LAB_PIXELS_PER_HOUR / 60;
+
+type CalendarContextMenuState =
+  | { kind: "empty"; anchorPoint: { x: number; y: number }; origin: HTMLElement; selection: CalendarSelection }
+  | { kind: "event"; anchorPoint: { x: number; y: number }; origin: HTMLElement; eventId: string };
 
 export function CalendarLab() {
   const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
@@ -63,6 +75,7 @@ export function CalendarLab() {
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
   const [dragSelection, setDragSelection] = useState<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
+  const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const pointerClientYRef = useRef(0);
@@ -172,6 +185,33 @@ export function CalendarLab() {
     dispatch({ type: "add_event", event: eventFromAppointmentDraft(draft, nextCalendarLabEventId(state.events)) });
   };
 
+  const handleContextMenuAction = (action: CalendarContextMenuAction) => {
+    if (!contextMenu) return;
+    const currentMenu = contextMenu;
+    setContextMenu(null);
+    if (currentMenu.kind === "empty") {
+      if (action === "create") openCreate(currentMenu.selection, currentMenu.origin);
+      else if (action === "go_to_day") dispatch({ type: "set_cursor_date", date: currentMenu.selection.date });
+      return;
+    }
+
+    const event = state.events.find((item) => item.id === currentMenu.eventId);
+    if (!event) return;
+    if (action === "open") {
+      openEdit(event.id, currentMenu.origin);
+    } else if (action === "register_session" && event.status !== "cancelled") {
+      dispatch({ type: "update_event", event: { ...event, sessionState: "registered" } });
+    } else if (action === "duplicate") {
+      const id = nextCalendarLabEventId(state.events);
+      const duplicate = duplicateCalendarLabEvent(event, id);
+      returnFocusRef.current = currentMenu.origin;
+      dispatch({ type: "add_event", event: duplicate });
+      dispatch({ type: "select_event", eventId: id });
+    } else if (action === "cancel" && event.status !== "cancelled") {
+      dispatch({ type: "update_event", event: { ...event, status: "cancelled" } });
+    }
+  };
+
   return (
     <main className={styles.shell}>
       <div className={styles.mobileFallback}>
@@ -255,6 +295,17 @@ export function CalendarLab() {
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
                         openCreate(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE), event.currentTarget);
+                      }}
+                      onContextMenu={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        event.preventDefault();
+                        const rectangle = event.currentTarget.getBoundingClientRect();
+                        setContextMenu({
+                          kind: "empty",
+                          anchorPoint: { x: event.clientX, y: event.clientY },
+                          origin: event.currentTarget,
+                          selection: selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE),
+                        });
                       }}
                       onPointerDown={(event) => {
                         if (event.target !== event.currentTarget) return;
@@ -343,7 +394,14 @@ export function CalendarLab() {
                         {dragSelection.selection.durationMinutes >= 60 ? <span>{dragSelection.selection.durationMinutes} min</span> : null}
                       </span> : null}
                       {eventLayouts.filter((event) => event.date === day).map((event) => (
-                        <EventChip key={event.id} event={event} selected={state.selectedEventId === event.id} onSelect={openEdit} />
+                        <EventChip
+                          key={event.id}
+                          event={event}
+                          selected={state.selectedEventId === event.id}
+                          menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
+                          onSelect={openEdit}
+                          onOpenContextMenu={(eventId, anchorPoint, origin) => setContextMenu({ kind: "event", eventId, anchorPoint, origin })}
+                        />
                       ))}
                     </div>
                   ))}
@@ -371,6 +429,17 @@ export function CalendarLab() {
           onClose={closeDrawer}
           onSave={saveAppointment}
         /> : null}
+        {contextMenu ? <ContextMenu
+          anchorPoint={contextMenu.anchorPoint}
+          origin={contextMenu.origin}
+          scrollElement={scrollRef.current}
+          items={contextMenu.kind === "empty"
+            ? EMPTY_SLOT_CONTEXT_ITEMS
+            : contextMenuItemsForEvent(state.events.find((event) => event.id === contextMenu.eventId)!)}
+          header={contextMenu.kind === "event" ? <ContextMenuEventHeader event={state.events.find((event) => event.id === contextMenu.eventId)!} /> : undefined}
+          onAction={handleContextMenuAction}
+          onClose={() => setContextMenu(null)}
+        /> : null}
       </div>
     </main>
   );
@@ -390,7 +459,13 @@ function TimeGutter() {
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
 }
 
-function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayout; selected: boolean; onSelect: (eventId: string, origin: HTMLElement) => void }) {
+function EventChip({ event, selected, menuOpen, onSelect, onOpenContextMenu }: {
+  event: CalendarLabEventLayout;
+  selected: boolean;
+  menuOpen: boolean;
+  onSelect: (eventId: string, origin: HTMLElement) => void;
+  onOpenContextMenu: (eventId: string, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+}) {
   const color = calendarLabEventColor(event);
   const duration = event.endMinutes - event.startMinutes;
   const top = (event.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE;
@@ -417,10 +492,27 @@ function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayou
         "--event-tint": colorToTint(color),
       } as React.CSSProperties}
       aria-pressed={selected}
+      aria-haspopup="menu"
+      aria-expanded={menuOpen}
       aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti, ${calendarLabSessionLabel(event)}`}
       onClick={(clickEvent) => {
         clickEvent.stopPropagation();
         onSelect(event.id, clickEvent.currentTarget);
+      }}
+      onContextMenu={(contextEvent) => {
+        contextEvent.preventDefault();
+        contextEvent.stopPropagation();
+        onOpenContextMenu(event.id, { x: contextEvent.clientX, y: contextEvent.clientY }, contextEvent.currentTarget);
+      }}
+      onKeyDown={(keyboardEvent) => {
+        if (keyboardEvent.key !== "ContextMenu" && !(keyboardEvent.shiftKey && keyboardEvent.key === "F10")) return;
+        keyboardEvent.preventDefault();
+        const rectangle = keyboardEvent.currentTarget.getBoundingClientRect();
+        onOpenContextMenu(
+          event.id,
+          { x: rectangle.left + Math.min(24, rectangle.width / 2), y: rectangle.top + Math.min(24, rectangle.height / 2) },
+          keyboardEvent.currentTarget,
+        );
       }}
     >
       <strong>{displayName}</strong>
@@ -434,6 +526,19 @@ function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayou
       >{event.sessionState === "registered" ? "✓" : "•"}</span> : null}
     </button>
   );
+}
+
+function ContextMenuEventHeader({ event }: { event: CalendarLabEvent }) {
+  const duration = event.endMinutes - event.startMinutes;
+  return <>
+    <strong>{event.patientName}</strong>
+    {event.status === "cancelled"
+      ? <span>Annullato</span>
+      : <>
+        <span>{minutesToTime(event.startMinutes)} · {duration} min</span>
+        {event.sessionState === "registered" ? <span>✓ Seduta registrata</span> : null}
+      </>}
+  </>;
 }
 
 function MiniCalendar({ cursorDate, visibleWeek, today, onSelect }: { cursorDate: CalendarDate; visibleWeek: CalendarDate[]; today: CalendarDate; onSelect: (date: CalendarDate) => void }) {
