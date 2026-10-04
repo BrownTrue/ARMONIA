@@ -1,10 +1,11 @@
 import { CALENDAR_LAB_WEEK, type CalendarLabEvent } from "./fixtures.ts";
 import type { CalendarDate } from "./date-time.ts";
 import type { CalendarSelection } from "./selection.ts";
+import type { CalendarLabView } from "./view.ts";
 
 export type CalendarLabState = {
   cursorDate: CalendarDate;
-  view: "week";
+  view: CalendarLabView;
   sidebarOpen: boolean;
   selectedEventId: string | null;
   selection: CalendarSelection | null;
@@ -14,6 +15,7 @@ export type CalendarLabState = {
 
 export type CalendarLabAction =
   | { type: "set_cursor_date"; date: CalendarDate }
+  | { type: "set_view"; view: CalendarLabView }
   | { type: "set_sidebar_open"; open: boolean }
   | { type: "select_event"; eventId: string | null }
   | { type: "set_selection"; selection: CalendarSelection | null }
@@ -43,6 +45,8 @@ export function calendarLabReducer(
   switch (action.type) {
     case "set_cursor_date":
       return { ...state, cursorDate: action.date };
+    case "set_view":
+      return { ...state, view: action.view };
     case "set_sidebar_open":
       return { ...state, sidebarOpen: action.open };
     case "select_event":

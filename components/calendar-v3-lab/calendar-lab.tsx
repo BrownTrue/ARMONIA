@@ -10,7 +10,6 @@ import {
   addCalendarDays,
   calendarDateFromInstant,
   calendarTimeFromInstant,
-  calendarWeekDays,
   getInitialScrollMinute,
   minutesToTime,
   timeToMinutes,
@@ -81,6 +80,12 @@ import {
   resizeCalendarEvent,
   type CalendarEventResizeState,
 } from "@/lib/calendar-v3-lab/event-resize";
+import {
+  calendarLabDaySummary,
+  calendarLabVisibleDates,
+  navigateCalendarLabDate,
+  type CalendarLabView,
+} from "@/lib/calendar-v3-lab/view";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -117,13 +122,17 @@ export function CalendarLab() {
   const resizePointerClientYRef = useRef(0);
   const suppressNextClickRef = useRef(false);
   const suppressNextEventClickRef = useRef(false);
-  const days = useMemo(() => calendarWeekDays(state.cursorDate), [state.cursorDate]);
+  const days = useMemo(() => calendarLabVisibleDates(state.view, state.cursorDate), [state.cursorDate, state.view]);
   const visibleEvents = state.events.filter((event) =>
     !state.hiddenFilters.includes(event.locationName ?? "") &&
     !state.hiddenFilters.includes(event.serviceName ?? ""),
   );
   const eventLayouts = useMemo(() => layoutCalendarLabEvents(visibleEvents), [visibleEvents]);
-  const periodLabel = formatPeriod(days);
+  const periodLabel = state.view === "day" ? formatFullDate(state.cursorDate) : formatPeriod(days);
+  const daySummary = useMemo(
+    () => calendarLabDaySummary(visibleEvents, state.cursorDate),
+    [state.cursorDate, visibleEvents],
+  );
   const labToday = calendarDateFromInstant(LAB_NOW);
   const labNowMinutes = timeToMinutes(calendarTimeFromInstant(LAB_NOW));
   const currentDayIndex = days.indexOf(labToday);
@@ -317,8 +326,8 @@ export function CalendarLab() {
     return () => document.removeEventListener("keydown", handleCalendarShortcut);
   }, [commandPaletteOrigin, drawerDraft, state.cursorDate]);
 
-  const moveWeek = (amount: number) => {
-    dispatch({ type: "set_cursor_date", date: addCalendarDays(state.cursorDate, amount * 7) });
+  const movePeriod = (direction: -1 | 1) => {
+    dispatch({ type: "set_cursor_date", date: navigateCalendarLabDate(state.view, state.cursorDate, direction) });
   };
 
   const openCreate = (selection: CalendarSelection, origin: HTMLElement) => {
@@ -553,7 +562,8 @@ export function CalendarLab() {
     else if (command === "today") {
       goToToday();
       window.requestAnimationFrame(() => origin?.focus());
-    } else if (command === "week") {
+    } else if (command === "week" || command === "day") {
+      dispatch({ type: "set_view", view: command });
       setCommandPaletteOrigin(null);
       window.requestAnimationFrame(() => origin?.focus());
     }
@@ -564,7 +574,7 @@ export function CalendarLab() {
       <div className={styles.mobileFallback}>
         <span className={styles.mobileMark}>Calendar V3 Lab</span>
         <h1>La vista mobile verrà progettata separatamente.</h1>
-        <p>Questa fase valuta la Week View desktop di ARMONIA. Apri il laboratorio da uno schermo di almeno 768 px.</p>
+        <p>Questa fase valuta le viste desktop Giorno e Settimana di ARMONIA. Apri il laboratorio da uno schermo di almeno 768 px.</p>
       </div>
 
       <div className={styles.desktopApp}>
@@ -583,16 +593,28 @@ export function CalendarLab() {
 
           <div className={`${styles.toolbarCluster} ${styles.toolbarRight}`}>
             <button type="button" className={styles.textButton} onClick={goToToday}>Oggi</button>
-            <IconButton label="Settimana precedente" onClick={() => moveWeek(-1)}><Chevron direction="left" /></IconButton>
-            <IconButton label="Settimana successiva" onClick={() => moveWeek(1)}><Chevron direction="right" /></IconButton>
-            <button type="button" className={styles.viewButton} aria-label="Vista corrente: Settimana">Settimana <Chevron direction="down" /></button>
+            <IconButton label={state.view === "day" ? "Giorno precedente" : "Settimana precedente"} onClick={() => movePeriod(-1)}><Chevron direction="left" /></IconButton>
+            <IconButton label={state.view === "day" ? "Giorno successivo" : "Settimana successiva"} onClick={() => movePeriod(1)}><Chevron direction="right" /></IconButton>
+            <label className={styles.viewSelector}>
+              <span className={styles.srOnly}>Vista calendario</span>
+              <select
+                aria-label={`Vista corrente: ${state.view === "day" ? "Giorno" : "Settimana"}`}
+                value={state.view}
+                onChange={(event) => dispatch({ type: "set_view", view: event.target.value as CalendarLabView })}
+              >
+                <option value="day">Giorno</option>
+                <option value="week">Settimana</option>
+                <option value="month" disabled>Mese · Prossimamente</option>
+              </select>
+              <Chevron direction="down" />
+            </label>
           </div>
         </header>
 
         <div className={styles.workspace}>
           <aside className={`${styles.sidebar} ${state.sidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`} aria-hidden={!state.sidebarOpen}>
             <div className={styles.sidebarInner}>
-              <MiniCalendar cursorDate={state.cursorDate} visibleWeek={days} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} />
+              <MiniCalendar cursorDate={state.cursorDate} visibleDates={days} view={state.view} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} />
               <FilterSection title="Sedi" items={[
                 { label: "Studio Centro", color: "#8EA6C4" },
                 { label: "Studio Nord", color: "#A88BBC" },
@@ -609,11 +631,13 @@ export function CalendarLab() {
             </div>
           </aside>
 
-          <section className={styles.calendarPane} aria-label={`Calendario settimanale, ${periodLabel}`}>
+          <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : "settimanale"}, ${periodLabel}`}>
             <div ref={scrollRef} className={styles.scrollArea}>
-              <div ref={weekHeaderRef} className={styles.weekHeader}>
+              <div ref={weekHeaderRef} className={`${styles.weekHeader} ${state.view === "day" ? styles.dayViewHeader : ""}`}>
                 <div className={styles.gutterHeader}><span>CEST</span></div>
-                {days.map((day) => <DayHeader key={day} day={day} today={labToday} />)}
+                {state.view === "day"
+                  ? <DayViewHeading date={state.cursorDate} summary={daySummary} />
+                  : days.map((day) => <DayHeader key={day} day={day} today={labToday} />)}
               </div>
               <div className={styles.timeGrid} style={{ height: GRID_HEIGHT }}>
                 <TimeGutter />
@@ -759,6 +783,7 @@ export function CalendarLab() {
                         return <EventChip
                           key={renderedEvent.id}
                           event={renderedEvent}
+                          view={state.view}
                           selected={state.selectedEventId === event.id}
                           menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
                           moving={eventMove.status === "moving" && eventMove.before.id === event.id}
@@ -793,8 +818,8 @@ export function CalendarLab() {
                       className={styles.currentTime}
                       style={{
                         top: (labNowMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE,
-                        left: `${currentDayIndex * (100 / 7)}%`,
-                        width: `${100 / 7}%`,
+                        left: `${currentDayIndex * (100 / days.length)}%`,
+                        width: `${100 / days.length}%`,
                       }}
                       aria-label={`Ora corrente demo ${minutesToTime(labNowMinutes)}`}
                     ><span /></div>
@@ -825,6 +850,7 @@ export function CalendarLab() {
         /> : null}
         {commandPaletteOrigin ? <CommandPalette
           origin={commandPaletteOrigin}
+          activeView={state.view}
           onCommand={handleCalendarCommand}
           onGoToDate={(date) => {
             const origin = commandPaletteOrigin;
@@ -848,13 +874,30 @@ function DayHeader({ day, today }: { day: CalendarDate; today: CalendarDate }) {
   return <div className={`${styles.dayHeader} ${day === today ? styles.dayHeaderToday : ""}`}><span>{DAY_LABELS[weekday]}</span><strong>{Number(day.slice(8))}</strong></div>;
 }
 
+function DayViewHeading({ date, summary }: { date: CalendarDate; summary: { appointmentCount: number; occupiedMinutes: number } }) {
+  const heading = new Intl.DateTimeFormat("it-IT", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+  const summaryLabel = summary.appointmentCount === 0
+    ? "Nessun appuntamento"
+    : `${summary.appointmentCount} ${summary.appointmentCount === 1 ? "appuntamento" : "appuntamenti"} · ${formatOccupiedTime(summary.occupiedMinutes)}`;
+  return <div className={styles.dayViewHeading}>
+    <h1>{heading}</h1>
+    <p>{summaryLabel}</p>
+  </div>;
+}
+
 function TimeGutter() {
   const hours = Array.from({ length: CALENDAR_LAB_CONFIG.endHour - CALENDAR_LAB_CONFIG.startHour + 1 }, (_, index) => CALENDAR_LAB_CONFIG.startHour + index);
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
 }
 
-function EventChip({ event, selected, menuOpen, moving, resizing, draggable, resizable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onResizePointerDown, onResizePointerMove, onResizePointerUp, onResizePointerCancel }: {
+function EventChip({ event, view, selected, menuOpen, moving, resizing, draggable, resizable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onResizePointerDown, onResizePointerMove, onResizePointerUp, onResizePointerCancel }: {
   event: CalendarLabEventLayout;
+  view: CalendarLabView;
   selected: boolean;
   menuOpen: boolean;
   moving: boolean;
@@ -880,9 +923,10 @@ function EventChip({ event, selected, menuOpen, moving, resizing, draggable, res
   const compact = duration <= 30;
   const narrowCluster = event.columnCount >= 3;
   const contentDensity = calendarLabEventContentDensity(duration, narrowCluster);
-  const showTime = contentDensity !== "name";
-  const showService = contentDensity === "service" || contentDensity === "details";
-  const showDetails = contentDensity === "details";
+  const dayView = view === "day";
+  const showTime = dayView ? duration >= 30 : contentDensity !== "name";
+  const showService = dayView ? duration >= 45 : contentDensity === "service" || contentDensity === "details";
+  const showDetails = dayView ? duration >= 60 : contentDensity === "details";
   const showSessionIndicator = showTime && event.status !== "cancelled";
   const displayName = narrowCluster
     ? event.patientName.split(" ").map((part) => part[0]).join("")
@@ -890,7 +934,7 @@ function EventChip({ event, selected, menuOpen, moving, resizing, draggable, res
   return (
     <button
       type="button"
-      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""} ${resizing ? styles.eventResizing : ""}`}
+      className={`${styles.event} ${dayView ? styles.eventDay : ""} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""} ${resizing ? styles.eventResizing : ""}`}
       style={{
         top,
         height: Math.max(height - 2, 18),
@@ -926,10 +970,21 @@ function EventChip({ event, selected, menuOpen, moving, resizing, draggable, res
         );
       }}
     >
-      <strong>{displayName}</strong>
-      {showTime ? <span>{minutesToTime(event.startMinutes)} · {duration} min</span> : null}
-      {showService && event.serviceName ? <span>{event.serviceName}</span> : null}
-      {showDetails && event.locationName ? <span className={styles.eventTertiary}>{event.locationName}</span> : null}
+      {dayView ? <>
+        <span className={styles.eventDayPrimary}>
+          <strong>{displayName}</strong>
+          {showTime ? <span>{minutesToTime(event.startMinutes)}–{minutesToTime(event.endMinutes)} · {duration} min</span> : null}
+        </span>
+        {showService || showDetails ? <span className={styles.eventDaySecondary}>
+          {showService && event.serviceName ? <span>{event.serviceName}</span> : null}
+          {showDetails && event.locationName ? <span className={styles.eventTertiary}>{event.locationName}</span> : null}
+        </span> : null}
+      </> : <>
+        <strong>{displayName}</strong>
+        {showTime ? <span>{minutesToTime(event.startMinutes)} · {duration} min</span> : null}
+        {showService && event.serviceName ? <span>{event.serviceName}</span> : null}
+        {showDetails && event.locationName ? <span className={styles.eventTertiary}>{event.locationName}</span> : null}
+      </>}
       {showSessionIndicator ? <span
         className={`${styles.sessionIndicator} ${event.sessionState === "registered" ? "" : styles.sessionPending}`}
         role="img"
@@ -991,7 +1046,7 @@ function ContextMenuEventHeader({ event }: { event: CalendarLabEvent }) {
   </>;
 }
 
-function MiniCalendar({ cursorDate, visibleWeek, today, onSelect }: { cursorDate: CalendarDate; visibleWeek: CalendarDate[]; today: CalendarDate; onSelect: (date: CalendarDate) => void }) {
+function MiniCalendar({ cursorDate, visibleDates, view, today, onSelect }: { cursorDate: CalendarDate; visibleDates: CalendarDate[]; view: CalendarLabView; today: CalendarDate; onSelect: (date: CalendarDate) => void }) {
   const first = `${cursorDate.slice(0, 7)}-01` as CalendarDate;
   const month = Number(cursorDate.slice(5, 7));
   const year = Number(cursorDate.slice(0, 4));
@@ -999,12 +1054,12 @@ function MiniCalendar({ cursorDate, visibleWeek, today, onSelect }: { cursorDate
   const offset = firstWeekday === 0 ? 6 : firstWeekday - 1;
   const cells = Array.from({ length: 42 }, (_, index) => addCalendarDays(first, index - offset));
   return <section className={styles.miniCalendar} aria-label="Mini calendario">
-    <div className={styles.miniTitle}><strong>{MONTHS[month - 1]} {year}</strong><span>Settimana</span></div>
+    <div className={styles.miniTitle}><strong>{MONTHS[month - 1]} {year}</strong><span>{view === "day" ? "Giorno" : "Settimana"}</span></div>
     <div className={styles.miniWeekdays}>{["L", "M", "M", "G", "V", "S", "D"].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>
     <div className={styles.miniDays}>{cells.map((date) => {
       const outside = date.slice(5, 7) !== cursorDate.slice(5, 7);
-      const inWeek = visibleWeek.includes(date);
-      return <button key={date} type="button" onClick={() => onSelect(date)} className={`${outside ? styles.outsideMonth : ""} ${inWeek ? styles.inWeek : ""} ${date === today ? styles.miniToday : ""}`} aria-label={formatFullDate(date)} aria-current={date === today ? "date" : undefined}>{Number(date.slice(8))}</button>;
+      const visible = visibleDates.includes(date);
+      return <button key={date} type="button" onClick={() => onSelect(date)} className={`${outside ? styles.outsideMonth : ""} ${visible ? styles.inWeek : ""} ${view === "day" && date === cursorDate ? styles.miniSelectedDay : ""} ${date === today ? styles.miniToday : ""}`} aria-label={formatFullDate(date)} aria-current={date === cursorDate ? "date" : undefined}>{Number(date.slice(8))}</button>;
     })}</div>
   </section>;
 }
@@ -1023,6 +1078,14 @@ function formatPeriod(days: CalendarDate[]) {
   const lastMonth = Number(days[6].slice(5, 7));
   const year = days[6].slice(0, 4);
   return firstMonth === lastMonth ? `${firstDay} – ${lastDay} ${MONTHS[lastMonth - 1]} ${year}` : `${firstDay} ${MONTHS[firstMonth - 1]} – ${lastDay} ${MONTHS[lastMonth - 1]} ${year}`;
+}
+
+function formatOccupiedTime(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (!hours) return `${remainder} min`;
+  if (!remainder) return `${hours} h`;
+  return `${hours} h ${remainder} min`;
 }
 
 function formatFullDate(date: CalendarDate) {

@@ -8,16 +8,18 @@ import {
   type CalendarCommandId,
 } from "@/lib/calendar-v3-lab/command-palette";
 import type { CalendarDate } from "@/lib/calendar-v3-lab/date-time";
+import type { CalendarLabView } from "@/lib/calendar-v3-lab/view";
 import styles from "./calendar-v3-lab.module.css";
 
 type CommandPaletteProps = {
   origin: HTMLElement;
+  activeView: CalendarLabView;
   onCommand: (command: Exclude<CalendarCommandId, "go_to_date">) => void;
   onGoToDate: (date: CalendarDate) => void;
   onClose: () => void;
 };
 
-export function CommandPalette({ origin, onCommand, onGoToDate, onClose }: CommandPaletteProps) {
+export function CommandPalette({ origin, activeView, onCommand, onGoToDate, onClose }: CommandPaletteProps) {
   const titleId = useId();
   const listId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -26,7 +28,7 @@ export function CommandPalette({ origin, onCommand, onGoToDate, onClose }: Comma
   const [mode, setMode] = useState<"commands" | "date">("commands");
   const [query, setQuery] = useState("");
   const [date, setDate] = useState("");
-  const commands = useMemo(() => filterCalendarCommands(query), [query]);
+  const commands = useMemo(() => filterCalendarCommands(query, activeView), [activeView, query]);
   const [activeIndex, setActiveIndex] = useState(() => commands.findIndex((command) => command.enabled));
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import type { CalendarDate } from "./date-time.ts";
+import type { CalendarLabView } from "./view.ts";
 
 export type CalendarCommandId = "create" | "today" | "go_to_date" | "week" | "month" | "day";
 
@@ -15,15 +16,22 @@ export const CALENDAR_COMMANDS: readonly CalendarCommand[] = Object.freeze([
   { id: "create", label: "Crea appuntamento", keywords: ["crea", "nuovo", "appuntamento"], shortcut: "C", enabled: true },
   { id: "today", label: "Vai a oggi", keywords: ["oggi", "torna", "data corrente"], shortcut: "T", enabled: true },
   { id: "go_to_date", label: "Vai a una data…", keywords: ["data", "giorno", "vai"], enabled: true },
-  { id: "week", label: "Vista settimana", keywords: ["vista", "settimana", "week"], enabled: true, badge: "Attiva" },
+  { id: "week", label: "Vista settimana", keywords: ["vista", "settimana", "week"], enabled: true },
   { id: "month", label: "Vista mese", keywords: ["vista", "mese", "month"], enabled: false, badge: "Prossimamente" },
-  { id: "day", label: "Vista giorno", keywords: ["vista", "giorno", "day"], enabled: false, badge: "Prossimamente" },
+  { id: "day", label: "Vista giorno", keywords: ["vista", "giorno", "day"], enabled: true },
 ]);
 
-export function filterCalendarCommands(query: string): readonly CalendarCommand[] {
+export function calendarCommandsForView(view: CalendarLabView): readonly CalendarCommand[] {
+  return CALENDAR_COMMANDS.map((command) =>
+    command.id === view ? { ...command, badge: "Attiva" } : command,
+  );
+}
+
+export function filterCalendarCommands(query: string, view: CalendarLabView = "week"): readonly CalendarCommand[] {
   const normalized = query.trim().toLocaleLowerCase("it");
-  if (!normalized) return CALENDAR_COMMANDS;
-  return CALENDAR_COMMANDS.filter((command) =>
+  const commands = calendarCommandsForView(view);
+  if (!normalized) return commands;
+  return commands.filter((command) =>
     [command.label, ...command.keywords].some((value) => value.toLocaleLowerCase("it").includes(normalized)),
   );
 }
