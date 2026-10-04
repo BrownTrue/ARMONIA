@@ -1,6 +1,6 @@
 export const DEFAULT_AUTHENTICATED_PATH = "/oggi";
 
-const PUBLIC_PATHS = new Set(["/about", "/privacy", "/login", "/signup", "/check-email", "/forgot-password", "/reset-password", "/auth/error"]);
+const PUBLIC_PATHS = new Set(["/about", "/privacy", "/landing-lab", "/landing-lab-v2", "/landing-lab-v3", "/landing-lab-v4", "/login", "/signup", "/check-email", "/forgot-password", "/reset-password", "/auth/error"]);
 const PRIVATE_ROOTS = [
   "/oggi",
   "/calendario",
@@ -74,7 +74,7 @@ export function authRoutingDecision(input: {
 
   if (pathname === "/") {
     if (authState === "authenticated") return { type: "redirect", destination: DEFAULT_AUTHENTICATED_PATH };
-    if (authState === "unauthenticated") return { type: "redirect", destination: "/login" };
+    if (authState === "unauthenticated") return { type: "pass" };
     return { type: "pass" };
   }
 

@@ -1,5 +1,11 @@
 # Stato corrente di Armonia
 
+## Front Page pubblica V1 implementata localmente
+
+- In modalità cloud la root mostra agli utenti anonimi una landing pubblica product-first; gli utenti autenticati continuano verso Oggi oppure verso l'onboarding se incompleto, senza mostrare la landing durante la verifica della sessione. La modalità locale continua ad aprire direttamente Oggi.
+- La pagina usa esclusivamente mockup HTML/CSS con dati fittizi e presenta funzioni realmente disponibili: percorso clinico, agenda e sedute, Laboratorio, strumenti clinici, Economia, modulistica e handout. Metadata e canonical puntano a `https://conarmonia.it`.
+- Login, signup, recupero password, callback, deep link privati, Google Calendar e Calendar Feed restano invariati. La Front Page non introduce migration, dipendenze o configurazioni infrastrutturali.
+
 Fotografia ricavata dal repository al 2 ottobre 2026.
 
 ## Stato Git rilevato prima dell'intervento corrente

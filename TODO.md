@@ -2,6 +2,8 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- Collaudare manualmente la Front Page pubblica V1 a 375 px, 390 px, tablet, desktop e desktop largo; verificare root anonima, CTA signup/login/privacy, root autenticata con onboarding completo/incompleto e bypass local mode. Nessun intervento DNS, Vercel o Supabase fa parte di questo collaudo.
+
 - Collaudare manualmente Statistiche V2 su desktop e mobile verificando periodi, KPI, grafico, prestazioni, Agenda, Pazienti, sintesi Economia e intervalli senza sedute. L'implementazione non introduce migration e non usa dati clinici per stimare outcome.
 
 ## Priorità alta
