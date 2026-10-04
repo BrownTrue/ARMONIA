@@ -1,0 +1,246 @@
+"use client";
+
+import { useEffect, useMemo, useReducer, useRef } from "react";
+import styles from "./calendar-v3-lab.module.css";
+import {
+  CALENDAR_LAB_CONFIG,
+  addCalendarDays,
+  calendarDateFromInstant,
+  calendarTimeFromInstant,
+  calendarWeekDays,
+  getInitialScrollMinute,
+  minutesToTime,
+  timeToMinutes,
+  type CalendarDate,
+} from "@/lib/calendar-v3-lab/date-time";
+import {
+  CALENDAR_LAB_EVENTS,
+  calendarLabEventColor,
+} from "@/lib/calendar-v3-lab/fixtures";
+import {
+  CALENDAR_LAB_PIXELS_PER_HOUR,
+  eventHorizontalStyle,
+  layoutCalendarLabEvents,
+  type CalendarLabEventLayout,
+} from "@/lib/calendar-v3-lab/layout";
+import {
+  calendarLabReducer,
+  createCalendarLabState,
+} from "@/lib/calendar-v3-lab/reducer";
+
+const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
+const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
+const MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+const GRID_HEIGHT = (CALENDAR_LAB_CONFIG.endHour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR;
+const PIXELS_PER_MINUTE = CALENDAR_LAB_PIXELS_PER_HOUR / 60;
+
+export function CalendarLab() {
+  const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const weekHeaderRef = useRef<HTMLDivElement>(null);
+  const days = useMemo(() => calendarWeekDays(state.cursorDate), [state.cursorDate]);
+  const visibleEvents = state.events.filter((event) =>
+    !state.hiddenFilters.includes(event.locationName ?? "") &&
+    !state.hiddenFilters.includes(event.serviceName ?? ""),
+  );
+  const eventLayouts = useMemo(() => layoutCalendarLabEvents(visibleEvents), [visibleEvents]);
+  const periodLabel = formatPeriod(days);
+  const labToday = calendarDateFromInstant(LAB_NOW);
+  const labNowMinutes = timeToMinutes(calendarTimeFromInstant(LAB_NOW));
+  const currentDayIndex = days.indexOf(labToday);
+
+  useEffect(() => {
+    const initialMinute = getInitialScrollMinute(days, LAB_NOW);
+    const weekHeaderHeight = weekHeaderRef.current?.getBoundingClientRect().height ?? 0;
+    scrollRef.current?.scrollTo({
+      top: Math.max(0, weekHeaderHeight + (initialMinute - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE),
+    });
+  }, [days]);
+
+  const moveWeek = (amount: number) => {
+    dispatch({ type: "set_cursor_date", date: addCalendarDays(state.cursorDate, amount * 7) });
+  };
+
+  return (
+    <main className={styles.shell}>
+      <div className={styles.mobileFallback}>
+        <span className={styles.mobileMark}>Calendar V3 Lab</span>
+        <h1>La vista mobile verrà progettata separatamente.</h1>
+        <p>Questa fase valuta la Week View desktop di ARMONIA. Apri il laboratorio da uno schermo di almeno 768 px.</p>
+      </div>
+
+      <div className={styles.desktopApp}>
+        <header className={styles.toolbar}>
+          <div className={styles.toolbarCluster}>
+            <IconButton
+              label={state.sidebarOpen ? "Nascondi barra laterale" : "Mostra barra laterale"}
+              expanded={state.sidebarOpen}
+              onClick={() => dispatch({ type: "set_sidebar_open", open: !state.sidebarOpen })}
+            ><SidebarIcon /></IconButton>
+            <IconButton label="Cerca nel calendario — disponibile in una fase successiva"><SearchIcon /></IconButton>
+            <IconButton label="Nuovo appuntamento — disponibile in una fase successiva"><ComposeIcon /></IconButton>
+          </div>
+
+          <p className={styles.periodLabel} aria-live="polite">{periodLabel}</p>
+
+          <div className={`${styles.toolbarCluster} ${styles.toolbarRight}`}>
+            <button type="button" className={styles.textButton} onClick={() => dispatch({ type: "set_cursor_date", date: labToday })}>Oggi</button>
+            <IconButton label="Settimana precedente" onClick={() => moveWeek(-1)}><Chevron direction="left" /></IconButton>
+            <IconButton label="Settimana successiva" onClick={() => moveWeek(1)}><Chevron direction="right" /></IconButton>
+            <button type="button" className={styles.viewButton} aria-label="Vista corrente: Settimana">Settimana <Chevron direction="down" /></button>
+          </div>
+        </header>
+
+        <div className={styles.workspace}>
+          <aside className={`${styles.sidebar} ${state.sidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`} aria-hidden={!state.sidebarOpen}>
+            <div className={styles.sidebarInner}>
+              <MiniCalendar cursorDate={state.cursorDate} visibleWeek={days} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} />
+              <FilterSection title="Sedi" items={[
+                { label: "Studio Centro", color: "#8EA6C4" },
+                { label: "Studio Nord", color: "#A88BBC" },
+              ]} hidden={state.hiddenFilters} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
+              <FilterSection title="Prestazioni" items={[
+                { label: "Trattamento", color: "#77A886" },
+                { label: "Valutazione", color: "#D99B7B" },
+                { label: "Controllo", color: "#D6A84B" },
+              ]} hidden={state.hiddenFilters} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
+              <div className={styles.googleStatus}>
+                <div><span className={styles.googleDot} aria-hidden="true" /><span>Google Calendar</span></div>
+                <span>Collegato</span>
+              </div>
+            </div>
+          </aside>
+
+          <section className={styles.calendarPane} aria-label={`Calendario settimanale, ${periodLabel}`}>
+            <div ref={scrollRef} className={styles.scrollArea}>
+              <div ref={weekHeaderRef} className={styles.weekHeader}>
+                <div className={styles.gutterHeader}><span>CEST</span></div>
+                {days.map((day) => <DayHeader key={day} day={day} today={labToday} />)}
+              </div>
+              <div className={styles.timeGrid} style={{ height: GRID_HEIGHT }}>
+                <TimeGutter />
+                <div className={styles.daysGrid}>
+                  {days.map((day) => (
+                    <div key={day} className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""}`} aria-label={formatFullDate(day)}>
+                      {eventLayouts.filter((event) => event.date === day).map((event) => (
+                        <EventChip key={event.id} event={event} selected={state.selectedEventId === event.id} onSelect={() => dispatch({ type: "select_event", eventId: event.id })} />
+                      ))}
+                    </div>
+                  ))}
+                  {currentDayIndex >= 0 && labNowMinutes >= CALENDAR_LAB_CONFIG.startHour * 60 && labNowMinutes <= CALENDAR_LAB_CONFIG.endHour * 60 ? (
+                    <div
+                      className={styles.currentTime}
+                      style={{
+                        top: (labNowMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE,
+                        left: `${currentDayIndex * (100 / 7)}%`,
+                        width: `${100 / 7}%`,
+                      }}
+                      aria-label={`Ora corrente demo ${minutesToTime(labNowMinutes)}`}
+                    ><span /></div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function IconButton({ label, expanded, onClick, children }: { label: string; expanded?: boolean; onClick?: () => void; children: React.ReactNode }) {
+  return <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={expanded} onClick={onClick}>{children}</button>;
+}
+
+function DayHeader({ day, today }: { day: CalendarDate; today: CalendarDate }) {
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  return <div className={`${styles.dayHeader} ${day === today ? styles.dayHeaderToday : ""}`}><span>{DAY_LABELS[weekday]}</span><strong>{Number(day.slice(8))}</strong></div>;
+}
+
+function TimeGutter() {
+  const hours = Array.from({ length: CALENDAR_LAB_CONFIG.endHour - CALENDAR_LAB_CONFIG.startHour + 1 }, (_, index) => CALENDAR_LAB_CONFIG.startHour + index);
+  return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
+}
+
+function EventChip({ event, selected, onSelect }: { event: CalendarLabEventLayout; selected: boolean; onSelect: () => void }) {
+  const color = calendarLabEventColor(event);
+  const duration = event.endMinutes - event.startMinutes;
+  const top = (event.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE;
+  const height = duration * PIXELS_PER_MINUTE;
+  const compact = duration <= 30;
+  const roomy = duration >= 60;
+  const narrowCluster = event.columnCount >= 3;
+  const displayName = narrowCluster
+    ? event.patientName.split(" ").map((part) => part[0]).join("")
+    : event.patientName;
+  return (
+    <button
+      type="button"
+      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""}`}
+      style={{
+        top,
+        height: Math.max(height - 2, 18),
+        ...eventHorizontalStyle(event),
+        "--event-color": color,
+        "--event-tint": colorToTint(color),
+      } as React.CSSProperties}
+      aria-pressed={selected}
+      aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti${event.status === "cancelled" ? ", annullato" : ""}`}
+      onClick={onSelect}
+    >
+      <strong>{displayName}</strong>
+      {!compact && !narrowCluster ? <span>{minutesToTime(event.startMinutes)} · {duration} min</span> : null}
+      {roomy && !narrowCluster && event.serviceName ? <span>{event.serviceName}</span> : null}
+      {roomy && !narrowCluster && event.locationName ? <span className={styles.eventTertiary}>{event.locationName}</span> : null}
+      {roomy && !narrowCluster && event.status !== "cancelled" ? <span className={styles.sessionState}>{event.sessionState === "registered" ? "✓ Seduta registrata" : "• Da registrare"}</span> : null}
+    </button>
+  );
+}
+
+function MiniCalendar({ cursorDate, visibleWeek, today, onSelect }: { cursorDate: CalendarDate; visibleWeek: CalendarDate[]; today: CalendarDate; onSelect: (date: CalendarDate) => void }) {
+  const first = `${cursorDate.slice(0, 7)}-01` as CalendarDate;
+  const month = Number(cursorDate.slice(5, 7));
+  const year = Number(cursorDate.slice(0, 4));
+  const firstWeekday = new Date(`${first}T12:00:00Z`).getUTCDay();
+  const offset = firstWeekday === 0 ? 6 : firstWeekday - 1;
+  const cells = Array.from({ length: 42 }, (_, index) => addCalendarDays(first, index - offset));
+  return <section className={styles.miniCalendar} aria-label="Mini calendario">
+    <div className={styles.miniTitle}><strong>{MONTHS[month - 1]} {year}</strong><span>Settimana</span></div>
+    <div className={styles.miniWeekdays}>{["L", "M", "M", "G", "V", "S", "D"].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div>
+    <div className={styles.miniDays}>{cells.map((date) => {
+      const outside = date.slice(5, 7) !== cursorDate.slice(5, 7);
+      const inWeek = visibleWeek.includes(date);
+      return <button key={date} type="button" onClick={() => onSelect(date)} className={`${outside ? styles.outsideMonth : ""} ${inWeek ? styles.inWeek : ""} ${date === today ? styles.miniToday : ""}`} aria-label={formatFullDate(date)} aria-current={date === today ? "date" : undefined}>{Number(date.slice(8))}</button>;
+    })}</div>
+  </section>;
+}
+
+function FilterSection({ title, items, hidden, onToggle }: { title: string; items: Array<{ label: string; color: string }>; hidden: readonly string[]; onToggle: (label: string) => void }) {
+  return <section className={styles.filterSection}><h2>{title}</h2><div>{items.map((item) => {
+    const active = !hidden.includes(item.label);
+    return <button key={item.label} type="button" aria-pressed={active} onClick={() => onToggle(item.label)}><span style={{ background: active ? item.color : "transparent", borderColor: item.color }} />{item.label}</button>;
+  })}</div></section>;
+}
+
+function formatPeriod(days: CalendarDate[]) {
+  const firstDay = Number(days[0].slice(8));
+  const lastDay = Number(days[6].slice(8));
+  const firstMonth = Number(days[0].slice(5, 7));
+  const lastMonth = Number(days[6].slice(5, 7));
+  const year = days[6].slice(0, 4);
+  return firstMonth === lastMonth ? `${firstDay} – ${lastDay} ${MONTHS[lastMonth - 1]} ${year}` : `${firstDay} ${MONTHS[firstMonth - 1]} – ${lastDay} ${MONTHS[lastMonth - 1]} ${year}`;
+}
+
+function formatFullDate(date: CalendarDate) {
+  return new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+}
+
+function colorToTint(hex: string) {
+  const channels = hex.slice(1).match(/.{2}/g)?.map((channel) => Number.parseInt(channel, 16)) ?? [119, 168, 134];
+  return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, 0.15)`;
+}
+
+function SidebarIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>; }
+function SearchIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>; }
+function ComposeIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h8" /><path d="m10 14 1.5-4.5L18 3l3 3-6.5 6.5L10 14Z" /></svg>; }
+function Chevron({ direction }: { direction: "left" | "right" | "down" }) { const path = direction === "left" ? "m15 18-6-6 6-6" : direction === "right" ? "m9 18 6-6-6-6" : "m6 9 6 6 6-6"; return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={path} /></svg>; }
