@@ -5,7 +5,10 @@ import {
   CALENDAR_LAB_LOCATIONS,
   CALENDAR_LAB_PATIENTS,
   CALENDAR_LAB_SERVICES,
+  CALENDAR_LAB_DURATION_PRESETS,
   calendarLabSessionLabel,
+  isCalendarLabDurationPreset,
+  maxCalendarLabDuration,
   updateDraftDuration,
   updateDraftService,
   validateAppointmentDraft,
@@ -31,6 +34,9 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
   onCloseRef.current = onClose;
   const [draft, setDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<CalendarAppointmentErrors>({});
+  const [customDurationOpen, setCustomDurationOpen] = useState(
+    !isCalendarLabDurationPreset(initialDraft.durationMinutes),
+  );
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -113,7 +119,9 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
 
             <Field label="Prestazione" htmlFor="lab-service">
               <select id="lab-service" value={draft.serviceName} onChange={(changeEvent) => {
-                setDraft((current) => updateDraftService(current, changeEvent.target.value));
+                const next = updateDraftService(draft, changeEvent.target.value);
+                setDraft(next);
+                setCustomDurationOpen(!isCalendarLabDurationPreset(next.durationMinutes));
               }}>
                 <option value="">Nessuna prestazione</option>
                 {CALENDAR_LAB_SERVICES.map((service) => <option key={service.id} value={service.name}>{service.name}</option>)}
@@ -138,12 +146,36 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
                 <input id="lab-start-time" name="startTime" type="time" step={900} min="07:00" max="20:45" value={draft.startTime} aria-invalid={Boolean(errors.startTime)} aria-describedby={errors.startTime ? "lab-start-time-error" : undefined} onChange={(changeEvent) => update("startTime", changeEvent.target.value)} />
               </Field>
               <Field label="Durata *" htmlFor="lab-duration" error={errors.durationMinutes}>
-                <select id="lab-duration" name="durationMinutes" value={draft.durationMinutes} aria-invalid={Boolean(errors.durationMinutes)} aria-describedby={errors.durationMinutes ? "lab-duration-error" : undefined} onChange={(changeEvent) => {
+                <select id="lab-duration" name="durationMinutes" value={customDurationOpen ? "custom" : String(draft.durationMinutes)} aria-invalid={Boolean(errors.durationMinutes)} aria-describedby={errors.durationMinutes ? "lab-duration-error" : undefined} onChange={(changeEvent) => {
+                  if (changeEvent.target.value === "custom") {
+                    setCustomDurationOpen(true);
+                    return;
+                  }
+                  setCustomDurationOpen(false);
                   setDraft((current) => updateDraftDuration(current, Number(changeEvent.target.value)));
                   setErrors((current) => ({ ...current, durationMinutes: undefined }));
                 }}>
-                  {[15, 30, 45, 60, 75, 90, 105, 120].map((duration) => <option key={duration} value={duration}>{duration} min</option>)}
+                  {CALENDAR_LAB_DURATION_PRESETS.map((duration) => <option key={duration} value={duration}>{duration} min</option>)}
+                  <option value="custom">Personalizzata…</option>
                 </select>
+                {customDurationOpen ? <div className={styles.customDurationControl}>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={15}
+                    max={maxCalendarLabDuration(draft.startTime)}
+                    step={15}
+                    value={draft.durationMinutes || ""}
+                    aria-label="Durata personalizzata in minuti"
+                    aria-invalid={Boolean(errors.durationMinutes)}
+                    aria-describedby={errors.durationMinutes ? "lab-duration-error" : undefined}
+                    onChange={(changeEvent) => {
+                      setDraft((current) => updateDraftDuration(current, Number(changeEvent.target.value)));
+                      setErrors((current) => ({ ...current, durationMinutes: undefined }));
+                    }}
+                  />
+                  <span>min</span>
+                </div> : null}
               </Field>
             </div>
           </div>

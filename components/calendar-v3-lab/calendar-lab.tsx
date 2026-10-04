@@ -12,6 +12,7 @@ import {
   getInitialScrollMinute,
   minutesToTime,
   timeToMinutes,
+  yToSnappedMinute,
   type CalendarDate,
 } from "@/lib/calendar-v3-lab/date-time";
 import {
@@ -39,6 +40,15 @@ import {
   type CalendarAppointmentDraft,
 } from "@/lib/calendar-v3-lab/appointment-editor";
 import { normalizeCalendarSelection, type CalendarSelection } from "@/lib/calendar-v3-lab/selection";
+import {
+  IDLE_CALENDAR_DRAG_SELECTION,
+  beginCalendarDragSelection,
+  calendarDragAutoScrollVelocity,
+  cancelCalendarDragSelection,
+  completeCalendarDragSelection,
+  moveCalendarDragSelection,
+  type CalendarDragSelectionState,
+} from "@/lib/calendar-v3-lab/drag-selection";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -52,6 +62,11 @@ export function CalendarLab() {
   const weekHeaderRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
+  const [dragSelection, setDragSelection] = useState<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
+  const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
+  const dragOriginRef = useRef<HTMLDivElement | null>(null);
+  const pointerClientYRef = useRef(0);
+  const suppressNextClickRef = useRef(false);
   const days = useMemo(() => calendarWeekDays(state.cursorDate), [state.cursorDate]);
   const visibleEvents = state.events.filter((event) =>
     !state.hiddenFilters.includes(event.locationName ?? "") &&
@@ -77,6 +92,52 @@ export function CalendarLab() {
     });
   }, [days]);
 
+  useEffect(() => {
+    const cancelDrag = (event: KeyboardEvent) => {
+      const current = dragSelectionRef.current;
+      if (event.key !== "Escape" || current.status === "idle") return;
+      event.preventDefault();
+      const origin = dragOriginRef.current;
+      if (origin?.hasPointerCapture(current.pointerId)) origin.releasePointerCapture(current.pointerId);
+      dragSelectionRef.current = cancelCalendarDragSelection();
+      setDragSelection(IDLE_CALENDAR_DRAG_SELECTION);
+      dragOriginRef.current = null;
+      setHoveredSlot(null);
+    };
+    document.addEventListener("keydown", cancelDrag);
+    return () => document.removeEventListener("keydown", cancelDrag);
+  }, []);
+
+  useEffect(() => {
+    if (dragSelection.status !== "selecting") return;
+    let frameId = 0;
+    const advance = () => {
+      const current = dragSelectionRef.current;
+      const scrollArea = scrollRef.current;
+      const origin = dragOriginRef.current;
+      if (current.status !== "selecting" || !scrollArea || !origin) return;
+      const scrollRectangle = scrollArea.getBoundingClientRect();
+      const velocity = calendarDragAutoScrollVelocity(pointerClientYRef.current, scrollRectangle.top, scrollRectangle.bottom);
+      if (velocity !== 0) {
+        const previousScrollTop = scrollArea.scrollTop;
+        scrollArea.scrollTop += velocity;
+        if (scrollArea.scrollTop !== previousScrollTop) {
+          const minute = yToSnappedMinute(pointerClientYRef.current - origin.getBoundingClientRect().top, PIXELS_PER_MINUTE);
+          const next = moveCalendarDragSelection(current, {
+            pointerId: current.pointerId,
+            minute,
+            clientY: pointerClientYRef.current,
+          });
+          dragSelectionRef.current = next;
+          setDragSelection(next);
+        }
+      }
+      frameId = window.requestAnimationFrame(advance);
+    };
+    frameId = window.requestAnimationFrame(advance);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [dragSelection.status]);
+
   const moveWeek = (amount: number) => {
     dispatch({ type: "set_cursor_date", date: addCalendarDays(state.cursorDate, amount * 7) });
   };
@@ -94,6 +155,8 @@ export function CalendarLab() {
   };
 
   const closeDrawer = () => {
+    dragSelectionRef.current = IDLE_CALENDAR_DRAG_SELECTION;
+    setDragSelection(IDLE_CALENDAR_DRAG_SELECTION);
     dispatch({ type: "set_selection", selection: null });
     dispatch({ type: "select_event", eventId: null });
   };
@@ -175,18 +238,89 @@ export function CalendarLab() {
                     <div
                       key={day}
                       tabIndex={-1}
-                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""}`}
+                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""} ${dragSelection.status !== "idle" && dragSelection.date === day ? styles.dayColumnSelecting : ""}`}
                       aria-label={formatFullDate(day)}
                       onMouseMove={(event) => {
+                        if (dragSelection.status !== "idle") return;
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
                         setHoveredSlot(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE, 15));
                       }}
                       onMouseLeave={() => setHoveredSlot((current) => current?.date === day ? null : current)}
                       onClick={(event) => {
+                        if (suppressNextClickRef.current) {
+                          suppressNextClickRef.current = false;
+                          return;
+                        }
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
                         openCreate(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE), event.currentTarget);
+                      }}
+                      onPointerDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        const rectangle = event.currentTarget.getBoundingClientRect();
+                        const next = beginCalendarDragSelection({
+                          pointerId: event.pointerId,
+                          pointerType: event.pointerType,
+                          isPrimary: event.isPrimary,
+                          button: event.button,
+                          date: day,
+                          minute: yToSnappedMinute(event.clientY - rectangle.top, PIXELS_PER_MINUTE),
+                          clientY: event.clientY,
+                        });
+                        if (next.status === "idle") return;
+                        returnFocusRef.current = event.currentTarget;
+                        dragOriginRef.current = event.currentTarget;
+                        pointerClientYRef.current = event.clientY;
+                        dragSelectionRef.current = next;
+                        setDragSelection(next);
+                        setHoveredSlot(null);
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                      }}
+                      onPointerMove={(event) => {
+                        const current = dragSelectionRef.current;
+                        if (current.status === "idle" || current.pointerId !== event.pointerId) return;
+                        pointerClientYRef.current = event.clientY;
+                        const origin = dragOriginRef.current;
+                        if (!origin) return;
+                        const next = moveCalendarDragSelection(current, {
+                          pointerId: event.pointerId,
+                          minute: yToSnappedMinute(event.clientY - origin.getBoundingClientRect().top, PIXELS_PER_MINUTE),
+                          clientY: event.clientY,
+                        });
+                        if (next.status === "selecting") event.preventDefault();
+                        dragSelectionRef.current = next;
+                        setDragSelection(next);
+                      }}
+                      onPointerUp={(event) => {
+                        const current = dragSelectionRef.current;
+                        if (current.status === "idle" || current.pointerId !== event.pointerId) return;
+                        const origin = dragOriginRef.current;
+                        if (!origin) return;
+                        const completion = completeCalendarDragSelection(current, {
+                          pointerId: event.pointerId,
+                          minute: yToSnappedMinute(event.clientY - origin.getBoundingClientRect().top, PIXELS_PER_MINUTE),
+                          clientY: event.clientY,
+                        });
+                        if (origin.hasPointerCapture(event.pointerId)) origin.releasePointerCapture(event.pointerId);
+                        dragSelectionRef.current = completion.state;
+                        setDragSelection(completion.state);
+                        dragOriginRef.current = null;
+                        if (completion.wasDrag && completion.selection) {
+                          event.preventDefault();
+                          suppressNextClickRef.current = true;
+                          window.setTimeout(() => { suppressNextClickRef.current = false; }, 0);
+                          openCreate(completion.selection, origin);
+                        }
+                      }}
+                      onPointerCancel={(event) => {
+                        const current = dragSelectionRef.current;
+                        if (current.status === "idle" || current.pointerId !== event.pointerId) return;
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+                        dragSelectionRef.current = cancelCalendarDragSelection();
+                        setDragSelection(IDLE_CALENDAR_DRAG_SELECTION);
+                        dragOriginRef.current = null;
+                        setHoveredSlot(null);
                       }}
                     >
                       {hoveredSlot?.date === day ? <span
@@ -197,6 +331,17 @@ export function CalendarLab() {
                         }}
                         aria-hidden="true"
                       /> : null}
+                      {dragSelection.status === "selecting" && dragSelection.date === day ? <span
+                        className={styles.selectionGhost}
+                        style={{
+                          top: (dragSelection.selection.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE,
+                          height: Math.max(dragSelection.selection.durationMinutes * PIXELS_PER_MINUTE - 2, 14),
+                        }}
+                        aria-hidden="true"
+                      >
+                        {dragSelection.selection.durationMinutes >= 45 ? <strong>{minutesToTime(dragSelection.selection.startMinutes)} – {minutesToTime(dragSelection.selection.endMinutes)}</strong> : null}
+                        {dragSelection.selection.durationMinutes >= 60 ? <span>{dragSelection.selection.durationMinutes} min</span> : null}
+                      </span> : null}
                       {eventLayouts.filter((event) => event.date === day).map((event) => (
                         <EventChip key={event.id} event={event} selected={state.selectedEventId === event.id} onSelect={openEdit} />
                       ))}

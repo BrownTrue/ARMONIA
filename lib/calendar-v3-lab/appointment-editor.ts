@@ -26,6 +26,8 @@ export const CALENDAR_LAB_LOCATIONS = Object.freeze([
   { id: "location-north", name: "Studio Nord", color: "#A88BBC" },
 ]);
 
+export const CALENDAR_LAB_DURATION_PRESETS = Object.freeze([15, 30, 45, 60, 75, 90, 120]);
+
 export type CalendarAppointmentDraft = {
   patientName: string;
   serviceName: string;
@@ -94,6 +96,22 @@ export function updateDraftDuration(
   durationMinutes: number,
 ): CalendarAppointmentDraft {
   return { ...draft, durationMinutes, durationManuallyEdited: true };
+}
+
+export function isCalendarLabDurationPreset(durationMinutes: number): boolean {
+  return CALENDAR_LAB_DURATION_PRESETS.includes(durationMinutes);
+}
+
+export function maxCalendarLabDuration(startTime: string): number | undefined {
+  try {
+    const startMinutes = timeToMinutes(startTime);
+    if (startMinutes < CALENDAR_LAB_CONFIG.startHour * 60 || startMinutes >= CALENDAR_LAB_CONFIG.endHour * 60) {
+      return undefined;
+    }
+    return CALENDAR_LAB_CONFIG.endHour * 60 - startMinutes;
+  } catch {
+    return undefined;
+  }
 }
 
 export function validateAppointmentDraft(draft: CalendarAppointmentDraft): CalendarAppointmentErrors {
