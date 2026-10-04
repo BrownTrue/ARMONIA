@@ -6,6 +6,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 ## Priorità alta
 
+- Collaudare manualmente AUTH / Account V2 Fase 1 in cloud: apertura anonima di una pagina privata e ritorno al deep link dopo login, refresh diretto di una pagina privata autenticata, `/` e `/login` con/senza sessione, logout reale, errore temporaneo di verifica e modalità locale. Signup, recupero password, onboarding e gestione account restano fasi successive separate.
+
 - Collaudare manualmente la Validation UX P1 su nuovo/modifica Paziente, dati amministrativi, nuovo/modifica Appuntamento e ricorrenza, Sedi e Prestazioni, verificando errori inline, scroll/focus al primo campo e distinzione dai fallimenti server.
 - Collaudare manualmente la Validation UX P1 su nuova/modifica Seduta, apertura/modifica/chiusura Percorso clinico, Obiettivi e creazione Valutazione: verificare errori inline, riepilogo del form lungo, focus al primo campo, conferme applicative di cancellazione e mancata rimozione ottimistica in caso di errore.
 - Collaudare manualmente la Validation UX P1 Economia: incasso senza paziente/data/importo valido, allocazioni di riga e somma oltre l'incasso, focus del primo errore, fallimento server distinto e annullamento Payment tramite conferma applicativa.

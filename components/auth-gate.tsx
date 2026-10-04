@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { isCloudConfigured, useData } from "@/components/data-provider";
+import { loginPathFor, safeNextPath } from "@/lib/auth/routing";
 
 const PUBLIC_PATHS = new Set(["/login", "/about", "/privacy"]);
 
@@ -14,8 +15,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isCloudConfigured || authStatus === "loading" || authStatus === "error") return;
-    if (authStatus === "unauthenticated" && !isPublicPath) router.replace("/login");
-    if (user && pathname === "/login") router.replace("/oggi");
+    const searchParams = new URLSearchParams(window.location.search);
+    const query = searchParams.toString();
+    if (authStatus === "unauthenticated" && !isPublicPath) router.replace(loginPathFor(`${pathname}${query ? `?${query}` : ""}`));
+    if (user && pathname === "/login") router.replace(safeNextPath(searchParams.get("next")));
   }, [authStatus, isPublicPath, pathname, router, user]);
 
   if (!isCloudConfigured) return <>{children}</>;

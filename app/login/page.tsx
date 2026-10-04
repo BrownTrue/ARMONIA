@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
+import { safeNextPath } from "@/lib/auth/routing";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function LoginPage() {
             const message = await signIn(String(form.get("email") || ""), String(form.get("password") || ""));
             setBusy(false);
             if (message) setError(message);
-            else router.replace("/oggi");
+            else router.replace(safeNextPath(new URLSearchParams(window.location.search).get("next")));
           }}
         >
           <Field label="Email" name="email" type="email" autoComplete="email" required />
