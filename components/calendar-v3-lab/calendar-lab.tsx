@@ -72,6 +72,15 @@ import {
   moveCalendarEvent,
   type CalendarEventMoveState,
 } from "@/lib/calendar-v3-lab/event-move";
+import {
+  IDLE_CALENDAR_EVENT_RESIZE,
+  beginCalendarEventResize,
+  cancelCalendarEventResize,
+  completeCalendarEventResize,
+  isCalendarLabEventResizable,
+  resizeCalendarEvent,
+  type CalendarEventResizeState,
+} from "@/lib/calendar-v3-lab/event-resize";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -93,15 +102,19 @@ export function CalendarLab() {
   const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
   const [dragSelection, setDragSelection] = useState<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const [eventMove, setEventMove] = useState<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
+  const [eventResize, setEventResize] = useState<CalendarEventResizeState>(IDLE_CALENDAR_EVENT_RESIZE);
   const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
   const [commandPaletteOrigin, setCommandPaletteOrigin] = useState<HTMLElement | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
   const eventMoveOriginRef = useRef<HTMLButtonElement | null>(null);
+  const eventResizeRef = useRef<CalendarEventResizeState>(IDLE_CALENDAR_EVENT_RESIZE);
+  const eventResizeOriginRef = useRef<HTMLSpanElement | null>(null);
   const pointerClientYRef = useRef(0);
   const movePointerClientXRef = useRef(0);
   const movePointerClientYRef = useRef(0);
+  const resizePointerClientYRef = useRef(0);
   const suppressNextClickRef = useRef(false);
   const suppressNextEventClickRef = useRef(false);
   const days = useMemo(() => calendarWeekDays(state.cursorDate), [state.cursorDate]);
@@ -149,6 +162,17 @@ export function CalendarLab() {
   useEffect(() => {
     const cancelDrag = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      const currentResize = eventResizeRef.current;
+      if (currentResize.status !== "idle") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const origin = eventResizeOriginRef.current;
+        if (origin?.hasPointerCapture(currentResize.pointerId)) origin.releasePointerCapture(currentResize.pointerId);
+        eventResizeRef.current = cancelCalendarEventResize();
+        setEventResize(IDLE_CALENDAR_EVENT_RESIZE);
+        eventResizeOriginRef.current = null;
+        return;
+      }
       const currentMove = eventMoveRef.current;
       if (currentMove.status !== "idle") {
         event.preventDefault();
@@ -237,8 +261,38 @@ export function CalendarLab() {
   }, [days, eventMove.status]);
 
   useEffect(() => {
+    if (eventResize.status !== "resizing") return;
+    let frameId = 0;
+    const advance = () => {
+      const current = eventResizeRef.current;
+      const scrollArea = scrollRef.current;
+      const grid = daysGridRef.current;
+      if (current.status !== "resizing" || !scrollArea || !grid) return;
+      const scrollRectangle = scrollArea.getBoundingClientRect();
+      const velocity = calendarDragAutoScrollVelocity(resizePointerClientYRef.current, scrollRectangle.top, scrollRectangle.bottom);
+      if (velocity !== 0) {
+        const previousScrollTop = scrollArea.scrollTop;
+        scrollArea.scrollTop += velocity;
+        if (scrollArea.scrollTop !== previousScrollTop) {
+          const gridRectangle = grid.getBoundingClientRect();
+          const next = resizeCalendarEvent(current, {
+            pointerId: current.pointerId,
+            pointerEndMinute: yToSnappedMinute(resizePointerClientYRef.current - gridRectangle.top, PIXELS_PER_MINUTE),
+            clientY: resizePointerClientYRef.current,
+          });
+          eventResizeRef.current = next;
+          setEventResize(next);
+        }
+      }
+      frameId = window.requestAnimationFrame(advance);
+    };
+    frameId = window.requestAnimationFrame(advance);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [eventResize.status]);
+
+  useEffect(() => {
     const handleCalendarShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
+      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle" || eventResizeRef.current.status !== "idle") return;
       if (isCalendarShortcutTypingTarget(event.target)) return;
       const key = event.key.toLocaleLowerCase("it");
       if ((event.metaKey || event.ctrlKey) && !event.altKey && key === "k") {
@@ -289,7 +343,7 @@ export function CalendarLab() {
   };
 
   const beginEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
-    if (drawerDraft) return;
+    if (drawerDraft || eventResizeRef.current.status !== "idle") return;
     const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
     if (!target) return;
     const next = beginCalendarEventMove({
@@ -368,11 +422,89 @@ export function CalendarLab() {
     eventMoveOriginRef.current = null;
   };
 
+  const eventResizeTarget = (clientY: number) => {
+    const gridRectangle = daysGridRef.current?.getBoundingClientRect();
+    if (!gridRectangle) return null;
+    return yToSnappedMinute(clientY - gridRectangle.top, PIXELS_PER_MINUTE);
+  };
+
+  const beginEventResize = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    if (drawerDraft || eventMoveRef.current.status !== "idle" || dragSelectionRef.current.status !== "idle") return;
+    const next = beginCalendarEventResize({
+      event,
+      pointerId: pointerEvent.pointerId,
+      pointerType: pointerEvent.pointerType,
+      isPrimary: pointerEvent.isPrimary,
+      button: pointerEvent.button,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "idle") return;
+    setContextMenu(null);
+    setCommandPaletteOrigin(null);
+    setHoveredSlot(null);
+    resizePointerClientYRef.current = pointerEvent.clientY;
+    eventResizeOriginRef.current = pointerEvent.currentTarget;
+    eventResizeRef.current = next;
+    setEventResize(next);
+    pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
+  };
+
+  const updateEventResize = (pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    const current = eventResizeRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    const pointerEndMinute = eventResizeTarget(pointerEvent.clientY);
+    if (pointerEndMinute === null) return;
+    resizePointerClientYRef.current = pointerEvent.clientY;
+    const next = resizeCalendarEvent(current, {
+      pointerId: pointerEvent.pointerId,
+      pointerEndMinute,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "resizing") pointerEvent.preventDefault();
+    eventResizeRef.current = next;
+    setEventResize(next);
+  };
+
+  const finishEventResize = (pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    const current = eventResizeRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    const pointerEndMinute = eventResizeTarget(pointerEvent.clientY);
+    if (pointerEndMinute === null) return;
+    const completion = completeCalendarEventResize(current, {
+      pointerId: pointerEvent.pointerId,
+      pointerEndMinute,
+      clientY: pointerEvent.clientY,
+    });
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    eventResizeRef.current = completion.state;
+    setEventResize(completion.state);
+    eventResizeOriginRef.current = null;
+    if (completion.wasResize && completion.event) {
+      pointerEvent.preventDefault();
+      dispatch({ type: "resize_event", event: completion.event });
+    }
+  };
+
+  const abortEventResize = (pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    const current = eventResizeRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    eventResizeRef.current = cancelCalendarEventResize();
+    setEventResize(IDLE_CALENDAR_EVENT_RESIZE);
+    eventResizeOriginRef.current = null;
+  };
+
   const closeDrawer = () => {
     dragSelectionRef.current = IDLE_CALENDAR_DRAG_SELECTION;
     setDragSelection(IDLE_CALENDAR_DRAG_SELECTION);
     eventMoveRef.current = IDLE_CALENDAR_EVENT_MOVE;
     setEventMove(IDLE_CALENDAR_EVENT_MOVE);
+    eventResizeRef.current = IDLE_CALENDAR_EVENT_RESIZE;
+    setEventResize(IDLE_CALENDAR_EVENT_RESIZE);
     dispatch({ type: "set_selection", selection: null });
     dispatch({ type: "select_event", eventId: null });
   };
@@ -490,10 +622,10 @@ export function CalendarLab() {
                     <div
                       key={day}
                       tabIndex={-1}
-                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""} ${dragSelection.status !== "idle" && dragSelection.date === day ? styles.dayColumnSelecting : ""} ${eventMove.status === "moving" && eventMove.preview.date === day ? styles.dayColumnSelecting : ""}`}
+                      className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""} ${dragSelection.status !== "idle" && dragSelection.date === day ? styles.dayColumnSelecting : ""} ${eventMove.status === "moving" && eventMove.preview.date === day ? styles.dayColumnSelecting : ""} ${eventResize.status === "resizing" && eventResize.preview.date === day ? styles.dayColumnSelecting : ""}`}
                       aria-label={formatFullDate(day)}
                       onMouseMove={(event) => {
-                        if (dragSelection.status !== "idle" || eventMove.status !== "idle") return;
+                        if (dragSelection.status !== "idle" || eventMove.status !== "idle" || eventResize.status !== "idle") return;
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
                         setHoveredSlot(selectionFromGridClick(day, event.clientY - rectangle.top, PIXELS_PER_MINUTE, 15));
@@ -619,14 +751,20 @@ export function CalendarLab() {
                         <strong>{eventMove.preview.patientName}</strong>
                         <span>{minutesToTime(eventMove.preview.startMinutes)} – {minutesToTime(eventMove.preview.endMinutes)}</span>
                       </span> : null}
-                      {eventLayouts.filter((event) => event.date === day).map((event) => (
-                        <EventChip
-                          key={event.id}
-                          event={event}
+                      {eventLayouts.filter((event) => event.date === day).map((event) => {
+                        const resizing = eventResize.status === "resizing" && eventResize.before.id === event.id;
+                        const renderedEvent = resizing
+                          ? { ...event, endMinutes: eventResize.preview.endMinutes }
+                          : event;
+                        return <EventChip
+                          key={renderedEvent.id}
+                          event={renderedEvent}
                           selected={state.selectedEventId === event.id}
                           menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
                           moving={eventMove.status === "moving" && eventMove.before.id === event.id}
+                          resizing={resizing}
                           draggable={isCalendarLabEventDraggable(event)}
+                          resizable={isCalendarLabEventResizable(event)}
                           onSelect={(eventId, origin) => {
                             if (suppressNextEventClickRef.current) {
                               suppressNextEventClickRef.current = false;
@@ -638,12 +776,16 @@ export function CalendarLab() {
                           onPointerMove={updateEventMove}
                           onPointerUp={finishEventMove}
                           onPointerCancel={abortEventMove}
+                          onResizePointerDown={beginEventResize}
+                          onResizePointerMove={updateEventResize}
+                          onResizePointerUp={finishEventResize}
+                          onResizePointerCancel={abortEventResize}
                           onOpenContextMenu={(eventId, anchorPoint, origin) => {
                             setCommandPaletteOrigin(null);
                             setContextMenu({ kind: "event", eventId, anchorPoint, origin });
                           }}
-                        />
-                      ))}
+                        />;
+                      })}
                     </div>
                   ))}
                   {currentDayIndex >= 0 && labNowMinutes >= CALENDAR_LAB_CONFIG.startHour * 60 && labNowMinutes <= CALENDAR_LAB_CONFIG.endHour * 60 ? (
@@ -711,19 +853,26 @@ function TimeGutter() {
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
 }
 
-function EventChip({ event, selected, menuOpen, moving, draggable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
+function EventChip({ event, selected, menuOpen, moving, resizing, draggable, resizable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onResizePointerDown, onResizePointerMove, onResizePointerUp, onResizePointerCancel }: {
   event: CalendarLabEventLayout;
   selected: boolean;
   menuOpen: boolean;
   moving: boolean;
+  resizing: boolean;
   draggable: boolean;
+  resizable: boolean;
   onSelect: (eventId: string, origin: HTMLElement) => void;
   onOpenContextMenu: (eventId: string, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
   onPointerDown: (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
   onPointerMove: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
   onPointerUp: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
   onPointerCancel: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onResizePointerDown: (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLSpanElement>) => void;
+  onResizePointerMove: (pointerEvent: React.PointerEvent<HTMLSpanElement>) => void;
+  onResizePointerUp: (pointerEvent: React.PointerEvent<HTMLSpanElement>) => void;
+  onResizePointerCancel: (pointerEvent: React.PointerEvent<HTMLSpanElement>) => void;
 }) {
+  const allowTouchHandleClickRef = useRef(false);
   const color = calendarLabEventColor(event);
   const duration = event.endMinutes - event.startMinutes;
   const top = (event.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE;
@@ -741,7 +890,7 @@ function EventChip({ event, selected, menuOpen, moving, draggable, onSelect, onO
   return (
     <button
       type="button"
-      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""}`}
+      className={`${styles.event} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""} ${resizing ? styles.eventResizing : ""}`}
       style={{
         top,
         height: Math.max(height - 2, 18),
@@ -786,6 +935,45 @@ function EventChip({ event, selected, menuOpen, moving, draggable, onSelect, onO
         role="img"
         aria-label={event.sessionState === "registered" ? "Seduta registrata" : "Da registrare"}
       >{event.sessionState === "registered" ? "✓" : "•"}</span> : null}
+      {resizable ? <span
+        className={`${styles.resizeHandle} ${resizing ? styles.resizeHandleActive : ""}`}
+        aria-hidden="true"
+        onPointerDown={(pointerEvent) => {
+          if (pointerEvent.pointerType === "touch") {
+            allowTouchHandleClickRef.current = true;
+            return;
+          }
+          pointerEvent.preventDefault();
+          pointerEvent.stopPropagation();
+          onResizePointerDown(event, pointerEvent);
+        }}
+        onPointerMove={(pointerEvent) => {
+          if (pointerEvent.pointerType === "touch") return;
+          pointerEvent.stopPropagation();
+          onResizePointerMove(pointerEvent);
+        }}
+        onPointerUp={(pointerEvent) => {
+          if (pointerEvent.pointerType === "touch") return;
+          pointerEvent.stopPropagation();
+          onResizePointerUp(pointerEvent);
+        }}
+        onPointerCancel={(pointerEvent) => {
+          if (pointerEvent.pointerType === "touch") {
+            allowTouchHandleClickRef.current = false;
+            return;
+          }
+          pointerEvent.stopPropagation();
+          onResizePointerCancel(pointerEvent);
+        }}
+        onClick={(clickEvent) => {
+          if (allowTouchHandleClickRef.current) {
+            allowTouchHandleClickRef.current = false;
+            return;
+          }
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+        }}
+      /> : null}
     </button>
   );
 }

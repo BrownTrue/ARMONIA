@@ -20,6 +20,7 @@ export type CalendarLabAction =
   | { type: "add_event"; event: CalendarLabEvent }
   | { type: "update_event"; event: CalendarLabEvent }
   | { type: "move_event"; event: CalendarLabEvent }
+  | { type: "resize_event"; event: CalendarLabEvent }
   | { type: "toggle_filter"; filter: string }
   | { type: "reset"; events: readonly CalendarLabEvent[] };
 
@@ -58,6 +59,11 @@ export function calendarLabReducer(
         selectedEventId: null,
       };
     case "move_event":
+      return {
+        ...state,
+        events: state.events.map((event) => event.id === action.event.id ? action.event : event),
+      };
+    case "resize_event":
       return {
         ...state,
         events: state.events.map((event) => event.id === action.event.id ? action.event : event),

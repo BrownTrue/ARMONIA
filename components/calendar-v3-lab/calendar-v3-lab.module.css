@@ -73,6 +73,7 @@
 .event:hover { z-index: 8; filter: saturate(1.08) brightness(.985); box-shadow: 0 2px 7px rgba(47,67,55,.12), inset 0 0 0 1px rgba(38,56,45,.05); transform: translateY(-1px); }
 .eventDraggable { cursor: grab; }
 .eventMovingOrigin, .eventMovingOrigin:hover { z-index: 3; opacity: .35; filter: saturate(.7); transform: none; cursor: grabbing; box-shadow: inset 0 0 0 1px rgba(38,56,45,.035); }
+.eventResizing, .eventResizing:hover { z-index: 11; transform: none; box-shadow: 0 3px 10px rgba(47,67,55,.13), inset 0 0 0 1px rgba(38,56,45,.05); }
 .event strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.25; font-weight: 700; }
 .event span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 1.25; color: #536158; }
 .event .eventTertiary { color: #748078; }
@@ -86,6 +87,10 @@
 .eventWithState { padding-right: 20px; }
 .sessionIndicator { position: absolute; top: 5px; right: 6px; width: 10px; height: 10px; display: grid; place-items: center; color: #4f7761 !important; font-size: 9px !important; font-weight: 800; line-height: 1 !important; }
 .sessionPending { color: #7e8a82 !important; font-size: 13px !important; }
+.resizeHandle { position: absolute; z-index: 3; right: 3px; bottom: 0; left: 3px; height: 8px; cursor: ns-resize; touch-action: none; }
+.resizeHandle::after { content: ""; position: absolute; right: 28%; bottom: 1px; left: 28%; height: 1px; border-radius: 999px; background: color-mix(in srgb, var(--event-color) 65%, #52645a); opacity: 0; transition: opacity .12s ease; }
+.resizeHandle:hover::after, .resizeHandleActive::after { opacity: .7; }
+@media (pointer: coarse) { .resizeHandle { pointer-events: none; } }
 .currentTime { position: absolute; z-index: 10; height: 1px; background: #d8796f; pointer-events: none; }
 .currentTime span { position: absolute; left: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: #d8796f; box-shadow: 0 0 0 2px #fff; }
 .contextMenu { position: fixed; z-index: 55; width: clamp(220px, 18vw, 250px); overflow: hidden; border: 1px solid rgba(54,72,61,.14); border-radius: 12px; background: rgba(255,255,255,.985); padding: 5px; color: #2f3d35; box-shadow: 0 14px 38px rgba(35,50,41,.17), 0 2px 8px rgba(35,50,41,.08); }
