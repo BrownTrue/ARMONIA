@@ -9,6 +9,7 @@ import { AppointmentDetailPanel } from "./appointment-detail-panel";
 import { AppointmentCancelDialog } from "./appointment-cancel-dialog";
 import { SessionRegistrationPanel } from "./session-registration-panel";
 import { CalendarSidebarCatalog } from "./calendar-sidebar-catalog";
+import { GoogleCalendarStatus } from "./google-calendar-status";
 import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog";
@@ -1250,10 +1251,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
             <div className={styles.sidebarInner}>
               {sidebarMode.kind === "main" ? <MiniCalendar cursorDate={state.cursorDate} visibleDates={days} view={state.view} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} /> : null}
               <CalendarSidebarCatalog realMode={realMode} mode={sidebarMode} hidden={state.hiddenFilters} onModeChange={setSidebarMode} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
-              {!realMode && sidebarMode.kind === "main" ? <div className={styles.googleStatus}>
-                <div><span className={styles.googleDot} aria-hidden="true" /><span>Google Calendar</span></div>
-                <span>Collegato</span>
-              </div> : null}
+              {sidebarMode.kind === "main" ? <GoogleCalendarStatus realMode={realMode} /> : null}
             </div>
           </aside>
 

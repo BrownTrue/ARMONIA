@@ -111,6 +111,7 @@
 .googleStatus > div { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
 .googleStatus > span { display: block; margin: 5px 0 0 17px; font-size: 11px; color: #89948d; }
 .googleDot { width: 8px; height: 8px; border-radius: 50%; background: #6e9e83; box-shadow: 0 0 0 3px #e4eee7; }
+.googleDotWarning { background: #b28a54; box-shadow: 0 0 0 3px #f2eadf; }
 .calendarPane { --calendar-time-gutter: 58px; --calendar-day-columns: repeat(7, minmax(88px, 1fr)); --calendar-grid-template: var(--calendar-time-gutter) var(--calendar-day-columns); --calendar-week-header-height: 62px; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; }
 .calendarPaneDay { --calendar-day-columns: minmax(0, 1fr); --calendar-week-header-height: 72px; }
 .calendarPaneMonth { min-height: 0; }
