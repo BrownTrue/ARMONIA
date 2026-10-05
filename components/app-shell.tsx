@@ -5,7 +5,7 @@ import { DesktopShellChrome } from "./app-shell/desktop-shell-chrome";
 import { MobileShellChrome } from "./app-shell/mobile-shell-chrome";
 import { useData } from "./data-provider";
 
-export type MobileHeaderDetail = { variant: "detail"; title: string; backHref: string; backLabel?: string };
+export type MobileHeaderDetail = { variant: "detail"; title: string; backHref: string; backLabel?: string; onBack?: () => void };
 
 export function AppShell({ children, mobileHeader, mobileFullScreen = false }: { children: React.ReactNode; mobileHeader?: MobileHeaderDetail; mobileFullScreen?: boolean }) {
   const pathname = usePathname(), router = useRouter();

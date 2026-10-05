@@ -16,8 +16,10 @@ import { focusFirstInvalidField, validateClinicalPathwayForm, validateNewAssessm
 
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
 const goalStatusLabel = (status: string) => ({ not_started: "Da iniziare", in_progress: "In corso", consolidation: "Consolidamento", achieved: "Raggiunto", suspended: "Sospeso" }[status] || status);
+export type MobileClinicalSection = "clinical-overview" | "assessments" | "goals" | "linked-activity" | "history" | "history-detail";
+type MobileClinicalOverlay = { kind: "none" } | { kind: "pathway-actions" } | { kind: "goal-actions"; goal: Goal } | { kind: "start-pathway" } | { kind: "edit-pathway" } | { kind: "close-pathway" } | { kind: "delete-pathway"; pathway: ClinicalPathway } | { kind: "new-assessment" };
 
-export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActivity }: { patientId: string; goals: Goal[]; onNewGoal: (pathwayId: string) => void; onOpenActivity: () => void }) {
+export function PatientClinicalPathway({ patientId, goals, onNewGoal, onEditGoal, onDeleteGoal, onOpenActivity, presentation = "desktop", mobileSection = "clinical-overview", mobileHistoryPathwayId, onMobileSectionChange }: { patientId: string; goals: Goal[]; onNewGoal: (pathwayId: string) => void; onEditGoal?: (goal: Goal) => void; onDeleteGoal?: (goal: Goal) => void; onOpenActivity: () => void; presentation?: "desktop" | "mobile"; mobileSection?: MobileClinicalSection; mobileHistoryPathwayId?: string; onMobileSectionChange?: (section: MobileClinicalSection, historyPathwayId?: string) => void }) {
   const router = useRouter();
   const { data, saveClinicalPathway, closeClinicalPathway, deleteClinicalPathway, createClinicalAssessmentDraft, linkGoalToClinicalPathway, unlinkGoalFromClinicalPathway } = useData();
   const [startOpen, setStartOpen] = useState(false);
@@ -25,6 +27,7 @@ export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActi
   const [editOpen, setEditOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ClinicalPathway | null>(null);
   const [newAssessmentOpen, setNewAssessmentOpen] = useState(false);
+  const [mobileOverlay, setMobileOverlay] = useState<MobileClinicalOverlay>({ kind: "none" });
   const [error, setError] = useState("");
   const pathways = data.clinicalPathways
     .filter((item) => item.patientId === patientId)
@@ -32,7 +35,7 @@ export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActi
   const active = pathways.find((item) => item.status === "active");
   const historical = pathways.filter((item) => item.status === "closed");
   const overviewFor = (pathway: ClinicalPathway) => buildClinicalPathwayOverview(pathway, goals, data.sessions, data.clinicalAssessments);
-  const requestDelete = (pathway: ClinicalPathway) => {
+  const requestDelete = (pathway: ClinicalPathway, mobile = false) => {
     const hasAssessments = data.clinicalAssessments.some((assessment) => assessment.clinicalPathwayId === pathway.id);
     if (hasAssessments) {
       setError("Questo percorso contiene valutazioni. Elimina prima le valutazioni che non vuoi conservare oppure chiudi il percorso.");
@@ -44,7 +47,8 @@ export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActi
       return;
     }
     setError("");
-    setDeleteTarget(pathway);
+    if (mobile) setMobileOverlay({ kind: "delete-pathway", pathway });
+    else setDeleteTarget(pathway);
   };
 
   const startV2Assessment = async (pathway: ClinicalPathway, input: { assessmentType: ClinicalAssessmentTypeV2; clinicalDate: string; modules: { code: string; version: number }[] }) => {
@@ -53,7 +57,7 @@ export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActi
     router.push(`/pazienti/${patientId}/percorso/${assessment.id}`);
   };
 
-  if (!active && historical.length === 0) {
+  if (!active && historical.length === 0 && presentation === "desktop") {
     return <>
       <section className="card px-6 py-10 text-center sm:px-10">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-sage-100 text-xl">◎</div>
@@ -63,6 +67,27 @@ export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActi
       </section>
       {startOpen && <StartPathwayModal patientId={patientId} onClose={() => setStartOpen(false)} onSave={saveClinicalPathway} />}
     </>;
+  }
+
+  if (presentation === "mobile") {
+    const changeSection = onMobileSectionChange || (() => undefined);
+    const overview = active ? overviewFor(active) : undefined;
+    const historyTarget = historical.find((pathway) => pathway.id === mobileHistoryPathwayId);
+    return <div className="pb-2">
+      {mobileSection === "clinical-overview" && <MobileClinicalOverview overview={overview} historicalCount={historical.length} error={error} onOpenActions={active ? () => setMobileOverlay({ kind: "pathway-actions" }) : undefined} onStartPathway={() => setMobileOverlay({ kind: "start-pathway" })} onOpenSection={changeSection} />}
+      {mobileSection === "assessments" && <MobileAssessmentsSubview overview={overview} patientId={patientId} onStartAssessment={active ? () => setMobileOverlay({ kind: "new-assessment" }) : undefined} />}
+      {mobileSection === "goals" && <MobileGoalsSubview overview={overview} goals={goals} onNewGoal={active ? () => onNewGoal(active.id) : undefined} onOpenGoalActions={onEditGoal && onDeleteGoal ? (goal) => setMobileOverlay({ kind: "goal-actions", goal }) : undefined} onLink={linkGoalToClinicalPathway} onUnlink={unlinkGoalFromClinicalPathway} />}
+      {mobileSection === "linked-activity" && <MobileLinkedActivitySubview overview={overview} onOpenActivity={onOpenActivity} />}
+      {mobileSection === "history" && <MobileHistorySubview pathways={historical} overviewFor={overviewFor} onOpen={(pathwayId) => changeSection("history-detail", pathwayId)} />}
+      {mobileSection === "history-detail" && <MobileHistoryDetail overview={historyTarget ? overviewFor(historyTarget) : undefined} patientId={patientId} />}
+      {mobileOverlay.kind === "start-pathway" && <StartPathwayModal patientId={patientId} onClose={() => setMobileOverlay({ kind: "none" })} onSave={saveClinicalPathway} />}
+      {mobileOverlay.kind === "pathway-actions" && active && <Modal title="Azioni percorso" onClose={() => setMobileOverlay({ kind: "none" })}><div className="divide-y divide-slate-100"><button type="button" onClick={() => setMobileOverlay({ kind: "edit-pathway" })} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-slate-800">Modifica percorso</button><button type="button" onClick={() => setMobileOverlay({ kind: "close-pathway" })} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-slate-800">Chiudi percorso</button><button type="button" onClick={() => { setMobileOverlay({ kind: "none" }); requestDelete(active, true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-red-600">Elimina percorso</button></div></Modal>}
+      {mobileOverlay.kind === "goal-actions" && onEditGoal && onDeleteGoal && <Modal title="Azioni obiettivo" onClose={() => setMobileOverlay({ kind: "none" })}><div className="divide-y divide-slate-100"><button type="button" onClick={() => { const goal = mobileOverlay.goal; setMobileOverlay({ kind: "none" }); onEditGoal(goal); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-slate-800">Modifica obiettivo</button><button type="button" onClick={() => { const goal = mobileOverlay.goal; setMobileOverlay({ kind: "none" }); onDeleteGoal(goal); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-red-600">Elimina obiettivo</button></div></Modal>}
+      {mobileOverlay.kind === "close-pathway" && active && <ClosePathwayModal pathway={active} onClose={() => setMobileOverlay({ kind: "none" })} onConfirm={closeClinicalPathway} />}
+      {mobileOverlay.kind === "edit-pathway" && active && <EditPathwayModal pathway={active} onClose={() => setMobileOverlay({ kind: "none" })} onSave={saveClinicalPathway} />}
+      {mobileOverlay.kind === "delete-pathway" && <DeletePathwayModal pathway={mobileOverlay.pathway} onClose={() => setMobileOverlay({ kind: "none" })} onConfirm={deleteClinicalPathway} />}
+      {mobileOverlay.kind === "new-assessment" && active && <NewAssessmentModal onClose={() => setMobileOverlay({ kind: "none" })} onCreate={(input) => startV2Assessment(active, input)} />}
+    </div>;
   }
 
   return <div className="space-y-5">
@@ -82,6 +107,58 @@ export function PatientClinicalPathway({ patientId, goals, onNewGoal, onOpenActi
     {deleteTarget && <DeletePathwayModal pathway={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={deleteClinicalPathway} />}
     {newAssessmentOpen && active && <NewAssessmentModal onClose={() => setNewAssessmentOpen(false)} onCreate={(input) => startV2Assessment(active, input)} />}
   </div>;
+}
+
+function MobileClinicalOverview({ overview, historicalCount, error, onOpenActions, onStartPathway, onOpenSection }: { overview?: ClinicalPathwayOverview; historicalCount: number; error: string; onOpenActions?: () => void; onStartPathway: () => void; onOpenSection: (section: MobileClinicalSection) => void }) {
+  const draftCount = overview?.assessments.filter((assessment) => assessment.status === "draft").length || 0;
+  return <div className="border-y border-sage-100 bg-white">
+    <section className="px-5 py-5"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-sage-700">Percorso clinico</p>{overview && <span className="rounded-full bg-sage-100 px-2 py-0.5 text-[10px] font-bold text-sage-800">Attivo</span>}</div><h2 className="mt-2 break-words text-xl font-bold text-slate-900">{overview?.pathway.title || (overview ? "Percorso clinico" : "Nessun percorso attivo")}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{overview ? `Iniziato il ${formatDate(overview.pathway.startedOn)}` : "I percorsi conclusi restano disponibili nello storico."}</p></div>{onOpenActions && <button type="button" onClick={onOpenActions} aria-label="Azioni percorso" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-sage-100 bg-sage-50 text-lg font-bold text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400">•••</button>}</div>{!overview && <button type="button" onClick={onStartPathway} className="btn btn-primary mt-5 min-h-11">Inizia nuovo percorso</button>}{error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{error}</p>}</section>
+    <nav aria-label="Contenuti del percorso" className="divide-y divide-sage-100 border-t border-sage-100 px-4">{overview && <><MobileSectionRow title="Valutazioni" summary={`${overview.assessments.length} total${overview.assessments.length === 1 ? "e" : "i"}${draftCount ? ` · ${draftCount} ${draftCount === 1 ? "bozza" : "bozze"}` : ""}`} onClick={() => onOpenSection("assessments")} /><MobileSectionRow title="Obiettivi" summary={`${overview.activeGoals.length} ${overview.activeGoals.length === 1 ? "attivo" : "attivi"}${overview.historicalGoals.length ? ` · ${overview.historicalGoals.length} conclusi o sospesi` : ""}`} onClick={() => onOpenSection("goals")} /><MobileSectionRow title="Attività collegate" summary={`${overview.relevantSessions.length} ${overview.relevantSessions.length === 1 ? "seduta" : "sedute"}`} onClick={() => onOpenSection("linked-activity")} /></>}{historicalCount > 0 && <MobileSectionRow title="Percorsi precedenti" summary={`${historicalCount} ${historicalCount === 1 ? "percorso" : "percorsi"}`} onClick={() => onOpenSection("history")} />}</nav>
+  </div>;
+}
+
+function MobileSectionRow({ title, summary, onClick }: { title: string; summary: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className="flex min-h-[4.5rem] w-full items-center gap-3 px-1 py-3 text-left transition active:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sage-400"><span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{title}</span><span className="mt-1 block text-xs text-slate-500">{summary}</span></span><span aria-hidden="true" className="text-xl text-slate-300">›</span></button>;
+}
+
+function MobileSubviewShell({ label, action, children }: { label: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section className="border-y border-sage-100 bg-white px-5 py-5"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold text-slate-900">{label}</h2>{action}</div><div className="mt-3">{children}</div></section>;
+}
+
+function MobileAssessmentsSubview({ overview, patientId, onStartAssessment }: { overview?: ClinicalPathwayOverview; patientId: string; onStartAssessment?: () => void }) {
+  return <MobileSubviewShell label="Valutazioni" action={onStartAssessment && <button type="button" onClick={onStartAssessment} className="btn btn-primary min-h-11 px-3 text-sm">Nuova valutazione</button>}>{overview?.assessments.length ? <div className="divide-y divide-slate-100">{overview.assessments.map((assessment) => <MobileAssessmentRow key={assessment.id} assessment={assessment} patientId={patientId} />)}</div> : <MobileEmptyState text="Nessuna valutazione." action={onStartAssessment ? <button type="button" onClick={onStartAssessment} className="btn btn-primary mt-4 min-h-11">Nuova valutazione</button> : undefined} />}</MobileSubviewShell>;
+}
+
+function MobileGoalsSubview({ overview, goals, onNewGoal, onOpenGoalActions, onLink, onUnlink }: { overview?: ClinicalPathwayOverview; goals: Goal[]; onNewGoal?: () => void; onOpenGoalActions?: (goal: Goal) => void; onLink: (goalId: string, pathwayId: string) => Promise<void>; onUnlink: (goalId: string) => Promise<void> }) {
+  return <MobileSubviewShell label="Obiettivi" action={onNewGoal && <button type="button" onClick={onNewGoal} className="btn btn-primary min-h-11 px-3 text-sm">Nuovo obiettivo</button>}>{overview ? <><h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-sage-700">Attivi</h3>{overview.activeGoals.length ? <div className="mt-2 space-y-2">{overview.activeGoals.map((goal) => <MobileGoalRow goal={goal} key={goal.id} onOpenActions={onOpenGoalActions} />)}</div> : <MobileEmptyState text="Nessun obiettivo." action={onNewGoal ? <button type="button" onClick={onNewGoal} className="btn btn-primary mt-4 min-h-11">Nuovo obiettivo</button> : undefined} />}{overview.historicalGoals.length > 0 && <div className="mt-6"><h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Conclusi / sospesi</h3><div className="mt-2 space-y-2">{overview.historicalGoals.map((goal) => <MobileGoalRow goal={goal} key={goal.id} onOpenActions={onOpenGoalActions} />)}</div></div>}<div className="mt-5 border-t border-sage-100 pt-3"><GoalLinksDisclosure pathway={overview.pathway} goals={goals} onLink={onLink} onUnlink={onUnlink} /></div></> : <MobileEmptyState text="Nessun percorso attivo." />}</MobileSubviewShell>;
+}
+
+function MobileLinkedActivitySubview({ overview, onOpenActivity }: { overview?: ClinicalPathwayOverview; onOpenActivity: () => void }) {
+  return <MobileSubviewShell label="Attività collegate" action={<button type="button" onClick={onOpenActivity} className="min-h-11 rounded-xl px-2 text-sm font-bold text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">Tutte le attività</button>}>{overview?.relevantSessions.length ? <div className="divide-y divide-slate-100">{overview.relevantSessions.map((session) => <div key={session.id} className="py-3"><p className="text-sm font-bold text-slate-900">Seduta del {formatDate(session.date)}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{session.activities || session.result || `${session.duration} minuti · collegata agli obiettivi del percorso`}</p></div>)}</div> : <MobileEmptyState text="Nessuna attività collegata agli obiettivi di questo percorso." />}</MobileSubviewShell>;
+}
+
+function MobileHistorySubview({ pathways, overviewFor, onOpen }: { pathways: ClinicalPathway[]; overviewFor: (pathway: ClinicalPathway) => ClinicalPathwayOverview; onOpen: (pathwayId: string) => void }) {
+  return <MobileSubviewShell label="Percorsi precedenti">{pathways.length ? <div className="divide-y divide-sage-100">{pathways.map((pathway) => { const overview = overviewFor(pathway); return <button type="button" key={pathway.id} onClick={() => onOpen(pathway.id)} className="flex min-h-[4.5rem] w-full items-center gap-3 py-3 text-left active:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sage-400"><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-900">{pathway.title || "Percorso clinico"}</span><span className="mt-1 block text-xs text-slate-500">{formatDate(pathway.startedOn)} – {pathway.closedOn ? formatDate(pathway.closedOn) : "Data non disponibile"} · {overview.assessments.length} valutazioni</span></span><span aria-hidden="true" className="text-xl text-slate-300">›</span></button>; })}</div> : <MobileEmptyState text="Nessun percorso precedente." />}</MobileSubviewShell>;
+}
+
+function MobileHistoryDetail({ overview, patientId }: { overview?: ClinicalPathwayOverview; patientId: string }) {
+  if (!overview) return <MobileSubviewShell label="Percorso precedente"><MobileEmptyState text="Percorso non disponibile." /></MobileSubviewShell>;
+  return <MobileSubviewShell label={overview.pathway.title || "Percorso clinico"}><p className="text-sm text-slate-500">{formatDate(overview.pathway.startedOn)} – {overview.pathway.closedOn ? formatDate(overview.pathway.closedOn) : "Data non disponibile"}</p><div className="mt-5"><h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-500">Valutazioni</h3>{overview.assessments.length ? <div className="mt-2 divide-y divide-slate-100">{overview.assessments.map((assessment) => <MobileAssessmentRow key={assessment.id} assessment={assessment} patientId={patientId} />)}</div> : <MobileEmptyState text="Nessuna valutazione." />}</div><div className="mt-6"><h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-sage-700">Obiettivi</h3>{overview.activeGoals.length + overview.historicalGoals.length ? <div className="mt-2 space-y-2">{[...overview.activeGoals, ...overview.historicalGoals].map((goal) => <MobileGoalRow goal={goal} key={goal.id} />)}</div> : <MobileEmptyState text="Nessun obiettivo collegato." />}</div><p className="mt-5 border-t border-sage-100 pt-4 text-sm text-slate-500">{overview.relevantSessions.length} {overview.relevantSessions.length === 1 ? "seduta collegata" : "sedute collegate"}</p></MobileSubviewShell>;
+}
+
+function MobileAssessmentRow({ assessment, patientId }: { assessment: ClinicalAssessment; patientId: string }) {
+  const areas = assessmentAreaLabel(assessment);
+  const clinicalDate = assessment.clinicalDate || assessment.createdAt.slice(0, 10);
+  const draft = assessment.status === "draft";
+  return <Link href={`/pazienti/${patientId}/percorso/${assessment.id}`} aria-label={`${assessmentTypeLabel(assessment)}, ${draft ? "bozza, continua" : "completata, apri"}`} className="flex min-h-16 items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sage-400"><span aria-hidden="true" className={`h-9 w-1 shrink-0 rounded-full ${draft ? "bg-amber-300" : "bg-violet-300"}`} /><span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{assessmentTypeLabel(assessment)}</span><span className="mt-0.5 block text-xs leading-5 text-slate-500">{formatDate(clinicalDate)}{areas ? ` · ${areas}` : ""}</span><span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${draft ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{draft ? "Bozza" : "Completata"}</span></span><span aria-hidden="true" className="text-xl text-slate-300">›</span></Link>;
+}
+
+function MobileGoalRow({ goal, onOpenActions }: { goal: Goal; onOpenActions?: (goal: Goal) => void }) {
+  return <div className="rounded-2xl bg-slate-50 px-3.5 py-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-bold text-slate-900">{goal.title}</p><p className="mt-1 text-xs text-slate-500">{goalStatusLabel(goal.status)}</p></div><div className="flex shrink-0 items-center gap-1"><span className="text-xs font-bold text-slate-600">{goal.progress}%</span>{onOpenActions && <button type="button" onClick={() => onOpenActions(goal)} aria-label={`Azioni obiettivo ${goal.title}`} className="grid h-11 w-11 place-items-center rounded-full text-base font-bold text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400">•••</button>}</div></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200" aria-label={`Progresso registrato ${goal.progress}%`}><div className="h-full rounded-full bg-sage-500" style={{ width: `${goal.progress}%` }} /></div></div>;
+}
+
+function MobileEmptyState({ text, action }: { text: string; action?: React.ReactNode }) {
+  return <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-5 text-center"><p className="text-sm leading-6 text-slate-500">{text}</p>{action}</div>;
 }
 
 function GoalRow({goal,action}:{goal:Goal;action?:React.ReactNode}) {

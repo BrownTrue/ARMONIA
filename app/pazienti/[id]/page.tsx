@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppShell } from "@/components/app-shell";
-import { PatientClinicalPathway } from "@/components/clinical/patient-clinical-pathway";
+import { PatientClinicalPathway, type MobileClinicalSection } from "@/components/clinical/patient-clinical-pathway";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { PatientAdministrativeDetailsCard } from "@/components/patient-administrative-details";
@@ -39,18 +39,45 @@ export default function PatientPage() {
     [patientActionsOpen, setPatientActionsOpen] = useState(false),
     [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
     [activityQuery, setActivityQuery] = useState(""),
-    [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview");
+    [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview"),
+    [clinicalSection, setClinicalSection] = useState<MobileClinicalSection>("clinical-overview"),
+    [clinicalHistoryPathwayId, setClinicalHistoryPathwayId] = useState<string | undefined>();
   const mobileLayout = useMobilePatientLayout();
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("tab");
-    if (requested === "clinical" || requested === "activity" || requested === "resources" || requested === "overview") setTab(requested);
-    if (requested === "sessions") setTab("activity");
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const requested = params.get("tab");
+      if (requested === "clinical" || requested === "activity" || requested === "resources" || requested === "overview") setTab(requested);
+      else if (requested === "sessions") setTab("activity");
+      else setTab("overview");
+      const requestedSection = params.get("section");
+      const nextSection = isMobileClinicalSection(requestedSection) ? requestedSection : "clinical-overview";
+      setClinicalSection(nextSection === "history-detail" && !params.get("pathway") ? "history" : nextSection);
+      setClinicalHistoryPathwayId(params.get("pathway") || undefined);
+    };
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
   }, []);
   const selectTab = (nextTab: "overview" | "clinical" | "activity" | "resources") => {
     setTab(nextTab);
+    setClinicalSection("clinical-overview");
+    setClinicalHistoryPathwayId(undefined);
     const url = new URL(window.location.href);
     if (nextTab === "overview") url.searchParams.delete("tab"); else url.searchParams.set("tab", nextTab);
+    url.searchParams.delete("section");
+    url.searchParams.delete("pathway");
     window.history.replaceState({}, "", url);
+  };
+  const navigateClinicalSection = (section: MobileClinicalSection, historyPathwayId?: string, replace = false) => {
+    setClinicalSection(section);
+    setClinicalHistoryPathwayId(historyPathwayId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", "clinical");
+    if (section === "clinical-overview") url.searchParams.delete("section"); else url.searchParams.set("section", section);
+    if (historyPathwayId) url.searchParams.set("pathway", historyPathwayId); else url.searchParams.delete("pathway");
+    if (replace) window.history.replaceState({}, "", url);
+    else window.history.pushState({}, "", url);
   };
   const openGoals = () => {
     selectTab("overview");
@@ -84,8 +111,11 @@ export default function PatientPage() {
   const futureAppointments = getFuturePatientAppointments(data.appointments, id);
   const recentActivity = timeline.slice(0, 3);
   const economySummary = patientEconomicSummary(id, data.sessions, data.payments, data.paymentAllocations);
+  const clinicalDrillDown = mobileLayout && tab === "clinical" && clinicalSection !== "clinical-overview";
+  const clinicalSectionTitle = clinicalSection === "assessments" ? "Valutazioni" : clinicalSection === "goals" ? "Obiettivi" : clinicalSection === "linked-activity" ? "Attività collegate" : clinicalSection === "history" ? "Percorsi precedenti" : "Percorso precedente";
+  const closeClinicalDrillDown = () => navigateClinicalSection(clinicalSection === "history-detail" ? "history" : "clinical-overview", undefined, true);
   return (
-    <AppShell mobileFullScreen mobileHeader={{ variant: "detail", title: fullName(p), backHref: "/pazienti", backLabel: "Torna ai pazienti" }}>
+    <AppShell mobileFullScreen mobileHeader={clinicalDrillDown ? { variant: "detail", title: clinicalSectionTitle, backHref: `/pazienti/${p.id}?tab=clinical`, backLabel: clinicalSection === "history-detail" ? "Torna ai percorsi precedenti" : "Torna al percorso", onBack: closeClinicalDrillDown } : { variant: "detail", title: fullName(p), backHref: "/pazienti", backLabel: "Torna ai pazienti" }}>
       <Link href="/pazienti" className="hidden text-sm font-bold text-sage-700 md:inline-block">
         ← Tutti i pazienti
       </Link>
@@ -117,14 +147,14 @@ export default function PatientPage() {
           <details className="relative"><summary aria-label="Altre azioni paziente" className="grid min-h-11 cursor-pointer list-none place-items-center rounded-xl px-4 text-xl font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">•••</summary><div className="absolute right-0 z-10 mt-2 min-w-44 rounded-xl border border-sage-100 bg-white p-2 shadow-lg"><button onClick={() => setDeletePatientOpen(true)} className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina paziente</button></div></details>
         </div>
       </header>
-      <section className="px-4 pb-4 pt-5 md:hidden" aria-labelledby="mobile-patient-name">
+      {!clinicalDrillDown && <section className="px-4 pb-4 pt-5 md:hidden" aria-labelledby="mobile-patient-name">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-sage-100 text-lg font-bold text-sage-800">{initials(p)}</span>
           <div className="min-w-0"><h1 id="mobile-patient-name" className="truncate text-[1.35rem] font-bold tracking-[-0.025em] text-[#24352f]">{fullName(p)}</h1><p className="mt-0.5 text-sm text-slate-500">{age(p.birthDate) ? `${age(p.birthDate)} anni · ` : ""}{p.status === "active" ? "Attivo" : p.status === "suspended" ? "Sospeso" : "Concluso"}</p>{p.contact && <p className="mt-0.5 truncate text-sm text-slate-500">{p.contact}</p>}</div>
         </div>
         <div className="mt-4 flex items-center gap-2"><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary min-h-11 flex-1">Registra seduta</Link><button type="button" aria-label="Altre azioni paziente" onClick={() => setPatientActionsOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sage-100 bg-white text-lg font-bold text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400">•••</button></div>
-      </section>
-      <nav aria-label="Sezioni paziente" className="sticky top-[calc(3.65rem+env(safe-area-inset-top))] z-20 flex gap-1 overflow-x-auto border-y border-slate-200 bg-[#f7f7f2]/95 px-3 py-1 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:mt-7 md:gap-3 md:overflow-visible md:border-x-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+      </section>}
+      <nav aria-label="Sezioni paziente" className={`sticky top-[calc(3.65rem+env(safe-area-inset-top))] z-20 gap-1 overflow-x-auto border-y border-slate-200 bg-[#f7f7f2]/95 px-3 py-1 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:mt-7 md:flex md:gap-3 md:overflow-visible md:border-x-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none ${clinicalDrillDown ? "hidden" : "flex"}`}>
         {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} aria-current={tab === value ? "page" : undefined} onClick={() => selectTab(value)} className={`min-h-11 shrink-0 rounded-full border px-3.5 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 md:min-w-max md:flex-1 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-5 md:py-2.5 md:text-sm ${tab === value ? "border-sage-300 bg-sage-100 text-sage-800 md:border-sage-600 md:bg-transparent" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>{label}</button>)}
       </nav>
       {tab === "overview" && (mobileLayout ? <MobilePatientOverview patient={p} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} recentActivity={recentActivity} futureAppointments={futureAppointments} economySummary={economySummary} onOpenGoals={openGoals} onNewGoal={() => { setNewGoalPathwayId(undefined); setGoalEdit("new"); }} onEditGoal={setGoalEdit} onDeleteGoal={setDeleteGoalTarget} onOpenActivity={() => selectTab("activity")}/> : <div className="mt-5 hidden gap-4 md:grid lg:grid-cols-12">
@@ -164,7 +194,7 @@ export default function PatientPage() {
         <PatientAdministrativeDetailsCard patient={p} />
         <details className="card p-4 sm:p-5 lg:col-span-12"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>)}
-      {tab === "clinical" && <div className="px-4 pb-6 pt-5 md:px-0 md:pb-0"><PatientClinicalPathway patientId={p.id} goals={goals} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onOpenActivity={() => selectTab("activity")} /></div>}
+      {tab === "clinical" && <div className={`${clinicalDrillDown ? "pb-6 pt-3" : "px-4 pb-6 pt-5"} md:px-0 md:pb-0 md:pt-5`}><PatientClinicalPathway patientId={p.id} goals={goals} presentation={mobileLayout ? "mobile" : "desktop"} mobileSection={clinicalSection} mobileHistoryPathwayId={clinicalHistoryPathwayId} onMobileSectionChange={navigateClinicalSection} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onEditGoal={setGoalEdit} onDeleteGoal={setDeleteGoalTarget} onOpenActivity={() => selectTab("activity")} /></div>}
       {tab === "activity" && (mobileLayout ? <MobilePatientActivity patientId={p.id} items={visibleMobileActivity} filter={activityFilter} query={activityQuery} onFilterChange={setActivityFilter} onQueryChange={setActivityQuery} onOpenSession={setDetail} onDeleteSession={setDeleteSessionTarget}/> : <div className="hidden space-y-4 px-4 pb-6 pt-4 md:block md:space-y-5 md:px-0 md:pb-0 md:pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3"><div className="min-w-0"><h2 className="text-xl font-bold">Attività</h2><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary px-3 text-sm sm:px-4 sm:text-base">Registra seduta</Link></div>
         <section className="card p-3 sm:p-5">
@@ -195,7 +225,7 @@ export default function PatientPage() {
           <SessionEditor session={detail} onDone={() => setDetail(null)} />
         </Modal>
       )}
-      {goalEdit && (
+      {goalEdit && (mobileLayout && tab === "clinical" ? <MobileGoalEditorPanel title={goalEdit === "new" ? "Nuovo obiettivo" : "Modifica obiettivo"} onClose={() => { setGoalEdit(null); setNewGoalPathwayId(undefined); }}><GoalEditor goal={goalEdit === "new" ? {id:uid(),patientId:p.id,clinicalPathwayId:newGoalPathwayId,title:"",description:"",priority:2,status:"not_started",progress:0,createdAt:new Date().toISOString()} : goalEdit} onDone={() => { setGoalEdit(null); setNewGoalPathwayId(undefined); }} /></MobileGoalEditorPanel> :
         <Modal title={goalEdit === "new" ? "Nuovo obiettivo" : "Modifica obiettivo"} onClose={() => { setGoalEdit(null); setNewGoalPathwayId(undefined); }}>
           <GoalEditor
             goal={goalEdit === "new" ? {id:uid(),patientId:p.id,clinicalPathwayId:newGoalPathwayId,title:"",description:"",priority:2,status:"not_started",progress:0,createdAt:new Date().toISOString()} : goalEdit}
@@ -216,6 +246,25 @@ function useMobilePatientLayout() {
     () => window.matchMedia("(max-width: 767px)").matches,
     () => false,
   );
+}
+
+function isMobileClinicalSection(value: string | null): value is MobileClinicalSection {
+  return value === "clinical-overview" || value === "assessments" || value === "goals" || value === "linked-activity" || value === "history" || value === "history-detail";
+}
+
+function MobileGoalEditorPanel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.querySelector<HTMLElement>("input, textarea, select, button")?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onCloseRef.current(); };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => { document.removeEventListener("keydown", closeOnEscape); document.body.style.overflow = previousOverflow; };
+  }, []);
+  return <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="mobile-goal-editor-title" className="fixed inset-0 z-50 flex flex-col bg-[#f7f7f2] md:hidden"><header className="flex min-h-[calc(3.65rem+env(safe-area-inset-top))] shrink-0 items-end border-b border-sage-100 bg-[#f7f7f2] px-3 pb-2 pt-[max(0.45rem,env(safe-area-inset-top))]"><button type="button" onClick={onClose} aria-label="Torna agli obiettivi" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#edf1e9] text-[#526159] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500"><span aria-hidden="true" className="text-xl">‹</span></button><h2 id="mobile-goal-editor-title" className="min-w-0 flex-1 truncate px-2.5 pb-[0.7rem] text-[0.98rem] font-semibold text-[#24352f]">{title}</h2></header><div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div></div>;
 }
 
 function DeletePatientModal({ patientName, onClose, onConfirm }: { patientName: string; onClose: () => void; onConfirm: () => Promise<void> }) {

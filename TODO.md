@@ -7,7 +7,8 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 
 - Collaudare manualmente Statistiche V2 su desktop e mobile verificando periodi, KPI, grafico, prestazioni, Agenda, Pazienti, sintesi Economia e intervalli senza sedute. L'implementazione non introduce migration e non usa dati clinici per stimare outcome.
 - Collaudare manualmente MOBILE 3A su telefono: apertura dalla directory Pazienti, header detail e ritorno, cambio Panoramica/Percorso/Attività/Risorse con deep link, modifica paziente e action sheet; verificare inoltre che la scheda desktop resti invariata. Il collaudo specifico di Sedute/Attività è descritto nel punto MOBILE 3B seguente.
-- Collaudare manualmente MOBILE 3B su telefono: leggibilità della cronologia Attività, distinzione Session/Appointment pending/futuro/annullato, registrazione da Appointment, apertura e modifica Session, action sheet ed eliminazione; verificare il ritorno a `?tab=activity` dopo il salvataggio e la timeline desktop invariata. Percorso e Risorse restano nelle successive MOBILE 3C/3D.
+- Collaudare manualmente MOBILE 3B su telefono: leggibilità della cronologia Attività, distinzione Session/Appointment pending/futuro/annullato, registrazione da Appointment, apertura e modifica Session, action sheet ed eliminazione; verificare il ritorno a `?tab=activity` dopo il salvataggio e la timeline desktop invariata.
+- Collaudare manualmente MOBILE 3C.1 su telefono: overview Percorso; ingresso e ritorno da Valutazioni, Obiettivi, Attività collegate e Storico; browser Back/deep link; modifica ed eliminazione obiettivo senza overlay sovrapposti; editor Obiettivo full-screen e desktop invariato. MOBILE 3C.2 dovrà auditare e rendere realmente mobile-native il runner/editor Clinical Assessment V1/V2, che oggi conserva soltanto il responsive di base. Risorse resta nella successiva MOBILE 3D.
 
 ## Priorità alta
 
