@@ -119,6 +119,7 @@
 .monthDaySelected { background: rgba(95,143,118,.035); box-shadow: inset 0 0 0 1px rgba(95,143,118,.16); }
 .monthDayToday { box-shadow: inset 0 2px 0 #6b967e; }
 .monthDayToday.monthDaySelected { box-shadow: inset 0 2px 0 #5f8f76, inset 0 0 0 1px rgba(95,143,118,.18); }
+.monthDayMoveTarget { background: rgba(95,143,118,.055); box-shadow: inset 0 0 0 1px rgba(95,143,118,.22); }
 .monthDayCreate { position: absolute; z-index: 0; inset: 0; width: 100%; border: 0; background: transparent; padding: 0; color: #4d5a52; text-align: left; cursor: pointer; }
 .monthDayCreate:hover { background: rgba(95,143,118,.018); }
 .monthDayCreate:focus-visible { z-index: 3; outline: 2px solid #5f8f76; outline-offset: -2px; }
@@ -130,6 +131,9 @@
 .monthEvent { display: flex; align-items: center; gap: 5px; overflow: hidden; background: color-mix(in srgb, var(--event-tint) 52%, #fff); padding: 0 6px; color: #36443b; }
 .monthEvent:hover, .monthEvent:focus-visible { background: color-mix(in srgb, var(--event-tint) 80%, #fff); outline: none; }
 .monthEvent:focus-visible { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--event-color) 75%, #42614f); }
+.monthEventDraggable { cursor: grab; touch-action: auto; }
+.monthEventDraggable:active { cursor: grabbing; }
+.monthEventMovingOrigin { opacity: .38; cursor: grabbing; }
 .monthEvent > span { width: 4px; height: 13px; flex: 0 0 4px; border-radius: 3px; background: var(--event-color); }
 .monthEvent strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 680; }
 .monthEvent small { margin-left: auto; color: #76827a; font-size: 9px; font-variant-numeric: tabular-nums; }
@@ -147,6 +151,10 @@
 .monthOverflowList { max-height: min(250px, calc(45vh - 42px)); display: grid; gap: 3px; overflow-y: auto; padding: 7px; scrollbar-width: thin; }
 .monthOverflowList .monthEvent { height: 30px; }
 .monthOverflowList .monthEvent strong { font-size: 11px; }
+.monthMoveGhost { position: fixed; z-index: 70; width: 150px; height: 28px; display: flex; align-items: center; gap: 7px; transform: translate(10px, 10px); overflow: hidden; pointer-events: none; border: 1px solid color-mix(in srgb, var(--event-color) 28%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--event-tint) 80%, #fff); padding: 0 8px; color: #344139; box-shadow: 0 8px 20px rgba(40,55,46,.16); }
+.monthMoveGhost::before { content: ""; width: 4px; height: 15px; flex: 0 0 4px; border-radius: 3px; background: var(--event-color); }
+.monthMoveGhost strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 700; }
+.monthMoveGhost span { margin-left: auto; color: #6f7d74; font-size: 9px; font-variant-numeric: tabular-nums; }
 .contextMenu { position: fixed; z-index: 55; width: clamp(220px, 18vw, 250px); overflow: hidden; border: 1px solid rgba(54,72,61,.14); border-radius: 12px; background: rgba(255,255,255,.985); padding: 5px; color: #2f3d35; box-shadow: 0 14px 38px rgba(35,50,41,.17), 0 2px 8px rgba(35,50,41,.08); }
 .contextMenuHeader { display: grid; gap: 2px; padding: 8px 10px 9px; }
 .contextMenuHeader strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }

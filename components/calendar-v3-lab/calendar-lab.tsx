@@ -93,6 +93,15 @@ import {
   calendarMonthEventsByDate,
   isCalendarDateInMonth,
 } from "@/lib/calendar-v3-lab/month-view";
+import {
+  IDLE_CALENDAR_MONTH_EVENT_MOVE,
+  beginCalendarMonthEventMove,
+  calendarMonthDateFromClientPoint,
+  cancelCalendarMonthEventMove,
+  completeCalendarMonthEventMove,
+  moveCalendarMonthEvent,
+  type CalendarMonthEventMoveState,
+} from "@/lib/calendar-v3-lab/month-event-move";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -114,6 +123,7 @@ export function CalendarLab() {
   const [hoveredSlot, setHoveredSlot] = useState<CalendarSelection | null>(null);
   const [dragSelection, setDragSelection] = useState<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const [eventMove, setEventMove] = useState<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
+  const [monthEventMove, setMonthEventMove] = useState<CalendarMonthEventMoveState>(IDLE_CALENDAR_MONTH_EVENT_MOVE);
   const [eventResize, setEventResize] = useState<CalendarEventResizeState>(IDLE_CALENDAR_EVENT_RESIZE);
   const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
   const [commandPaletteOrigin, setCommandPaletteOrigin] = useState<HTMLElement | null>(null);
@@ -122,6 +132,9 @@ export function CalendarLab() {
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
   const eventMoveOriginRef = useRef<HTMLButtonElement | null>(null);
+  const monthGridRef = useRef<HTMLDivElement | null>(null);
+  const monthEventMoveRef = useRef<CalendarMonthEventMoveState>(IDLE_CALENDAR_MONTH_EVENT_MOVE);
+  const monthEventMoveOriginRef = useRef<HTMLButtonElement | null>(null);
   const eventResizeRef = useRef<CalendarEventResizeState>(IDLE_CALENDAR_EVENT_RESIZE);
   const eventResizeOriginRef = useRef<HTMLSpanElement | null>(null);
   const pointerClientYRef = useRef(0);
@@ -187,6 +200,17 @@ export function CalendarLab() {
   useEffect(() => {
     const cancelDrag = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      const currentMonthMove = monthEventMoveRef.current;
+      if (currentMonthMove.status !== "idle") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const origin = monthEventMoveOriginRef.current;
+        if (origin?.hasPointerCapture(currentMonthMove.pointerId)) origin.releasePointerCapture(currentMonthMove.pointerId);
+        monthEventMoveRef.current = cancelCalendarMonthEventMove();
+        setMonthEventMove(IDLE_CALENDAR_MONTH_EVENT_MOVE);
+        monthEventMoveOriginRef.current = null;
+        return;
+      }
       const currentResize = eventResizeRef.current;
       if (currentResize.status !== "idle") {
         event.preventDefault();
@@ -317,7 +341,7 @@ export function CalendarLab() {
 
   useEffect(() => {
     const handleCalendarShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle" || eventResizeRef.current.status !== "idle") return;
+      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle" || monthEventMoveRef.current.status !== "idle" || eventResizeRef.current.status !== "idle") return;
       if (isCalendarShortcutTypingTarget(event.target)) return;
       const key = event.key.toLocaleLowerCase("it");
       if ((event.metaKey || event.ctrlKey) && !event.altKey && key === "k") {
@@ -447,6 +471,85 @@ export function CalendarLab() {
     eventMoveOriginRef.current = null;
   };
 
+  const monthEventMoveTarget = (clientX: number, clientY: number) => {
+    const rectangle = monthGridRef.current?.getBoundingClientRect();
+    if (!rectangle) return null;
+    return calendarMonthDateFromClientPoint(clientX, clientY, rectangle, days);
+  };
+
+  const beginMonthEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (drawerDraft || eventResizeRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
+    const next = beginCalendarMonthEventMove({
+      event,
+      pointerId: pointerEvent.pointerId,
+      pointerType: pointerEvent.pointerType,
+      isPrimary: pointerEvent.isPrimary,
+      button: pointerEvent.button,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "idle") return;
+    monthEventMoveOriginRef.current = pointerEvent.currentTarget;
+    monthEventMoveRef.current = next;
+    setMonthEventMove(next);
+    pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
+  };
+
+  const updateMonthEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = monthEventMoveRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    const date = monthEventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
+    if (!date) return;
+    const next = moveCalendarMonthEvent(current, {
+      pointerId: pointerEvent.pointerId,
+      date,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "movingMonthEvent") {
+      pointerEvent.preventDefault();
+      setContextMenu(null);
+      setCommandPaletteOrigin(null);
+      setExpandedMonthDate(null);
+    }
+    monthEventMoveRef.current = next;
+    setMonthEventMove(next);
+  };
+
+  const finishMonthEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = monthEventMoveRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    const completion = completeCalendarMonthEventMove(current, {
+      pointerId: pointerEvent.pointerId,
+      date: monthEventMoveTarget(pointerEvent.clientX, pointerEvent.clientY),
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    monthEventMoveRef.current = completion.state;
+    setMonthEventMove(completion.state);
+    monthEventMoveOriginRef.current = null;
+    if (completion.wasMove && completion.event) {
+      pointerEvent.preventDefault();
+      suppressNextEventClickRef.current = true;
+      dispatch({ type: "move_event", event: completion.event });
+      window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
+    }
+  };
+
+  const abortMonthEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = monthEventMoveRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    monthEventMoveRef.current = cancelCalendarMonthEventMove();
+    setMonthEventMove(IDLE_CALENDAR_MONTH_EVENT_MOVE);
+    monthEventMoveOriginRef.current = null;
+  };
+
   const eventResizeTarget = (clientY: number) => {
     const gridRectangle = daysGridRef.current?.getBoundingClientRect();
     if (!gridRectangle) return null;
@@ -528,6 +631,8 @@ export function CalendarLab() {
     setDragSelection(IDLE_CALENDAR_DRAG_SELECTION);
     eventMoveRef.current = IDLE_CALENDAR_EVENT_MOVE;
     setEventMove(IDLE_CALENDAR_EVENT_MOVE);
+    monthEventMoveRef.current = IDLE_CALENDAR_MONTH_EVENT_MOVE;
+    setMonthEventMove(IDLE_CALENDAR_MONTH_EVENT_MOVE);
     eventResizeRef.current = IDLE_CALENDAR_EVENT_RESIZE;
     setEventResize(IDLE_CALENDAR_EVENT_RESIZE);
     dispatch({ type: "set_selection", selection: null });
@@ -653,13 +758,19 @@ export function CalendarLab() {
           <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""} ${state.view === "month" ? styles.calendarPaneMonth : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : state.view === "month" ? "mensile" : "settimanale"}, ${periodLabel}`}>
             {state.view === "month" ? <MonthCalendar
               containerRef={scrollRef}
+              gridRef={monthGridRef}
               days={days}
               cursorDate={state.cursorDate}
               today={labToday}
               eventsByDate={monthEventsByDate}
               expandedDate={expandedMonthDate}
+              movingEvent={monthEventMove}
               onCreate={openMonthCreate}
               onOpenEvent={(eventId, date, origin) => {
+                if (suppressNextEventClickRef.current) {
+                  suppressNextEventClickRef.current = false;
+                  return;
+                }
                 setExpandedMonthDate(null);
                 dispatch({ type: "set_cursor_date", date });
                 openEdit(eventId, origin);
@@ -686,6 +797,10 @@ export function CalendarLab() {
                 setCommandPaletteOrigin(null);
                 setContextMenu({ kind: "event", eventId, anchorPoint, origin });
               }}
+              onEventPointerDown={beginMonthEventMove}
+              onEventPointerMove={updateMonthEventMove}
+              onEventPointerUp={finishMonthEventMove}
+              onEventPointerCancel={abortMonthEventMove}
             /> : <div ref={scrollRef} className={styles.scrollArea}>
               <div ref={weekHeaderRef} className={`${styles.weekHeader} ${state.view === "day" ? styles.dayViewHeader : ""}`}>
                 <div className={styles.gutterHeader}><span>CEST</span></div>
@@ -944,25 +1059,31 @@ function DayViewHeading({ date, summary }: { date: CalendarDate; summary: { appo
   </div>;
 }
 
-function MonthCalendar({ containerRef, days, cursorDate, today, eventsByDate, expandedDate, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu }: {
+function MonthCalendar({ containerRef, gridRef, days, cursorDate, today, eventsByDate, expandedDate, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
   containerRef: React.Ref<HTMLDivElement>;
+  gridRef: React.Ref<HTMLDivElement>;
   days: CalendarDate[];
   cursorDate: CalendarDate;
   today: CalendarDate;
   eventsByDate: Map<CalendarDate, CalendarLabEvent[]>;
   expandedDate: CalendarDate | null;
+  movingEvent: CalendarMonthEventMoveState;
   onCreate: (date: CalendarDate, origin: HTMLElement) => void;
   onOpenEvent: (eventId: string, date: CalendarDate, origin: HTMLElement) => void;
   onToggleOverflow: (date: CalendarDate) => void;
   onCloseOverflow: () => void;
   onEmptyContextMenu: (date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
   onEventContextMenu: (eventId: string, date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+  onEventPointerDown: (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onEventPointerMove: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onEventPointerUp: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onEventPointerCancel: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   return <div ref={containerRef} className={styles.monthView}>
     <div className={styles.monthWeekdays} aria-hidden="true">
       {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'].map((label) => <span key={label}>{label}</span>)}
     </div>
-    <div className={styles.monthGrid}>
+    <div ref={gridRef} className={styles.monthGrid}>
       {days.map((date) => <MonthDayCell
         key={date}
         date={date}
@@ -970,29 +1091,52 @@ function MonthCalendar({ containerRef, days, cursorDate, today, eventsByDate, ex
         today={today}
         events={eventsByDate.get(date) ?? []}
         expanded={expandedDate === date}
+        movingEvent={movingEvent}
         onCreate={onCreate}
         onOpenEvent={onOpenEvent}
         onToggleOverflow={onToggleOverflow}
         onCloseOverflow={onCloseOverflow}
         onEmptyContextMenu={onEmptyContextMenu}
         onEventContextMenu={onEventContextMenu}
+        onEventPointerDown={onEventPointerDown}
+        onEventPointerMove={onEventPointerMove}
+        onEventPointerUp={onEventPointerUp}
+        onEventPointerCancel={onEventPointerCancel}
       />)}
+      {movingEvent.status === "movingMonthEvent" ? <div
+        className={styles.monthMoveGhost}
+        style={{
+          left: movingEvent.lastClientX,
+          top: movingEvent.lastClientY,
+          "--event-color": calendarLabEventColor(movingEvent.preview),
+          "--event-tint": colorToTint(calendarLabEventColor(movingEvent.preview)),
+        } as React.CSSProperties}
+        aria-hidden="true"
+      >
+        <strong>{movingEvent.preview.patientName}</strong>
+        <span>{minutesToTime(movingEvent.preview.startMinutes)}</span>
+      </div> : null}
     </div>
   </div>;
 }
 
-function MonthDayCell({ date, cursorDate, today, events, expanded, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu }: {
+function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
   date: CalendarDate;
   cursorDate: CalendarDate;
   today: CalendarDate;
   events: CalendarLabEvent[];
   expanded: boolean;
+  movingEvent: CalendarMonthEventMoveState;
   onCreate: (date: CalendarDate, origin: HTMLElement) => void;
   onOpenEvent: (eventId: string, date: CalendarDate, origin: HTMLElement) => void;
   onToggleOverflow: (date: CalendarDate) => void;
   onCloseOverflow: () => void;
   onEmptyContextMenu: (date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
   onEventContextMenu: (eventId: string, date: CalendarDate, anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+  onEventPointerDown: (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onEventPointerMove: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onEventPointerUp: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onEventPointerCancel: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -1021,7 +1165,9 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, onCreate, onO
     };
   }, [expanded, onCloseOverflow]);
 
-  return <div className={`${styles.monthDayCell} ${outsideMonth ? styles.monthDayOutside : ""} ${date === cursorDate ? styles.monthDaySelected : ""} ${date === today ? styles.monthDayToday : ""}`}>
+  const isMoveTarget = movingEvent.status === "movingMonthEvent" && movingEvent.preview.date === date;
+
+  return <div className={`${styles.monthDayCell} ${outsideMonth ? styles.monthDayOutside : ""} ${date === cursorDate ? styles.monthDaySelected : ""} ${date === today ? styles.monthDayToday : ""} ${isMoveTarget ? styles.monthDayMoveTarget : ""}`}>
     <button
       type="button"
       className={styles.monthDayCreate}
@@ -1036,8 +1182,14 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, onCreate, onO
       {visible.map((event) => <MonthEventButton
         key={event.id}
         event={event}
+        draggable={isCalendarLabEventDraggable(event)}
+        moving={movingEvent.status === "movingMonthEvent" && movingEvent.before.id === event.id}
         onOpen={(origin) => onOpenEvent(event.id, date, origin)}
         onOpenContextMenu={(anchorPoint, origin) => onEventContextMenu(event.id, date, anchorPoint, origin)}
+        onPointerDown={(pointerEvent) => onEventPointerDown(event, pointerEvent)}
+        onPointerMove={onEventPointerMove}
+        onPointerUp={onEventPointerUp}
+        onPointerCancel={onEventPointerCancel}
       />)}
       {hiddenCount > 0 ? <button
         ref={overflowButtonRef}
@@ -1069,20 +1221,30 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, onCreate, onO
   </div>;
 }
 
-function MonthEventButton({ event, focusMarker = false, onOpen, onOpenContextMenu }: {
+function MonthEventButton({ event, focusMarker = false, draggable = false, moving = false, onOpen, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
   event: CalendarLabEvent;
   focusMarker?: boolean;
+  draggable?: boolean;
+  moving?: boolean;
   onOpen: (origin: HTMLElement) => void;
   onOpenContextMenu: (anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
+  onPointerDown?: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerMove?: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp?: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel?: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   const color = calendarLabEventColor(event);
   return <button
     type="button"
-    className={`${styles.monthEvent} ${event.status === "cancelled" ? styles.monthEventCancelled : ""}`}
+    className={`${styles.monthEvent} ${event.status === "cancelled" ? styles.monthEventCancelled : ""} ${draggable ? styles.monthEventDraggable : ""} ${moving ? styles.monthEventMovingOrigin : ""}`}
     style={{ "--event-color": color, "--event-tint": colorToTint(color) } as React.CSSProperties}
     aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${calendarLabSessionLabel(event)}`}
     data-month-event={focusMarker ? "first" : ""}
     onClick={(clickEvent) => onOpen(clickEvent.currentTarget)}
+    onPointerDown={onPointerDown}
+    onPointerMove={onPointerMove}
+    onPointerUp={onPointerUp}
+    onPointerCancel={onPointerCancel}
     onContextMenu={(contextEvent) => {
       contextEvent.preventDefault();
       contextEvent.stopPropagation();
