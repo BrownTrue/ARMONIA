@@ -4,6 +4,8 @@ Fotografia ricavata dal repository al 2 ottobre 2026.
 
 MOBILE 4A introduce nel solo `/calendar-v3-lab` una presentazione sotto 768 px per confrontare Giorno, Agenda e Mese sugli stessi eventi fixture o reali. La week strip è esclusivamente navigazione; Giorno conserva asse 07–21, overlap e current time, Agenda ordina gli Appointment senza slot vuoti e Mese riprende la baseline mobile approvata con griglia, indicatori e lista del giorno. Create, dettaglio, modifica e registrazione Session riusano i pannelli Calendar V3 in modalità full-screen. Touch drag/move/resize, long-press, sidebar cataloghi, `/calendario` e il desktop V3 restano invariati.
 
+MOBILE 5A introduce localmente una foundation minima per le azioni browser sui documenti, separata dalla loro generazione: sorgenti Blob o URL possono offrire anteprima/apertura, condivisione nativa quando `navigator.canShare()` accetta un file PDF, download e apertura per la stampa. Il pilota riguarda soltanto le attestazioni di presenza e percorso, che continuano a usare gli stessi renderer React PDF e non persistono né caricano documenti; dopo la generazione mostrano un risultato esplicito con “Apri PDF” e un action sheet accessibile. Worksheet e valutazioni restano per ora basate sulla stampa HTML e richiedono una futura pipeline PDF dedicata.
+
 ## Stato Git rilevato prima dell'intervento corrente
 
 - Branch: `main`, 7 commit locali avanti rispetto a `origin/main`; HEAD iniziale `ccc5db3` — “improve clinical anamnesis experience”.
