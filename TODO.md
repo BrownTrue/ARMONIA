@@ -6,6 +6,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 - Valutare in futuro, soltanto come enhancement opzionale, un coachmark mobile mostrato una volta sul trigger di navigazione: “Qui trovi tutte le sezioni”. Il trigger resta comunque comprensibile senza questo aiuto.
 
 - Collaudare manualmente Statistiche V2 su desktop e mobile verificando periodi, KPI, grafico, prestazioni, Agenda, Pazienti, sintesi Economia e intervalli senza sedute. L'implementazione non introduce migration e non usa dati clinici per stimare outcome.
+- Collaudare manualmente MOBILE 3A su telefono: apertura dalla directory Pazienti, header detail e ritorno, cambio Panoramica/Percorso/Attività/Risorse con deep link, modifica paziente e action sheet; verificare inoltre che la scheda desktop resti invariata. Il redesign specifico di Sedute/Attività resta nella successiva MOBILE 3B.
 
 ## Priorità alta
 

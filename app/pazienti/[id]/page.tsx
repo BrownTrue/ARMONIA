@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AppShell } from "@/components/app-shell";
 import { PatientClinicalPathway } from "@/components/clinical/patient-clinical-pathway";
 import { useData } from "@/components/data-provider";
@@ -10,6 +10,7 @@ import { PatientAdministrativeDetailsCard } from "@/components/patient-administr
 import { PatientForm } from "@/components/patient-form";
 import { Field } from "@/components/form-controls";
 import { PatientResourcesSection } from "@/components/patient-resources-section";
+import { MobilePatientOverview } from "@/components/patients/mobile-patient-overview";
 import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/timeline";
 import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
 import { centsToEuroInput, euroInputToCents, formatEuroCents, selectableAppointmentServices } from "@/lib/calendar-v2";
@@ -33,9 +34,11 @@ export default function PatientPage() {
     [deleteSessionTarget, setDeleteSessionTarget] = useState<Session | null>(null),
     [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null),
     [deletePatientOpen, setDeletePatientOpen] = useState(false),
+    [patientActionsOpen, setPatientActionsOpen] = useState(false),
     [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
     [activityQuery, setActivityQuery] = useState(""),
     [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview");
+  const mobileLayout = useMobilePatientLayout();
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("tab");
     if (requested === "clinical" || requested === "activity" || requested === "resources" || requested === "overview") setTab(requested);
@@ -78,11 +81,11 @@ export default function PatientPage() {
   const recentActivity = timeline.slice(0, 3);
   const economySummary = patientEconomicSummary(id, data.sessions, data.payments, data.paymentAllocations);
   return (
-    <AppShell>
-      <Link href="/pazienti" className="text-sm font-bold text-sage-700">
+    <AppShell mobileFullScreen mobileHeader={{ variant: "detail", title: fullName(p), backHref: "/pazienti", backLabel: "Torna ai pazienti" }}>
+      <Link href="/pazienti" className="hidden text-sm font-bold text-sage-700 md:inline-block">
         ← Tutti i pazienti
       </Link>
-      <header className="mt-4 flex flex-col items-stretch gap-4 sm:mt-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <header className="mt-5 hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sage-100 text-base font-bold text-sage-800 sm:h-14 sm:w-14 sm:text-lg">
             {initials(p)}
@@ -110,10 +113,17 @@ export default function PatientPage() {
           <details className="relative"><summary aria-label="Altre azioni paziente" className="grid min-h-11 cursor-pointer list-none place-items-center rounded-xl px-4 text-xl font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">•••</summary><div className="absolute right-0 z-10 mt-2 min-w-44 rounded-xl border border-sage-100 bg-white p-2 shadow-lg"><button onClick={() => setDeletePatientOpen(true)} className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">Elimina paziente</button></div></details>
         </div>
       </header>
-      <nav aria-label="Sezioni paziente" className="mt-5 grid grid-cols-4 gap-0 border-b border-slate-200 sm:mt-7 sm:flex sm:gap-3">
-        {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} aria-current={tab === value ? "page" : undefined} onClick={() => selectTab(value)} className={`min-h-11 min-w-0 border-b-2 px-1 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 sm:min-w-max sm:flex-1 sm:px-5 sm:py-2.5 sm:text-sm ${tab === value ? "border-sage-600 text-sage-800" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>{label}</button>)}
+      <section className="px-4 pb-4 pt-5 md:hidden" aria-labelledby="mobile-patient-name">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-sage-100 text-lg font-bold text-sage-800">{initials(p)}</span>
+          <div className="min-w-0"><h1 id="mobile-patient-name" className="truncate text-[1.35rem] font-bold tracking-[-0.025em] text-[#24352f]">{fullName(p)}</h1><p className="mt-0.5 text-sm text-slate-500">{age(p.birthDate) ? `${age(p.birthDate)} anni · ` : ""}{p.status === "active" ? "Attivo" : p.status === "suspended" ? "Sospeso" : "Concluso"}</p>{p.contact && <p className="mt-0.5 truncate text-sm text-slate-500">{p.contact}</p>}</div>
+        </div>
+        <div className="mt-4 flex items-center gap-2"><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary min-h-11 flex-1">Registra seduta</Link><button type="button" aria-label="Altre azioni paziente" onClick={() => setPatientActionsOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sage-100 bg-white text-lg font-bold text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400">•••</button></div>
+      </section>
+      <nav aria-label="Sezioni paziente" className="sticky top-[calc(3.65rem+env(safe-area-inset-top))] z-20 flex gap-1 overflow-x-auto border-y border-slate-200 bg-[#f7f7f2]/95 px-3 py-1 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:mt-7 md:gap-3 md:overflow-visible md:border-x-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+        {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} aria-current={tab === value ? "page" : undefined} onClick={() => selectTab(value)} className={`min-h-11 shrink-0 rounded-full border px-3.5 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 md:min-w-max md:flex-1 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-5 md:py-2.5 md:text-sm ${tab === value ? "border-sage-300 bg-sage-100 text-sage-800 md:border-sage-600 md:bg-transparent" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>{label}</button>)}
       </nav>
-      {tab === "overview" && <div className="mt-4 grid gap-4 sm:mt-5 lg:grid-cols-12">
+      {tab === "overview" && (mobileLayout ? <MobilePatientOverview patient={p} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} recentActivity={recentActivity} futureAppointments={futureAppointments} economySummary={economySummary} onOpenGoals={openGoals} onNewGoal={() => { setNewGoalPathwayId(undefined); setGoalEdit("new"); }} onEditGoal={setGoalEdit} onDeleteGoal={setDeleteGoalTarget} onOpenActivity={() => selectTab("activity")}/> : <div className="mt-5 hidden gap-4 md:grid lg:grid-cols-12">
         <div className="lg:col-span-12"><PatientStatusPanel patientId={p.id} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} onOpenGoals={openGoals} /></div>
         <section id="patient-goals" className="card scroll-mt-5 p-4 sm:p-5 lg:col-span-7">
           <div className="flex items-center justify-between gap-3">
@@ -149,9 +159,9 @@ export default function PatientPage() {
         <section className="card p-4 sm:p-5 lg:col-span-12" aria-labelledby="patient-economy-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="patient-economy-title" className="font-bold">Situazione economica</h2><p className="mt-1 text-sm text-slate-500">Sintesi dei pagamenti registrati per il paziente.</p></div><Link href={`/economia?patient=${p.id}`} className="text-sm font-bold text-sage-700">Apri in Economia</Link></div><div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-sm"><PatientEconomyDatum label="Da incassare" value={new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(economySummary.outstandingCents/100)}/><PatientEconomyDatum label="Credito disponibile" value={new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(economySummary.availableCreditCents/100)}/><PatientEconomyDatum label="Prestazioni da saldare" value={String(economySummary.unpaidSessions)}/></div></section>
         <PatientAdministrativeDetailsCard patient={p} />
         <details className="card p-4 sm:p-5 lg:col-span-12"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
-      </div>}
-      {tab === "clinical" && <div className="mt-5"><PatientClinicalPathway patientId={p.id} goals={goals} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onOpenActivity={() => selectTab("activity")} /></div>}
-      {tab === "activity" && <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
+      </div>)}
+      {tab === "clinical" && <div className="px-4 pb-6 pt-5 md:px-0 md:pb-0"><PatientClinicalPathway patientId={p.id} goals={goals} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onOpenActivity={() => selectTab("activity")} /></div>}
+      {tab === "activity" && <div className="space-y-4 px-4 pb-6 pt-4 md:space-y-5 md:px-0 md:pb-0 md:pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3"><div className="min-w-0"><h2 className="text-xl font-bold">Attività</h2><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary px-3 text-sm sm:px-4 sm:text-base">Registra seduta</Link></div>
         <section className="card p-3 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -169,7 +179,8 @@ export default function PatientPage() {
           )}
         </section>
       </div>}
-      {tab === "resources" && <PatientResourcesSection patientId={p.id} />}
+      {tab === "resources" && <div className="px-4 pb-6 md:px-0 md:pb-0"><PatientResourcesSection patientId={p.id} /></div>}
+      {patientActionsOpen && <Modal title="Azioni paziente" onClose={() => setPatientActionsOpen(false)}><div className="divide-y divide-slate-100"><button type="button" onClick={() => { setPatientActionsOpen(false); setEdit(true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-slate-800">Modifica paziente</button><button type="button" onClick={() => { setPatientActionsOpen(false); setDeletePatientOpen(true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-red-600">Elimina paziente</button></div></Modal>}
       {edit && (
         <Modal title="Modifica paziente" onClose={() => setEdit(false)}>
           <PatientForm patient={p} onDone={() => setEdit(false)} />
@@ -192,6 +203,14 @@ export default function PatientPage() {
       {deleteSessionTarget && <DeleteEntityModal title="Eliminare questa seduta?" description="La seduta verrà eliminata definitivamente. L’appuntamento collegato resterà disponibile nel calendario." actionLabel="Elimina seduta" onClose={() => setDeleteSessionTarget(null)} onConfirm={async()=>{await deleteSession(deleteSessionTarget.id);setDeleteSessionTarget(null);}} />}
       {deleteGoalTarget && <DeleteEntityModal title="Eliminare questo obiettivo?" description="L’obiettivo verrà eliminato e rimosso dalle sedute collegate. Questa operazione non può essere annullata." actionLabel="Elimina obiettivo" onClose={() => setDeleteGoalTarget(null)} onConfirm={async()=>{await deleteGoal(deleteGoalTarget.id);setDeleteGoalTarget(null);}} />}
     </AppShell>
+  );
+}
+
+function useMobilePatientLayout() {
+  return useSyncExternalStore(
+    (notify) => { const media = window.matchMedia("(max-width: 767px)"); media.addEventListener("change", notify); return () => media.removeEventListener("change", notify); },
+    () => window.matchMedia("(max-width: 767px)").matches,
+    () => false,
   );
 }
 
