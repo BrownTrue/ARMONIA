@@ -410,10 +410,14 @@
   .mobileViewSelector button { min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: #66746b; font: inherit; font-size: 12px; font-weight: 700; }
   .mobileViewSelector button[aria-selected="true"] { background: #fff; color: #33483b; box-shadow: 0 1px 4px rgba(42,59,48,.09); }
   .mobileViewSelector button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 1px; }
+  .mobileCalendarControls { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
+  .mobileCalendarControls button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #dbe3dc; border-radius: 10px; background: #fff; color: #526159; font: inherit; font-size: 12px; font-weight: 720; }
+  .mobileCalendarControls button:active, .mobileCalendarControls button:focus-visible { border-color: #8eaa98; background: #edf3ee; outline: none; }
+  .mobileCalendarControls span { min-width: 18px; height: 18px; display: grid; place-items: center; border-radius: 9px; background: #5f8f76; color: #fff; font-size: 9px; font-weight: 800; }
   .mobileFeedback { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d6e4d9; background: #eff6f0; padding: 9px 14px; color: #456451; font-size: 12px; }
   .mobileFeedbackError { border-color: #efd7d2; background: #fff3f1; color: #874b45; }
   .mobileFeedback button { min-height: 36px; border: 0; background: transparent; color: inherit; font-weight: 750; }
-  .mobileDay { height: calc(100vh - 58px - 183px - env(safe-area-inset-top)); min-height: 420px; background: #fff; }
+  .mobileDay { height: calc(100vh - 58px - 235px - env(safe-area-inset-top)); min-height: 360px; background: #fff; }
   .mobileDayScroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
   .mobileDayGrid { display: grid; grid-template-columns: 47px minmax(0, 1fr); position: relative; }
   .mobileTimeGutter { position: relative; border-right: 1px solid #e7ece8; background: #fbfcfa; }
@@ -434,7 +438,7 @@
   .mobileStateRegistered, .mobileStatePending { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; }
   .mobileStateRegistered { background: #5f8f76; box-shadow: inset 0 0 0 2px #5f8f76, 0 0 0 1px #fff; }
   .mobileStatePending { border: 1.5px solid #9a7b54; background: #fff9ef; }
-  .mobileAgenda, .mobileMonth { min-height: calc(100vh - 58px - 183px - env(safe-area-inset-top)); padding: 18px 14px max(28px, env(safe-area-inset-bottom)); }
+  .mobileAgenda, .mobileMonth { min-height: calc(100vh - 58px - 235px - env(safe-area-inset-top)); padding: 18px 14px max(28px, env(safe-area-inset-bottom)); }
   .mobileSectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .mobileSectionHeading h2 { margin: 0; color: #2f3d35; font-size: 17px; line-height: 1.25; text-transform: capitalize; }
   .mobileSectionHeading p { margin: 3px 0 0; color: #7a877f; font-size: 12px; }
@@ -475,6 +479,48 @@
   .mobileMonthGrid button:focus-visible { z-index: 2; outline: 2px solid #4f7d64; outline-offset: -2px; }
   .mobileMonthSelectedDay { margin-top: 14px; }
   .mobileMonthSelectedDay .mobileAgendaList { margin-top: 10px; }
+  .mobileToolsSurface { min-height: calc(100vh - 58px - env(safe-area-inset-top)); background: #f7f8f4; padding: 18px 14px max(28px, env(safe-area-inset-bottom)); color: #2f3d35; }
+  .mobileToolsIntro { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .mobileToolsIntro span, .mobileCatalogSurface header span, .mobileGoogleSurface > span { color: #849087; font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+  .mobileToolsIntro h1, .mobileCatalogSurface h2, .mobileGoogleSurface h2 { margin: 3px 0 0; font-size: 21px; line-height: 1.2; }
+  .mobileToolsIntro button, .mobileCatalogSurface header button { min-height: 44px; border: 0; border-radius: 10px; background: #e6eee7; padding: 0 12px; color: #426650; font: inherit; font-size: 12px; font-weight: 750; }
+  .mobileFilterGroup { margin-top: 14px; }
+  .mobileFilterGroup h2 { margin: 0 0 8px 4px; color: #7e8a82; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .mobileFilterGroup > div { overflow: hidden; border: 1px solid #dfe6e0; border-radius: 15px; background: #fff; }
+  .mobileFilterGroup button { width: 100%; min-height: 52px; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 0; border-bottom: 1px solid #edf1ed; background: #fff; padding: 0 14px; color: #3c4b42; font: inherit; text-align: left; }
+  .mobileFilterGroup button:last-child { border-bottom: 0; }
+  .mobileFilterGroup button:focus-visible { position: relative; outline: 2px solid #5f8f76; outline-offset: -2px; }
+  .mobileFilterGroup button i { width: 20px; height: 20px; display: grid; place-items: center; border: 1.5px solid; border-radius: 6px; color: #fff; font-size: 11px; font-style: normal; font-weight: 800; }
+  .mobileFilterGroup button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobileFilterGroup button small { color: #909a93; font-size: 10px; }
+  .mobileFilterGroup > p, .mobileSettingsHint { margin: 10px 4px 0; color: #859087; font-size: 12px; }
+  .mobileSettingsHome > p { margin: 0 2px 17px; color: #758178; font-size: 12px; line-height: 1.55; }
+  .mobileSettingsList { overflow: hidden; border: 1px solid #dfe6e0; border-radius: 16px; background: #fff; }
+  .mobileSettingsList > button { width: 100%; min-height: 66px; display: grid; grid-template-columns: auto minmax(0, 1fr) 16px; align-items: center; gap: 11px; border: 0; border-bottom: 1px solid #edf1ed; background: #fff; padding: 10px 14px; color: #37463d; font: inherit; text-align: left; }
+  .mobileSettingsHome .mobileSettingsList > button { grid-template-columns: minmax(0, 1fr) 16px; }
+  .mobileSettingsList > button:last-child { border-bottom: 0; }
+  .mobileSettingsList > button:focus-visible { position: relative; outline: 2px solid #5f8f76; outline-offset: -2px; }
+  .mobileSettingsList > button:disabled { color: #7f8982; }
+  .mobileSettingsList i { width: 11px; height: 11px; border-radius: 4px; }
+  .mobileSettingsList span { min-width: 0; display: grid; gap: 3px; }
+  .mobileSettingsList strong, .mobileSettingsList small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobileSettingsList strong { font-size: 14px; }
+  .mobileSettingsList small { color: #808b83; font-size: 11px; }
+  .mobileSettingsList b { color: #88938c; font-size: 20px; font-weight: 400; }
+  .mobileCatalogSurface header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .mobileGoogleSurface .googleStatus { margin: 18px 0 0; border: 1px solid #dfe6e0; border-radius: 14px; background: #fff; padding: 16px; }
+  .mobileGoogleSurface > p { margin: 16px 2px; color: #748078; font-size: 12px; line-height: 1.55; }
+  .mobileGoogleSurface > a { min-height: 44px; display: inline-flex; align-items: center; border-radius: 10px; background: #e6eee7; padding: 0 13px; color: #426650; font-size: 12px; font-weight: 750; text-decoration: none; }
+  .mobileToolsSurface .sidebarInspector { padding: 0 2px 18px; }
+  .mobileToolsSurface .sidebarInspector > header { display: none; }
+  .mobileToolsSurface .catalogForm { gap: 17px; }
+  .mobileToolsSurface .catalogField { font-size: 12px; }
+  .mobileToolsSurface .catalogField > input, .mobileToolsSurface .catalogInputSuffix { min-height: 46px; border-radius: 11px; }
+  .mobileToolsSurface .catalogInputSuffix input { height: 44px; }
+  .mobileToolsSurface .catalogField > textarea { min-height: 88px; border-radius: 11px; }
+  .mobileToolsSurface .catalogColors > div { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .mobileToolsSurface .catalogColors button { min-height: 44px; height: 44px; }
+  .mobileToolsSurface .catalogActions button, .mobileToolsSurface .catalogLifecycle button, .mobileToolsSurface .catalogActive { min-height: 44px; }
   .drawerLayer { background: rgba(27,37,31,.18); }
   .appointmentDrawer, .sessionDrawer { width: 100vw; max-width: none; border-left: 0; }
   .drawerHeader { padding: 18px 18px 15px; }

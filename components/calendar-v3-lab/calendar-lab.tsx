@@ -6,6 +6,7 @@ import styles from "./calendar-v3-lab.module.css";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { MobileCalendar } from "./mobile-calendar";
+import { MobileCalendarFilters, MobileCalendarSettings } from "./mobile-calendar-tools";
 import { AppointmentDrawer } from "./appointment-drawer";
 import { AppointmentDetailPanel } from "./appointment-detail-panel";
 import { AppointmentCancelDialog } from "./appointment-cancel-dialog";
@@ -190,6 +191,7 @@ type CalendarGestureFeedback = {
 };
 
 type CalendarPanelMode = "closed" | "appointment-create" | "appointment-detail" | "appointment-edit" | "session-create";
+type MobileCalendarSurface = "calendar" | "filters" | "settings";
 
 export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "real" }) {
   const { data, ready, saveAppointment: saveRealAppointment, saveAppointments: saveRealAppointments } = useData();
@@ -218,6 +220,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const [appointmentActionError, setAppointmentActionError] = useState("");
   const [panelMode, setPanelMode] = useState<CalendarPanelMode>("closed");
   const [sidebarMode, setSidebarMode] = useState<CalendarSidebarMode>({ kind: "main" });
+  const [mobileSurface, setMobileSurface] = useState<MobileCalendarSurface>("calendar");
   const [createDraft, setCreateDraft] = useState<CalendarAppointmentDraft | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
@@ -280,6 +283,24 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const labNow = useMemo(() => realMode ? new Date() : LAB_NOW, [realMode]);
   const labToday = calendarDateFromInstant(labNow);
   const labNowMinutes = timeToMinutes(calendarTimeFromInstant(labNow));
+  const closeMobileSurface = () => {
+    if (mobileSurface === "filters" || sidebarMode.kind === "main") {
+      setMobileSurface("calendar");
+      setSidebarMode({ kind: "main" });
+      return;
+    }
+    if (sidebarMode.kind === "location-create" || sidebarMode.kind === "location-edit") setSidebarMode({ kind: "locations" });
+    else if (sidebarMode.kind === "service-create" || sidebarMode.kind === "service-edit") setSidebarMode({ kind: "services" });
+    else setSidebarMode({ kind: "main" });
+  };
+  const mobileSettingsTitle = sidebarMode.kind === "locations" ? "Sedi"
+    : sidebarMode.kind === "services" ? "Prestazioni"
+      : sidebarMode.kind === "google" ? "Google Calendar"
+        : sidebarMode.kind === "location-create" ? "Nuova sede"
+          : sidebarMode.kind === "location-edit" ? "Modifica sede"
+            : sidebarMode.kind === "service-create" ? "Nuova prestazione"
+              : sidebarMode.kind === "service-edit" ? "Modifica prestazione"
+                : "Impostazioni calendario";
   const currentDayIndex = days.indexOf(labToday);
   const selectedEvent = activeEvents.find((event) => event.id === state.selectedEventId);
   const realAppointment = realMode && selectedEvent
@@ -1197,19 +1218,39 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   return (
     <main className={styles.shell}>
       <div className={styles.mobileApp}>
-        <AppShell mobileFullScreen>
-          <MobileCalendar
+        <AppShell mobileFullScreen mobileHeader={mobileSurface === "calendar" ? undefined : {
+          variant: "detail",
+          title: mobileSurface === "filters" ? "Filtri" : mobileSettingsTitle,
+          backHref: "/calendar-v3-lab",
+          backLabel: mobileSurface === "filters" || sidebarMode.kind === "main" ? "Torna al calendario" : "Indietro",
+          onBack: closeMobileSurface,
+        }}>
+          {mobileSurface === "calendar" ? <MobileCalendar
             events={visibleEvents}
             selectedDate={state.cursorDate}
             today={labToday}
             nowMinutes={labNowMinutes}
             realMode={realMode}
             feedback={gestureFeedback}
+            activeFilterCount={state.hiddenFilters.length}
             onDismissFeedback={dismissGestureFeedback}
             onSelectDate={(date) => dispatch({ type: "set_cursor_date", date })}
             onCreate={openCreate}
             onOpenEvent={openEdit}
-          />
+            onOpenFilters={() => setMobileSurface("filters")}
+            onOpenSettings={() => { setSidebarMode({ kind: "main" }); setMobileSurface("settings"); }}
+          /> : mobileSurface === "filters" ? <MobileCalendarFilters
+            realMode={realMode}
+            hidden={state.hiddenFilters}
+            onToggle={(filter) => dispatch({ type: "toggle_filter", filter })}
+            onReset={() => state.hiddenFilters.forEach((filter) => dispatch({ type: "toggle_filter", filter }))}
+          /> : <MobileCalendarSettings
+            realMode={realMode}
+            mode={sidebarMode}
+            hidden={state.hiddenFilters}
+            onModeChange={setSidebarMode}
+            onToggle={(filter) => dispatch({ type: "toggle_filter", filter })}
+          />}
         </AppShell>
       </div>
 

@@ -14,38 +14,27 @@ import {
   createCalendarV3Location,
   createCalendarV3Service,
   calendarCatalogManagement,
-  fixtureLocationFilterKey,
-  fixtureServiceFilterKey,
-  locationFilterKey,
-  serviceFilterKey,
+  calendarFilterGroups,
   type CalendarSidebarMode,
 } from "@/lib/calendar-v3-lab/sidebar-settings";
 import { validateLocationForm, validateServiceForm, type FieldErrors } from "@/lib/form-validation";
 import type { AppointmentLocation, AppointmentService } from "@/lib/types";
 import { uid } from "@/lib/types";
-import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
 import styles from "./calendar-v3-lab.module.css";
+import { GoogleCalendarStatus } from "./google-calendar-status";
+import Link from "next/link";
 
 type DeleteTarget =
   | { action: "delete" | "archive"; kind: "location"; item: AppointmentLocation }
   | { action: "delete" | "archive"; kind: "service"; item: AppointmentService };
 
-const fixtureLocations = [
-  { id: "fixture-location-centro", name: "Studio Centro", color: "#8EA6C4" },
-  { id: "fixture-location-nord", name: "Studio Nord", color: "#A88BBC" },
-];
-const fixtureServices = [
-  { id: "fixture-service-trattamento", name: "Trattamento", color: "#77A886" },
-  { id: "fixture-service-valutazione", name: "Valutazione", color: "#D99B7B" },
-  { id: "fixture-service-controllo", name: "Controllo", color: "#D6A84B" },
-];
-
-export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, onToggle }: {
+export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, onToggle, presentation = "sidebar" }: {
   realMode: boolean;
   mode: CalendarSidebarMode;
   hidden: readonly string[];
   onModeChange: (mode: CalendarSidebarMode) => void;
   onToggle: (key: string) => void;
+  presentation?: "sidebar" | "mobile-settings";
 }) {
   const {
     data,
@@ -82,7 +71,13 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
     setNotice(null);
     onModeChange({ kind: "service-create", service: createCalendarV3Service({ services, id: uid(), timestamp }) });
   };
-  const back = () => onModeChange({ kind: "main" });
+  const back = () => {
+    if (presentation === "mobile-settings") {
+      onModeChange({ kind: mode.kind.startsWith("location") ? "locations" : "services" });
+      return;
+    }
+    onModeChange({ kind: "main" });
+  };
   const locationLifecycle = mode.kind === "location-edit" ? getCalendarCatalogLifecycle({
     kind: "location", id: mode.location.id, archivedAt: mode.location.archivedAt,
     appointments: data.appointments, sessions: data.sessions,
@@ -106,7 +101,9 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
         ? `${deleteTarget.kind === "location" ? "Sede rimossa" : "Prestazione rimossa"} dal catalogo.`
         : deleteTarget.kind === "location" ? "Sede eliminata." : "Prestazione eliminata.";
       setDeleteTarget(null);
-      onModeChange({ kind: "main" });
+      onModeChange(presentation === "mobile-settings"
+        ? { kind: deleteTarget.kind === "location" ? "locations" : "services" }
+        : { kind: "main" });
       setNotice({ tone: "success", message: label });
     } catch (cause) {
       setDeleteError(catalogError(cause, deleteTarget.kind, deleteTarget.action));
@@ -116,18 +113,30 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
   };
 
   return <>
-    {mode.kind === "main" ? <div className={styles.sidebarCatalogMain}>
+    {presentation === "mobile-settings" && mode.kind === "main" ? <MobileSettingsHome realMode={realMode} onOpen={onModeChange} />
+    : presentation === "mobile-settings" && (mode.kind === "locations" || mode.kind === "services") ? <MobileCatalogList
+      kind={mode.kind}
+      realMode={realMode}
+      locations={locations}
+      services={services}
+      onCreate={mode.kind === "locations" ? openLocationCreate : openServiceCreate}
+      onEdit={(id) => {
+        if (mode.kind === "locations") {
+          const location = locations.find((item) => item.id === id);
+          if (location) onModeChange({ kind: "location-edit", location });
+        } else {
+          const service = services.find((item) => item.id === id);
+          if (service) onModeChange({ kind: "service-edit", service });
+        }
+      }}
+    />
+    : presentation === "mobile-settings" && mode.kind === "google" ? <MobileGoogleSettings realMode={realMode} />
+    : mode.kind === "main" ? <div className={styles.sidebarCatalogMain}>
       {notice ? <p className={`${styles.sidebarNotice} ${notice.tone === "error" ? styles.sidebarNoticeError : ""}`} role={notice.tone === "error" ? "alert" : "status"}>{notice.message}</p> : null}
       <CatalogSection
         title="Sedi"
         canConfigure={realMode}
-        items={(realMode ? locations : fixtureLocations).map((item) => ({
-          id: item.id,
-          label: item.name,
-          color: item.color,
-          active: "isActive" in item ? Boolean(item.isActive) : true,
-          filterKey: realMode ? locationFilterKey(item.id) : fixtureLocationFilterKey(item.name),
-        }))}
+        items={calendarFilterGroups({ realMode, locations, services }).locations}
         hidden={hidden}
         onToggle={onToggle}
         onCreate={openLocationCreate}
@@ -139,13 +148,7 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       <CatalogSection
         title="Prestazioni"
         canConfigure={realMode}
-        items={(realMode ? services : fixtureServices).map((item) => ({
-          id: item.id,
-          label: item.name,
-          color: item.color || FALLBACK_APPOINTMENT_COLOR,
-          active: "isActive" in item ? Boolean(item.isActive) : true,
-          filterKey: realMode ? serviceFilterKey(item.id) : fixtureServiceFilterKey(item.name),
-        }))}
+        items={calendarFilterGroups({ realMode, locations, services }).services}
         hidden={hidden}
         onToggle={onToggle}
         onCreate={openServiceCreate}
@@ -165,10 +168,10 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       onToggleActive={mode.kind === "location-edit" ? async (location, isActive) => setAppointmentLocationActive(location.id, isActive) : undefined}
       onSave={async (location) => {
         await saveAppointmentLocation(location);
-        onModeChange({ kind: "main" });
+        onModeChange(presentation === "mobile-settings" ? { kind: "locations" } : { kind: "main" });
         setNotice({ tone: "success", message: mode.kind === "location-create" ? "Sede creata." : "Sede aggiornata." });
       }}
-    /> : <ServiceInspector
+    /> : mode.kind === "service-create" || mode.kind === "service-edit" ? <ServiceInspector
       key={`${mode.kind}-${mode.service.id}`}
       service={mode.service}
       isNew={mode.kind === "service-create"}
@@ -179,10 +182,10 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       onToggleActive={mode.kind === "service-edit" ? async (service, isActive) => setAppointmentServiceActive(service.id, isActive) : undefined}
       onSave={async (service) => {
         await saveAppointmentService(service);
-        onModeChange({ kind: "main" });
+        onModeChange(presentation === "mobile-settings" ? { kind: "services" } : { kind: "main" });
         setNotice({ tone: "success", message: mode.kind === "service-create" ? "Prestazione creata." : "Prestazione aggiornata." });
       }}
-    />}
+    /> : null}
     {deleteTarget ? <DestructiveActionModal
       title={deleteTarget.action === "archive"
         ? `Rimuovere ${deleteTarget.kind === "location" ? "la sede" : "la prestazione"} dal catalogo?`
@@ -197,6 +200,47 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       onConfirm={confirmDelete}
     /> : null}
   </>;
+}
+
+function MobileSettingsHome({ realMode, onOpen }: {
+  realMode: boolean;
+  onOpen: (mode: CalendarSidebarMode) => void;
+}) {
+  return <div className={styles.mobileSettingsHome}>
+    <p>Gestisci il catalogo usato dagli appuntamenti e controlla il collegamento al calendario esterno.</p>
+    <div className={styles.mobileSettingsList}>
+      <button type="button" onClick={() => onOpen({ kind: "locations" })}><span><strong>Sedi</strong><small>Indirizzi, colori e disponibilità</small></span><b aria-hidden="true">›</b></button>
+      <button type="button" onClick={() => onOpen({ kind: "services" })}><span><strong>Prestazioni</strong><small>Durata, prezzo e colore</small></span><b aria-hidden="true">›</b></button>
+      <button type="button" onClick={() => onOpen({ kind: "google" })}><span><strong>Google Calendar</strong><small>{realMode ? "Stato del collegamento" : "Stato dimostrativo"}</small></span><b aria-hidden="true">›</b></button>
+    </div>
+  </div>;
+}
+
+function MobileCatalogList({ kind, realMode, locations, services, onCreate, onEdit }: {
+  kind: "locations" | "services";
+  realMode: boolean;
+  locations: AppointmentLocation[];
+  services: AppointmentService[];
+  onCreate: () => void;
+  onEdit: (id: string) => void;
+}) {
+  const items = realMode ? (kind === "locations" ? locations : services) : [];
+  const noun = kind === "locations" ? "sede" : "prestazione";
+  return <section className={styles.mobileCatalogSurface}>
+    <header><div><span>Catalogo</span><h2>{kind === "locations" ? "Sedi" : "Prestazioni"}</h2></div>{realMode ? <button type="button" onClick={onCreate}>+ Nuova</button> : null}</header>
+    {!realMode ? <p className={styles.mobileSettingsHint}>La configurazione è disponibile con i dati reali.</p> : null}
+    <div className={styles.mobileSettingsList}>{items.map((item) => <button key={item.id} type="button" disabled={!realMode} onClick={() => onEdit(item.id)}><i style={{ background: item.color || "#6f9c82" }} aria-hidden="true" /><span><strong>{item.name}</strong><small>{"isActive" in item && !item.isActive ? "Non attiva" : kind === "services" && "defaultDurationMinutes" in item ? `${item.defaultDurationMinutes || 0} min` : "Attiva"}</small></span><b aria-hidden="true">›</b></button>)}</div>
+    {!items.length ? <p className={styles.mobileSettingsHint}>Nessuna {noun} configurata.</p> : null}
+  </section>;
+}
+
+function MobileGoogleSettings({ realMode }: { realMode: boolean }) {
+  return <section className={styles.mobileGoogleSurface}>
+    <span>Integrazione</span><h2>Google Calendar</h2>
+    <GoogleCalendarStatus realMode={realMode} />
+    <p>Lo stato è quello reale dell’integrazione. Collegamento, preferenze e disconnessione restano disponibili nelle Impostazioni generali.</p>
+    <Link href="/impostazioni">Apri Impostazioni</Link>
+  </section>;
 }
 
 function CatalogSection({ title, items, canConfigure, hidden, onToggle, onCreate, onEdit }: {

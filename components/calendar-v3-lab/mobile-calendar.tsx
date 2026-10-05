@@ -25,17 +25,20 @@ const MOBILE_GRID_HEIGHT = (CALENDAR_LAB_CONFIG.endHour - CALENDAR_LAB_CONFIG.st
 const WEEKDAY_SHORT = ["D", "L", "M", "M", "G", "V", "S"];
 const WEEKDAY_LONG = ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"];
 
-export function MobileCalendar({ events, selectedDate, today, nowMinutes, realMode, feedback, onDismissFeedback, onSelectDate, onCreate, onOpenEvent }: {
+export function MobileCalendar({ events, selectedDate, today, nowMinutes, realMode, feedback, activeFilterCount, onDismissFeedback, onSelectDate, onCreate, onOpenEvent, onOpenFilters, onOpenSettings }: {
   events: readonly CalendarLabEvent[];
   selectedDate: CalendarDate;
   today: CalendarDate;
   nowMinutes: number;
   realMode: boolean;
   feedback?: { tone: "info" | "error"; message: string } | null;
+  activeFilterCount: number;
   onDismissFeedback: () => void;
   onSelectDate: (date: CalendarDate) => void;
   onCreate: (selection: CalendarSelection, origin: HTMLElement) => void;
   onOpenEvent: (eventId: string, origin: HTMLElement) => void;
+  onOpenFilters: () => void;
+  onOpenSettings: () => void;
 }) {
   const [view, setView] = useState<MobileCalendarLabView>("day");
   const selectedEvents = useMemo(() => mobileCalendarEventsForDate(events, selectedDate), [events, selectedDate]);
@@ -56,6 +59,10 @@ export function MobileCalendar({ events, selectedDate, today, nowMinutes, realMo
       <MobileWeekStrip selectedDate={selectedDate} today={today} onSelect={onSelectDate} />
       <div className={styles.mobileViewSelector} role="tablist" aria-label="Vista mobile di confronto">
         {(["day", "agenda", "month"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={view === item} onClick={() => setView(item)}>{item === "day" ? "Giorno" : item === "agenda" ? "Agenda" : "Mese"}</button>)}
+      </div>
+      <div className={styles.mobileCalendarControls} aria-label="Strumenti calendario">
+        <button type="button" onClick={onOpenFilters}>Filtri{activeFilterCount ? <span aria-label={`${activeFilterCount} filtri attivi`}>{activeFilterCount}</span> : null}</button>
+        <button type="button" onClick={onOpenSettings}>Impostazioni</button>
       </div>
     </div>
 
