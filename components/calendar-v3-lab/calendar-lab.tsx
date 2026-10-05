@@ -110,6 +110,20 @@ import {
   createCalendarV3RealAppointmentDraft,
   isCalendarV3RealAppointmentDraft,
 } from "@/lib/calendar-v3-lab/real-appointment-editor";
+import {
+  executeCalendarV3RealGesture,
+  getCalendarV3GestureBlockReason,
+  isCalendarV3RealGestureEligible,
+  type CalendarV3RealGesture,
+} from "@/lib/calendar-v3-lab/real-appointment-gesture";
+import {
+  IDLE_CALENDAR_BLOCKED_GESTURE_ATTEMPT,
+  beginCalendarBlockedGestureAttempt,
+  cancelCalendarBlockedGestureAttempt,
+  completeCalendarBlockedGestureAttempt,
+  moveCalendarBlockedGestureAttempt,
+  type CalendarBlockedGestureAttempt,
+} from "@/lib/calendar-v3-lab/blocked-gesture-attempt";
 import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
 import { uid } from "@/lib/types";
 
@@ -122,6 +136,16 @@ const PIXELS_PER_MINUTE = CALENDAR_LAB_PIXELS_PER_HOUR / 60;
 type CalendarContextMenuState =
   | { kind: "empty"; anchorPoint: { x: number; y: number }; origin: HTMLElement; selection: CalendarSelection }
   | { kind: "event"; anchorPoint: { x: number; y: number }; origin: HTMLElement; eventId: string };
+
+type CalendarRealMutation = {
+  appointmentId: string;
+  gesture: CalendarV3RealGesture;
+};
+
+type CalendarGestureFeedback = {
+  tone: "info" | "error";
+  message: string;
+};
 
 export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "real" }) {
   const { data, ready, saveAppointment: saveRealAppointment, saveAppointments: saveRealAppointments } = useData();
@@ -140,6 +164,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const [contextMenu, setContextMenu] = useState<CalendarContextMenuState | null>(null);
   const [commandPaletteOrigin, setCommandPaletteOrigin] = useState<HTMLElement | null>(null);
   const [expandedMonthDate, setExpandedMonthDate] = useState<CalendarDate | null>(null);
+  const [realMutation, setRealMutation] = useState<CalendarRealMutation | null>(null);
+  const [gestureFeedback, setGestureFeedback] = useState<CalendarGestureFeedback | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
@@ -156,6 +182,10 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const suppressNextClickRef = useRef(false);
   const suppressNextEventClickRef = useRef(false);
   const realModeInitializedRef = useRef(false);
+  const realMutationRef = useRef<CalendarRealMutation | null>(null);
+  const blockedGestureAttemptRef = useRef<CalendarBlockedGestureAttempt>(IDLE_CALENDAR_BLOCKED_GESTURE_ATTEMPT);
+  const blockedGestureMessageRef = useRef<string | null>(null);
+  const gestureFeedbackTimeoutRef = useRef<number | null>(null);
   const realData = useMemo(() => adaptCalendarV3RealData({
     appointments: data.appointments,
     patients: data.patients,
@@ -202,6 +232,27 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     realModeInitializedRef.current = true;
     dispatch({ type: "set_cursor_date", date: calendarDateFromInstant(new Date()) });
   }, [realMode, ready]);
+
+  useEffect(() => () => {
+    if (gestureFeedbackTimeoutRef.current !== null) window.clearTimeout(gestureFeedbackTimeoutRef.current);
+  }, []);
+
+  const showGestureFeedback = (feedback: CalendarGestureFeedback) => {
+    if (gestureFeedbackTimeoutRef.current !== null) window.clearTimeout(gestureFeedbackTimeoutRef.current);
+    setGestureFeedback(feedback);
+    gestureFeedbackTimeoutRef.current = feedback.tone === "info"
+      ? window.setTimeout(() => {
+        gestureFeedbackTimeoutRef.current = null;
+        setGestureFeedback(null);
+      }, 4800)
+      : null;
+  };
+
+  const dismissGestureFeedback = () => {
+    if (gestureFeedbackTimeoutRef.current !== null) window.clearTimeout(gestureFeedbackTimeoutRef.current);
+    gestureFeedbackTimeoutRef.current = null;
+    setGestureFeedback(null);
+  };
 
   const goToToday = () => {
     setContextMenu(null);
@@ -415,6 +466,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const openEdit = (eventId: string, origin: HTMLElement) => {
+    if (realMode && realMutationRef.current?.appointmentId === eventId) return;
     returnFocusRef.current = origin;
     dispatch({ type: "set_selection", selection: null });
     dispatch({ type: "select_event", eventId });
@@ -429,8 +481,106 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     };
   };
 
+  const beginBlockedGestureFeedback = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (!realMode) return false;
+    const block = getCalendarV3GestureBlockReason(event);
+    if (!block) return false;
+    const next = beginCalendarBlockedGestureAttempt({
+      pointerId: pointerEvent.pointerId,
+      pointerType: pointerEvent.pointerType,
+      isPrimary: pointerEvent.isPrimary,
+      button: pointerEvent.button,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (next.status === "idle") return true;
+    blockedGestureMessageRef.current = block.message;
+    blockedGestureAttemptRef.current = next;
+    pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
+    return true;
+  };
+
+  const updateBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = blockedGestureAttemptRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return false;
+    const next = moveCalendarBlockedGestureAttempt(current, {
+      pointerId: pointerEvent.pointerId,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    blockedGestureAttemptRef.current = next;
+    if (next.status === "attempted") {
+      pointerEvent.preventDefault();
+      if (current.status !== "attempted" && blockedGestureMessageRef.current) {
+        showGestureFeedback({ tone: "info", message: blockedGestureMessageRef.current });
+      }
+    }
+    return true;
+  };
+
+  const finishBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = blockedGestureAttemptRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return false;
+    const completion = completeCalendarBlockedGestureAttempt(current, {
+      pointerId: pointerEvent.pointerId,
+      clientX: pointerEvent.clientX,
+      clientY: pointerEvent.clientY,
+    });
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    blockedGestureAttemptRef.current = completion.state;
+    const message = blockedGestureMessageRef.current;
+    blockedGestureMessageRef.current = null;
+    if (completion.wasAttempt) {
+      pointerEvent.preventDefault();
+      suppressNextEventClickRef.current = true;
+      if (current.status !== "attempted" && message) showGestureFeedback({ tone: "info", message });
+      window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
+    }
+    return true;
+  };
+
+  const abortBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    const current = blockedGestureAttemptRef.current;
+    if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return false;
+    if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+      pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+    }
+    blockedGestureAttemptRef.current = cancelCalendarBlockedGestureAttempt();
+    blockedGestureMessageRef.current = null;
+    return true;
+  };
+
+  const persistRealGesture = async (intent: CalendarLabEvent, gesture: CalendarV3RealGesture) => {
+    if (!realMode || realMutationRef.current) return;
+    const before = data.appointments.find((appointment) => appointment.id === intent.id);
+    const sourceEvent = realData.events.find((event) => event.id === intent.id);
+    if (!before || !sourceEvent || !isCalendarV3RealGestureEligible(sourceEvent)) {
+      showGestureFeedback({ tone: "error", message: "Questo appuntamento non può essere modificato con una gesture." });
+      return;
+    }
+    const mutation = { appointmentId: before.id, gesture };
+    realMutationRef.current = mutation;
+    setRealMutation(mutation);
+    dismissGestureFeedback();
+    try {
+      const result = await executeCalendarV3RealGesture({ before, intent, gesture, save: saveRealAppointment });
+      if (!result.ok) showGestureFeedback({ tone: "error", message: result.message });
+    } finally {
+      if (realMutationRef.current === mutation) {
+        realMutationRef.current = null;
+        setRealMutation(null);
+      }
+    }
+  };
+
   const beginEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
-    if (realMode || drawerDraft || eventResizeRef.current.status !== "idle") return;
+    if (drawerDraft || realMutationRef.current || eventResizeRef.current.status !== "idle") return;
+    if (realMode && !isCalendarV3RealGestureEligible(event)) {
+      beginBlockedGestureFeedback(event, pointerEvent);
+      return;
+    }
     const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
     if (!target) return;
     const next = beginCalendarEventMove({
@@ -456,6 +606,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const updateEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (updateBlockedGestureFeedback(pointerEvent)) return;
     const current = eventMoveRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
@@ -474,6 +625,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const finishEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (finishBlockedGestureFeedback(pointerEvent)) return;
     const current = eventMoveRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
@@ -493,12 +645,14 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     if (completion.wasMove && completion.event) {
       pointerEvent.preventDefault();
       suppressNextEventClickRef.current = true;
-      dispatch({ type: "move_event", event: completion.event });
+      if (realMode) void persistRealGesture(completion.event, "move");
+      else dispatch({ type: "move_event", event: completion.event });
       window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
     }
   };
 
   const abortEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (abortBlockedGestureFeedback(pointerEvent)) return;
     const current = eventMoveRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
@@ -516,7 +670,11 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const beginMonthEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
-    if (realMode || drawerDraft || eventResizeRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
+    if (drawerDraft || realMutationRef.current || eventResizeRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
+    if (realMode && !isCalendarV3RealGestureEligible(event)) {
+      beginBlockedGestureFeedback(event, pointerEvent);
+      return;
+    }
     const next = beginCalendarMonthEventMove({
       event,
       pointerId: pointerEvent.pointerId,
@@ -534,6 +692,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const updateMonthEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (updateBlockedGestureFeedback(pointerEvent)) return;
     const current = monthEventMoveRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     const date = monthEventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
@@ -555,6 +714,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const finishMonthEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (finishBlockedGestureFeedback(pointerEvent)) return;
     const current = monthEventMoveRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     const completion = completeCalendarMonthEventMove(current, {
@@ -572,12 +732,14 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     if (completion.wasMove && completion.event) {
       pointerEvent.preventDefault();
       suppressNextEventClickRef.current = true;
-      dispatch({ type: "move_event", event: completion.event });
+      if (realMode) void persistRealGesture(completion.event, "month_move");
+      else dispatch({ type: "move_event", event: completion.event });
       window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
     }
   };
 
   const abortMonthEventMove = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+    if (abortBlockedGestureFeedback(pointerEvent)) return;
     const current = monthEventMoveRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
@@ -595,7 +757,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const beginEventResize = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
-    if (realMode || drawerDraft || eventMoveRef.current.status !== "idle" || dragSelectionRef.current.status !== "idle") return;
+    if (drawerDraft || realMutationRef.current || eventMoveRef.current.status !== "idle" || dragSelectionRef.current.status !== "idle") return;
+    if (realMode && !isCalendarV3RealGestureEligible(event)) return;
     const next = beginCalendarEventResize({
       event,
       pointerId: pointerEvent.pointerId,
@@ -649,7 +812,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     eventResizeOriginRef.current = null;
     if (completion.wasResize && completion.event) {
       pointerEvent.preventDefault();
-      dispatch({ type: "resize_event", event: completion.event });
+      if (realMode) void persistRealGesture(completion.event, "resize");
+      else dispatch({ type: "resize_event", event: completion.event });
     }
   };
 
@@ -793,7 +957,14 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
         {realMode ? <div className={styles.realModeNotice} role="status">
           <strong>Dati reali</strong>
-          <span>Creazione e modifica attive. Spostamento e ridimensionamento restano protetti nel laboratorio.</span>
+          <span>Creazione, modifica e gesture sugli appuntamenti singoli attive.</span>
+        </div> : null}
+        {gestureFeedback ? <div
+          className={`${styles.gestureFeedback} ${gestureFeedback.tone === "error" ? styles.gestureError : styles.gestureNotice}`}
+          role={gestureFeedback.tone === "error" ? "alert" : "status"}
+        >
+          <span>{gestureFeedback.message}</span>
+          <button type="button" onClick={dismissGestureFeedback}>Chiudi</button>
         </div> : null}
 
         <div className={styles.workspace}>
@@ -818,7 +989,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
           <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""} ${state.view === "month" ? styles.calendarPaneMonth : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : state.view === "month" ? "mensile" : "settimanale"}, ${periodLabel}`}>
             {state.view === "month" ? <MonthCalendar
-              eventMoveEnabled={!realMode}
+              eventMoveEnabled={!realMutation}
+              busyEventId={realMutation?.appointmentId ?? null}
               containerRef={scrollRef}
               gridRef={monthGridRef}
               days={days}
@@ -854,6 +1026,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
                 });
               }}
               onEventContextMenu={(eventId, date, anchorPoint, origin) => {
+                if (realMutation?.appointmentId === eventId) return;
                 dispatch({ type: "set_cursor_date", date });
                 setExpandedMonthDate(null);
                 setCommandPaletteOrigin(null);
@@ -1019,8 +1192,9 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
                           menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
                           moving={eventMove.status === "moving" && eventMove.before.id === event.id}
                           resizing={resizing}
-                          draggable={!realMode && isCalendarLabEventDraggable(event)}
-                          resizable={!realMode && isCalendarLabEventResizable(event)}
+                          busy={realMutation?.appointmentId === event.id}
+                          draggable={!realMutation && isCalendarLabEventDraggable(event)}
+                          resizable={!realMutation && isCalendarLabEventResizable(event)}
                           onSelect={(eventId, origin) => {
                             if (suppressNextEventClickRef.current) {
                               suppressNextEventClickRef.current = false;
@@ -1037,6 +1211,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
                           onResizePointerUp={finishEventResize}
                           onResizePointerCancel={abortEventResize}
                           onOpenContextMenu={(eventId, anchorPoint, origin) => {
+                            if (realMutation?.appointmentId === eventId) return;
                             setCommandPaletteOrigin(null);
                             setContextMenu({ kind: "event", eventId, anchorPoint, origin });
                           }}
@@ -1128,8 +1303,9 @@ function DayViewHeading({ date, summary }: { date: CalendarDate; summary: { appo
   </div>;
 }
 
-function MonthCalendar({ eventMoveEnabled, containerRef, gridRef, days, cursorDate, today, eventsByDate, expandedDate, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
+function MonthCalendar({ eventMoveEnabled, busyEventId, containerRef, gridRef, days, cursorDate, today, eventsByDate, expandedDate, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
   eventMoveEnabled: boolean;
+  busyEventId: string | null;
   containerRef: React.Ref<HTMLDivElement>;
   gridRef: React.Ref<HTMLDivElement>;
   days: CalendarDate[];
@@ -1163,6 +1339,7 @@ function MonthCalendar({ eventMoveEnabled, containerRef, gridRef, days, cursorDa
         expanded={expandedDate === date}
         movingEvent={movingEvent}
         eventMoveEnabled={eventMoveEnabled}
+        busyEventId={busyEventId}
         onCreate={onCreate}
         onOpenEvent={onOpenEvent}
         onToggleOverflow={onToggleOverflow}
@@ -1191,7 +1368,7 @@ function MonthCalendar({ eventMoveEnabled, containerRef, gridRef, days, cursorDa
   </div>;
 }
 
-function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, eventMoveEnabled, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
+function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, eventMoveEnabled, busyEventId, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
   date: CalendarDate;
   cursorDate: CalendarDate;
   today: CalendarDate;
@@ -1199,6 +1376,7 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, 
   expanded: boolean;
   movingEvent: CalendarMonthEventMoveState;
   eventMoveEnabled: boolean;
+  busyEventId: string | null;
   onCreate: (date: CalendarDate, origin: HTMLElement) => void;
   onOpenEvent: (eventId: string, date: CalendarDate, origin: HTMLElement) => void;
   onToggleOverflow: (date: CalendarDate) => void;
@@ -1255,6 +1433,7 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, 
         key={event.id}
         event={event}
         draggable={eventMoveEnabled && isCalendarLabEventDraggable(event)}
+        busy={busyEventId === event.id}
         moving={movingEvent.status === "movingMonthEvent" && movingEvent.before.id === event.id}
         onOpen={(origin) => onOpenEvent(event.id, date, origin)}
         onOpenContextMenu={(anchorPoint, origin) => onEventContextMenu(event.id, date, anchorPoint, origin)}
@@ -1285,6 +1464,7 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, 
           key={event.id}
           event={event}
           focusMarker={index === 0}
+          busy={busyEventId === event.id}
           onOpen={(origin) => onOpenEvent(event.id, date, origin)}
           onOpenContextMenu={(anchorPoint, origin) => onEventContextMenu(event.id, date, anchorPoint, origin)}
         />)}
@@ -1293,11 +1473,12 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, 
   </div>;
 }
 
-function MonthEventButton({ event, focusMarker = false, draggable = false, moving = false, onOpen, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
+function MonthEventButton({ event, focusMarker = false, draggable = false, moving = false, busy = false, onOpen, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
   event: CalendarLabEvent;
   focusMarker?: boolean;
   draggable?: boolean;
   moving?: boolean;
+  busy?: boolean;
   onOpen: (origin: HTMLElement) => void;
   onOpenContextMenu: (anchorPoint: { x: number; y: number }, origin: HTMLElement) => void;
   onPointerDown?: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
@@ -1306,11 +1487,13 @@ function MonthEventButton({ event, focusMarker = false, draggable = false, movin
   onPointerCancel?: (pointerEvent: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   const color = calendarLabEventColor(event);
+  const recurring = Boolean(event.recurrenceSeriesId);
   return <button
     type="button"
-    className={`${styles.monthEvent} ${event.status === "cancelled" ? styles.monthEventCancelled : ""} ${draggable ? styles.monthEventDraggable : ""} ${moving ? styles.monthEventMovingOrigin : ""}`}
+    className={`${styles.monthEvent} ${event.status === "cancelled" ? styles.monthEventCancelled : ""} ${draggable ? styles.monthEventDraggable : ""} ${moving ? styles.monthEventMovingOrigin : ""} ${busy ? styles.eventBusy : ""}`}
     style={{ "--event-color": color, "--event-tint": colorToTint(color) } as React.CSSProperties}
-    aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${calendarLabSessionLabel(event)}`}
+    aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${calendarLabSessionLabel(event)}${recurring ? ", appuntamento ricorrente" : ""}`}
+    aria-busy={busy || undefined}
     data-month-event={focusMarker ? "first" : ""}
     onClick={(clickEvent) => onOpen(clickEvent.currentTarget)}
     onPointerDown={onPointerDown}
@@ -1329,7 +1512,8 @@ function MonthEventButton({ event, focusMarker = false, draggable = false, movin
       onOpenContextMenu({ x: rectangle.left + 20, y: rectangle.top + 20 }, keyboardEvent.currentTarget);
     }}
   >
-    <span aria-hidden="true" />
+    <span className={styles.monthEventColor} aria-hidden="true" />
+    {recurring ? <span className={styles.monthRecurringIndicator} aria-hidden="true">↻</span> : null}
     <strong>{event.patientName}</strong>
     <small>{minutesToTime(event.startMinutes)}</small>
   </button>;
@@ -1340,13 +1524,14 @@ function TimeGutter() {
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
 }
 
-function EventChip({ event, view, selected, menuOpen, moving, resizing, draggable, resizable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onResizePointerDown, onResizePointerMove, onResizePointerUp, onResizePointerCancel }: {
+function EventChip({ event, view, selected, menuOpen, moving, resizing, busy, draggable, resizable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onResizePointerDown, onResizePointerMove, onResizePointerUp, onResizePointerCancel }: {
   event: CalendarLabEventLayout;
   view: CalendarLabView;
   selected: boolean;
   menuOpen: boolean;
   moving: boolean;
   resizing: boolean;
+  busy: boolean;
   draggable: boolean;
   resizable: boolean;
   onSelect: (eventId: string, origin: HTMLElement) => void;
@@ -1373,13 +1558,14 @@ function EventChip({ event, view, selected, menuOpen, moving, resizing, draggabl
   const showService = dayView ? duration >= 45 : contentDensity === "service" || contentDensity === "details";
   const showDetails = dayView ? duration >= 60 : contentDensity === "details";
   const showSessionIndicator = showTime && event.status !== "cancelled";
+  const showRecurringIndicator = Boolean(event.recurrenceSeriesId) && duration >= 30;
   const displayName = narrowCluster
     ? event.patientName.split(" ").map((part) => part[0]).join("")
     : event.patientName;
   return (
     <button
       type="button"
-      className={`${styles.event} ${dayView ? styles.eventDay : ""} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""} ${resizing ? styles.eventResizing : ""}`}
+      className={`${styles.event} ${dayView ? styles.eventDay : ""} ${compact ? styles.eventCompact : ""} ${narrowCluster ? styles.eventNarrow : ""} ${showSessionIndicator ? styles.eventWithState : ""} ${event.status === "cancelled" ? styles.eventCancelled : ""} ${selected ? styles.eventSelected : ""} ${draggable ? styles.eventDraggable : ""} ${moving ? styles.eventMovingOrigin : ""} ${resizing ? styles.eventResizing : ""} ${busy ? styles.eventBusy : ""}`}
       style={{
         top,
         height: Math.max(height - 2, 18),
@@ -1390,7 +1576,8 @@ function EventChip({ event, view, selected, menuOpen, moving, resizing, draggabl
       aria-pressed={selected}
       aria-haspopup="menu"
       aria-expanded={menuOpen}
-      aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti, ${calendarLabSessionLabel(event)}`}
+      aria-busy={busy || undefined}
+      aria-label={`${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti, ${calendarLabSessionLabel(event)}${event.recurrenceSeriesId ? ", appuntamento ricorrente" : ""}`}
       onPointerDown={(pointerEvent) => onPointerDown(event, pointerEvent)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -1435,6 +1622,7 @@ function EventChip({ event, view, selected, menuOpen, moving, resizing, draggabl
         role="img"
         aria-label={event.sessionState === "registered" ? "Seduta registrata" : "Da registrare"}
       >{event.sessionState === "registered" ? "✓" : "•"}</span> : null}
+      {showRecurringIndicator ? <span className={styles.recurringIndicator} aria-hidden="true">↻</span> : null}
       {resizable ? <span
         className={`${styles.resizeHandle} ${resizing ? styles.resizeHandleActive : ""}`}
         aria-hidden="true"

@@ -17,7 +17,9 @@ export type CalendarEventResizeState =
 export const IDLE_CALENDAR_EVENT_RESIZE: CalendarEventResizeState = Object.freeze({ status: "idle" });
 
 export function isCalendarLabEventResizable(event: CalendarLabEvent): boolean {
-  return event.status === "scheduled" && event.sessionState === "to_register";
+  return event.status === "scheduled" &&
+    event.sessionState === "to_register" &&
+    !event.recurrenceSeriesId;
 }
 
 export function resizedCalendarLabEvent(

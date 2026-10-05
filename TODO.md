@@ -67,7 +67,7 @@ Questo elenco contiene solo attività risultanti dallo stato attuale del reposit
 - E3C-B è implementata localmente e non committata: route Node autenticate, renderer A4, copia immutabile del logo, upload verificato, signed download e voiding usano le primitive E3C-A e mantengono i retry sullo stesso tentativo.
 - E3C-C/E3C.1 sono implementate localmente: la UI espone emissione one-step anche da nuovo proforma, conferma e retry sulla stessa draft, storico issued/voided in sola lettura, PDF privato tramite URL temporaneo e annullamento con motivo obbligatorio. Eseguire nuovamente il collaudo end-to-end prima di chiudere E3C; verificare in particolare emissione diretta, diagnostica degli stadi, conflitto Session, retry, numero/data server, PDF con/senza logo e nuova eleggibilità dopo void. Restano fuori fatturazione elettronica, SDI, Sistema TS, IVA/bollo automatici, PEC, email e pagamenti online.
 
-- Aggiungere, dopo una progettazione completa e sicura, le operazioni sulle serie “questo e successivi” e “intera serie”.
+- Calendar V3 Fase 6D: progettare move, resize ed edit delle serie ricorrenti con scelta esplicita dello scope “solo questa occorrenza”, “questa e successive” oppure “intera serie”, più annullamento sicuro. Fino a quella fase le occorrenze ricorrenti restano visibili e modificabili dal drawer secondo il comportamento corrente, ma non sono draggable o resizable.
 - Valutare uno storico revisioni delle valutazioni cliniche completate, con audit log, autore e confronto tra versioni; l’MVP attuale sovrascrive la versione precedente durante una correzione esplicita.
 ## Export dati
 

@@ -57,6 +57,15 @@
 .calendarPaneReadOnly .monthDayCreate:hover { background: transparent; }
 .realModeNotice { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-bottom: 1px solid #dfe7e0; background: #f4f8f4; padding: 6px 16px; color: #5a695f; font-size: 11px; }
 .realModeNotice strong { color: #3f5949; }
+.gestureFeedback { min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 16px; font-size: 12px; }
+.gestureFeedback button { min-height: 28px; border-radius: 7px; background: #fff; padding: 0 10px; font: inherit; font-weight: 700; }
+.gestureFeedback button:hover, .gestureFeedback button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(95,143,118,.16); }
+.gestureError { border-bottom: 1px solid #efd7d2; background: #fff5f3; color: #874b45; }
+.gestureError button { border: 1px solid #dfbdb7; color: #7b433e; }
+.gestureError button:hover, .gestureError button:focus-visible { border-color: #c9958c; }
+.gestureNotice { border-bottom: 1px solid #dbe7de; background: #f4f8f4; color: #496456; }
+.gestureNotice button { border: 1px solid #c9dbce; color: #3f5e4d; }
+.gestureNotice button:hover, .gestureNotice button:focus-visible { border-color: #94b49e; }
 .weekHeader { position: sticky; top: 0; height: var(--calendar-week-header-height); display: grid; grid-template-columns: var(--calendar-grid-template); min-width: 720px; background: rgba(255,255,255,.97); border-bottom: 1px solid #e8ece8; z-index: 20; }
 .gutterHeader { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 9px; color: #a0aaa3; font-size: 9px; letter-spacing: .06em; }
 .dayHeader { border-left: 1px solid #f0f2f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #89948d; }
@@ -91,6 +100,7 @@
 .eventDraggable { cursor: grab; }
 .eventMovingOrigin, .eventMovingOrigin:hover { z-index: 3; opacity: .35; filter: saturate(.7); transform: none; cursor: grabbing; box-shadow: inset 0 0 0 1px rgba(38,56,45,.035); }
 .eventResizing, .eventResizing:hover { z-index: 11; transform: none; box-shadow: 0 3px 10px rgba(47,67,55,.13), inset 0 0 0 1px rgba(38,56,45,.05); }
+.eventBusy, .eventBusy:hover { opacity: .62; filter: saturate(.72); transform: none; cursor: progress; }
 .event strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.25; font-weight: 700; }
 .event span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 1.25; color: #536158; }
 .event .eventTertiary { color: #748078; }
@@ -110,6 +120,7 @@
 .eventWithState { padding-right: 20px; }
 .sessionIndicator { position: absolute; top: 5px; right: 6px; width: 10px; height: 10px; display: grid; place-items: center; color: #4f7761 !important; font-size: 9px !important; font-weight: 800; line-height: 1 !important; }
 .sessionPending { color: #7e8a82 !important; font-size: 13px !important; }
+.recurringIndicator { position: absolute; right: 6px; bottom: 4px; color: #668071 !important; font-size: 11px !important; font-weight: 750; line-height: 1 !important; }
 .resizeHandle { position: absolute; z-index: 3; right: 3px; bottom: 0; left: 3px; height: 8px; cursor: ns-resize; touch-action: none; }
 .resizeHandle::after { content: ""; position: absolute; right: 28%; bottom: 1px; left: 28%; height: 1px; border-radius: 999px; background: color-mix(in srgb, var(--event-color) 65%, #52645a); opacity: 0; transition: opacity .12s ease; }
 .resizeHandle:hover::after, .resizeHandleActive::after { opacity: .7; }
@@ -140,7 +151,8 @@
 .monthEventDraggable { cursor: grab; touch-action: auto; }
 .monthEventDraggable:active { cursor: grabbing; }
 .monthEventMovingOrigin { opacity: .38; cursor: grabbing; }
-.monthEvent > span { width: 4px; height: 13px; flex: 0 0 4px; border-radius: 3px; background: var(--event-color); }
+.monthEventColor { width: 4px; height: 13px; flex: 0 0 4px; border-radius: 3px; background: var(--event-color); }
+.monthRecurringIndicator { flex: 0 0 auto; color: #668071; font-size: 9px; font-weight: 750; line-height: 1; }
 .monthEvent strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 680; }
 .monthEvent small { margin-left: auto; color: #76827a; font-size: 9px; font-variant-numeric: tabular-nums; }
 .monthEventCancelled { background: #f2f3f2; color: #7a827d; }
