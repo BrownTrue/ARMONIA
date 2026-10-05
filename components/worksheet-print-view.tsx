@@ -1,19 +1,29 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { GeneratedPdfActions } from "@/components/documents/generated-pdf-actions";
 import { WorksheetPrintDocument } from "@/components/worksheet-print-document";
+import { resolveWorksheetPdfImageSources, worksheetPdfFileName } from "@/lib/exercise-lab/worksheet-pdf";
 import { buildWorksheetPrintModel, type WorksheetPrintVariant } from "@/lib/exercise-lab/worksheet-print";
 import type { WorksheetDraft } from "@/lib/exercise-lab/worksheet-draft";
 
 export function WorksheetPrintView({ worksheet, onBack }: { worksheet: WorksheetDraft; onBack: () => void }) {
   const [variant, setVariant] = useState<WorksheetPrintVariant>("patient");
   const model = useMemo(() => buildWorksheetPrintModel(worksheet, variant), [variant, worksheet]);
+  const fileName = useMemo(() => worksheetPdfFileName(), []);
+  const revisionKey = useMemo(() => JSON.stringify({ variant, worksheet }), [variant, worksheet]);
+  const generatePdf = async () => {
+    const imageSources = await resolveWorksheetPdfImageSources(model);
+    const [{ pdf }, { worksheetPdfDocument }] = await Promise.all([import("@react-pdf/renderer"), import("@/components/worksheet-pdf-document")]);
+    return pdf(worksheetPdfDocument(model, imageSources)).toBlob();
+  };
   return <div className="worksheet-print-mode mt-8">
     <div className="worksheet-print-controls mx-auto mb-6 flex max-w-[210mm] flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
       <button type="button" onClick={onBack} className="btn btn-quiet">← Torna all’anteprima</button>
       <div className="inline-flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Versione della scheda"><VariantButton value="patient" current={variant} onChange={setVariant}>Paziente</VariantButton><VariantButton value="therapist" current={variant} onChange={setVariant}>Terapista</VariantButton></div>
       <button type="button" onClick={async () => { await waitForWorksheetPrintImages(); window.print(); }} className="btn btn-primary">Stampa / Salva PDF</button>
     </div>
+    <div className="worksheet-print-controls mx-auto mb-6 max-w-[210mm] rounded-2xl border border-sage-200 bg-sage-50/60 p-4"><p className="font-bold text-sage-900">PDF della scheda</p><p className="mt-1 text-sm text-slate-600">Crea un PDF reale da aprire, condividere o scaricare.</p><GeneratedPdfActions title={`${model.title} - ${variant === "patient" ? "Versione paziente" : "Versione terapista"}`} fileName={fileName} revisionKey={revisionKey} generate={generatePdf}/></div>
     <div className="worksheet-print-sheet mx-auto max-w-[210mm] overflow-hidden bg-white"><WorksheetPrintDocument model={model} /></div>
   </div>;
 }
