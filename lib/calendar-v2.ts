@@ -56,12 +56,20 @@ export function upsertAppointmentService(services: AppointmentService[], service
     : [service, ...services];
 }
 
+export function canDeleteAppointmentLocation(appointments: readonly Appointment[], id: string): boolean {
+  return !appointments.some((item) => item.locationId === id);
+}
+
+export function canDeleteAppointmentService(appointments: readonly Appointment[], id: string): boolean {
+  return !appointments.some((item) => item.serviceId === id);
+}
+
 export function removeAppointmentLocation(
   locations: AppointmentLocation[],
   appointments: Appointment[],
   id: string,
 ): AppointmentLocation[] {
-  if (appointments.some((item) => item.locationId === id)) {
+  if (!canDeleteAppointmentLocation(appointments, id)) {
     throw new Error("Questa sede è già collegata ad alcuni appuntamenti. Puoi disattivarla invece di eliminarla.");
   }
   return locations.filter((item) => item.id !== id);
@@ -72,7 +80,7 @@ export function removeAppointmentService(
   appointments: Appointment[],
   id: string,
 ): AppointmentService[] {
-  if (appointments.some((item) => item.serviceId === id)) {
+  if (!canDeleteAppointmentService(appointments, id)) {
     throw new Error("Questa prestazione è già collegata ad alcuni appuntamenti. Puoi disattivarla invece di eliminarla.");
   }
   return services.filter((item) => item.id !== id);

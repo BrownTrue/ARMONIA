@@ -8,6 +8,7 @@ import { AppointmentDrawer } from "./appointment-drawer";
 import { AppointmentDetailPanel } from "./appointment-detail-panel";
 import { AppointmentCancelDialog } from "./appointment-cancel-dialog";
 import { SessionRegistrationPanel } from "./session-registration-panel";
+import { CalendarSidebarCatalog } from "./calendar-sidebar-catalog";
 import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog";
@@ -144,8 +145,14 @@ import {
   type CalendarV3RecurrenceScope,
   type CalendarV3RecurringMutation,
 } from "@/lib/calendar-v3-lab/recurrence-scope";
-import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
 import { uid, type Appointment } from "@/lib/types";
+import {
+  fixtureLocationFilterKey,
+  fixtureServiceFilterKey,
+  locationFilterKey,
+  serviceFilterKey,
+  type CalendarSidebarMode,
+} from "@/lib/calendar-v3-lab/sidebar-settings";
 import {
   CALENDAR_CREATE_DRAFT_PREVIEW_ID,
   calendarCreateDraftPreview,
@@ -207,6 +214,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const [appointmentActionBusy, setAppointmentActionBusy] = useState<CalendarV3RealAppointmentActionId | null>(null);
   const [appointmentActionError, setAppointmentActionError] = useState("");
   const [panelMode, setPanelMode] = useState<CalendarPanelMode>("closed");
+  const [sidebarMode, setSidebarMode] = useState<CalendarSidebarMode>({ kind: "main" });
   const [createDraft, setCreateDraft] = useState<CalendarAppointmentDraft | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
@@ -238,10 +246,16 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   }), [data.appointments, data.locations, data.patients, data.services, data.sessions]);
   const activeEvents = realMode ? realData.events : state.events;
   const days = useMemo(() => calendarLabVisibleDates(state.view, state.cursorDate), [state.cursorDate, state.view]);
-  const visibleEvents = activeEvents.filter((event) =>
-    !state.hiddenFilters.includes(event.locationName ?? "") &&
-    !state.hiddenFilters.includes(event.serviceName ?? ""),
-  );
+  const visibleEvents = activeEvents.filter((event) => {
+    const locationKey = realMode && event.locationId
+      ? locationFilterKey(event.locationId)
+      : event.locationName ? fixtureLocationFilterKey(event.locationName) : null;
+    const serviceKey = realMode && event.serviceId
+      ? serviceFilterKey(event.serviceId)
+      : event.serviceName ? fixtureServiceFilterKey(event.serviceName) : null;
+    return (!locationKey || !state.hiddenFilters.includes(locationKey)) &&
+      (!serviceKey || !state.hiddenFilters.includes(serviceKey));
+  });
   const createDraftPreview = useMemo(() => panelMode === "appointment-create" && createDraft && state.view !== "month"
     ? calendarCreateDraftPreview({
         draft: createDraft,
@@ -1234,17 +1248,9 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
         <div className={styles.workspace}>
           <aside className={`${styles.sidebar} ${state.sidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`} aria-hidden={!state.sidebarOpen}>
             <div className={styles.sidebarInner}>
-              <MiniCalendar cursorDate={state.cursorDate} visibleDates={days} view={state.view} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} />
-              <FilterSection title="Sedi" items={realMode ? realData.locations.map((location) => ({ label: location.name, color: location.color })) : [
-                { label: "Studio Centro", color: "#8EA6C4" },
-                { label: "Studio Nord", color: "#A88BBC" },
-              ]} hidden={state.hiddenFilters} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
-              <FilterSection title="Prestazioni" items={realMode ? realData.services.map((service) => ({ label: service.name, color: service.color || FALLBACK_APPOINTMENT_COLOR })) : [
-                { label: "Trattamento", color: "#77A886" },
-                { label: "Valutazione", color: "#D99B7B" },
-                { label: "Controllo", color: "#D6A84B" },
-              ]} hidden={state.hiddenFilters} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
-              {!realMode ? <div className={styles.googleStatus}>
+              {sidebarMode.kind === "main" ? <MiniCalendar cursorDate={state.cursorDate} visibleDates={days} view={state.view} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} /> : null}
+              <CalendarSidebarCatalog realMode={realMode} mode={sidebarMode} hidden={state.hiddenFilters} onModeChange={setSidebarMode} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
+              {!realMode && sidebarMode.kind === "main" ? <div className={styles.googleStatus}>
                 <div><span className={styles.googleDot} aria-hidden="true" /><span>Google Calendar</span></div>
                 <span>Collegato</span>
               </div> : null}
@@ -2028,13 +2034,6 @@ function MiniCalendar({ cursorDate, visibleDates, view, today, onSelect }: { cur
       return <button key={date} type="button" onClick={() => onSelect(date)} className={`${outside ? styles.outsideMonth : ""} ${visible ? styles.inWeek : ""} ${(view === "day" || view === "month") && date === cursorDate ? styles.miniSelectedDay : ""} ${date === today ? styles.miniToday : ""}`} aria-label={formatFullDate(date)} aria-current={date === cursorDate ? "date" : undefined}>{Number(date.slice(8))}</button>;
     })}</div>
   </section>;
-}
-
-function FilterSection({ title, items, hidden, onToggle }: { title: string; items: Array<{ label: string; color: string }>; hidden: readonly string[]; onToggle: (label: string) => void }) {
-  return <section className={styles.filterSection}><h2>{title}</h2><div>{items.map((item) => {
-    const active = !hidden.includes(item.label);
-    return <button key={item.label} type="button" aria-pressed={active} onClick={() => onToggle(item.label)}><span style={{ background: active ? item.color : "transparent", borderColor: item.color }} />{item.label}</button>;
-  })}</div></section>;
 }
 
 function formatOccupiedTime(minutes: number) {
