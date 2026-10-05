@@ -319,7 +319,7 @@ function RealAppointmentFields({ draft, errors, patientRef, patients, locations,
         setCustomDurationOpen(!isCalendarLabDurationPreset(next.durationMinutes));
       }}>
         <option value="">Nessuna prestazione</option>
-        {availableServices.map((service) => <option key={service.id} value={service.id}>{service.name}{!service.isActive ? " — Non attiva" : ""}</option>)}
+        {availableServices.map((service) => <option key={service.id} value={service.id}>{service.name}{service.archivedAt ? " — Non più nel catalogo" : !service.isActive ? " — Non attiva" : ""}</option>)}
       </select>
     </Field>
 
@@ -331,7 +331,7 @@ function RealAppointmentFields({ draft, errors, patientRef, patients, locations,
           setDraft(selectCalendarV3RealLocation(draft, location));
         }}>
           <option value="">Nessuna sede</option>
-          {availableLocations.map((location) => <option key={location.id} value={location.id}>{location.name}{!location.isActive ? " — Non attiva" : ""}</option>)}
+          {availableLocations.map((location) => <option key={location.id} value={location.id}>{location.name}{location.archivedAt ? " — Non più nel catalogo" : !location.isActive ? " — Non attiva" : ""}</option>)}
         </select>
       </div>
     </Field>

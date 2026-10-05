@@ -5,10 +5,10 @@ import { useData } from "@/components/data-provider";
 import { DestructiveActionModal } from "@/components/destructive-action-modal";
 import {
   CALENDAR_COLOR_PALETTE,
-  canDeleteAppointmentLocation,
-  canDeleteAppointmentService,
   centsToEuroInput,
   euroInputToCents,
+  getCalendarCatalogLifecycle,
+  type CalendarCatalogLifecycle,
 } from "@/lib/calendar-v2";
 import {
   createCalendarV3Location,
@@ -27,8 +27,8 @@ import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
 import styles from "./calendar-v3-lab.module.css";
 
 type DeleteTarget =
-  | { kind: "location"; item: AppointmentLocation }
-  | { kind: "service"; item: AppointmentService };
+  | { action: "delete" | "archive"; kind: "location"; item: AppointmentLocation }
+  | { action: "delete" | "archive"; kind: "service"; item: AppointmentService };
 
 const fixtureLocations = [
   { id: "fixture-location-centro", name: "Studio Centro", color: "#8EA6C4" },
@@ -51,9 +51,11 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
     data,
     saveAppointmentLocation,
     setAppointmentLocationActive,
+    archiveAppointmentLocation,
     deleteAppointmentLocation,
     saveAppointmentService,
     setAppointmentServiceActive,
+    archiveAppointmentService,
     deleteAppointmentService,
   } = useData();
   const [notice, setNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
@@ -62,11 +64,11 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
   const [deleteError, setDeleteError] = useState("");
 
   const locations = useMemo(
-    () => [...data.locations].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "it")),
+    () => data.locations.filter((item) => !item.archivedAt).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "it")),
     [data.locations],
   );
   const services = useMemo(
-    () => [...data.services].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "it")),
+    () => data.services.filter((item) => !item.archivedAt).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "it")),
     [data.services],
   );
 
@@ -81,20 +83,33 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
     onModeChange({ kind: "service-create", service: createCalendarV3Service({ services, id: uid(), timestamp }) });
   };
   const back = () => onModeChange({ kind: "main" });
+  const locationLifecycle = mode.kind === "location-edit" ? getCalendarCatalogLifecycle({
+    kind: "location", id: mode.location.id, archivedAt: mode.location.archivedAt,
+    appointments: data.appointments, sessions: data.sessions,
+  }) : null;
+  const serviceLifecycle = mode.kind === "service-edit" ? getCalendarCatalogLifecycle({
+    kind: "service", id: mode.service.id, archivedAt: mode.service.archivedAt,
+    appointments: data.appointments, sessions: data.sessions,
+  }) : null;
 
   const confirmDelete = async () => {
     if (!deleteTarget || deleteBusy) return;
     setDeleteBusy(true);
     setDeleteError("");
     try {
-      if (deleteTarget.kind === "location") await deleteAppointmentLocation(deleteTarget.item.id);
+      if (deleteTarget.kind === "location") {
+        if (deleteTarget.action === "archive") await archiveAppointmentLocation(deleteTarget.item.id);
+        else await deleteAppointmentLocation(deleteTarget.item.id);
+      } else if (deleteTarget.action === "archive") await archiveAppointmentService(deleteTarget.item.id);
       else await deleteAppointmentService(deleteTarget.item.id);
-      const label = deleteTarget.kind === "location" ? "Sede eliminata." : "Prestazione eliminata.";
+      const label = deleteTarget.action === "archive"
+        ? `${deleteTarget.kind === "location" ? "Sede rimossa" : "Prestazione rimossa"} dal catalogo.`
+        : deleteTarget.kind === "location" ? "Sede eliminata." : "Prestazione eliminata.";
       setDeleteTarget(null);
       onModeChange({ kind: "main" });
       setNotice({ tone: "success", message: label });
     } catch (cause) {
-      setDeleteError(catalogError(cause, deleteTarget.kind, "delete"));
+      setDeleteError(catalogError(cause, deleteTarget.kind, deleteTarget.action));
     } finally {
       setDeleteBusy(false);
     }
@@ -143,9 +158,10 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       key={`${mode.kind}-${mode.location.id}`}
       location={mode.location}
       isNew={mode.kind === "location-create"}
-      used={mode.kind === "location-edit" && !canDeleteAppointmentLocation(data.appointments, mode.location.id)}
+      lifecycle={locationLifecycle}
       onBack={back}
-      onDelete={mode.kind === "location-edit" && canDeleteAppointmentLocation(data.appointments, mode.location.id) ? (location) => { setDeleteError(""); setDeleteTarget({ kind: "location", item: location }); } : undefined}
+      onDelete={locationLifecycle?.state === "unused" ? (location) => { setDeleteError(""); setDeleteTarget({ action: "delete", kind: "location", item: location }); } : undefined}
+      onArchive={locationLifecycle?.state === "historical_only" ? (location) => { setDeleteError(""); setDeleteTarget({ action: "archive", kind: "location", item: location }); } : undefined}
       onToggleActive={mode.kind === "location-edit" ? async (location, isActive) => setAppointmentLocationActive(location.id, isActive) : undefined}
       onSave={async (location) => {
         await saveAppointmentLocation(location);
@@ -156,9 +172,10 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       key={`${mode.kind}-${mode.service.id}`}
       service={mode.service}
       isNew={mode.kind === "service-create"}
-      used={mode.kind === "service-edit" && !canDeleteAppointmentService(data.appointments, mode.service.id)}
+      lifecycle={serviceLifecycle}
       onBack={back}
-      onDelete={mode.kind === "service-edit" && canDeleteAppointmentService(data.appointments, mode.service.id) ? (service) => { setDeleteError(""); setDeleteTarget({ kind: "service", item: service }); } : undefined}
+      onDelete={serviceLifecycle?.state === "unused" ? (service) => { setDeleteError(""); setDeleteTarget({ action: "delete", kind: "service", item: service }); } : undefined}
+      onArchive={serviceLifecycle?.state === "historical_only" ? (service) => { setDeleteError(""); setDeleteTarget({ action: "archive", kind: "service", item: service }); } : undefined}
       onToggleActive={mode.kind === "service-edit" ? async (service, isActive) => setAppointmentServiceActive(service.id, isActive) : undefined}
       onSave={async (service) => {
         await saveAppointmentService(service);
@@ -167,9 +184,13 @@ export function CalendarSidebarCatalog({ realMode, mode, hidden, onModeChange, o
       }}
     />}
     {deleteTarget ? <DestructiveActionModal
-      title={deleteTarget.kind === "location" ? "Eliminare questa sede?" : "Eliminare questa prestazione?"}
-      description={`La rimozione di ${deleteTarget.kind === "location" ? "questa sede" : "questa prestazione"} è definitiva. Gli appuntamenti esistenti non risultano collegati a “${deleteTarget.item.name}”.`}
-      confirmLabel="Elimina definitivamente"
+      title={deleteTarget.action === "archive"
+        ? `Rimuovere ${deleteTarget.kind === "location" ? "la sede" : "la prestazione"} dal catalogo?`
+        : deleteTarget.kind === "location" ? "Eliminare questa sede?" : "Eliminare questa prestazione?"}
+      description={deleteTarget.action === "archive"
+        ? `“${deleteTarget.item.name}” non sarà più disponibile nel catalogo operativo. Gli appuntamenti storici manterranno nome e colore.`
+        : `La rimozione di ${deleteTarget.kind === "location" ? "questa sede" : "questa prestazione"} è definitiva. Nessun appuntamento risulta collegato a “${deleteTarget.item.name}”.`}
+      confirmLabel={deleteTarget.action === "archive" ? "Rimuovi dal catalogo" : "Elimina definitivamente"}
       busy={deleteBusy}
       error={deleteError || undefined}
       onClose={() => { if (!deleteBusy) { setDeleteTarget(null); setDeleteError(""); } }}
@@ -206,13 +227,14 @@ function CatalogSection({ title, items, canConfigure, hidden, onToggle, onCreate
   </section>;
 }
 
-function LocationInspector({ location, isNew, used, onBack, onSave, onDelete, onToggleActive }: {
+function LocationInspector({ location, isNew, lifecycle, onBack, onSave, onDelete, onArchive, onToggleActive }: {
   location: AppointmentLocation;
   isNew: boolean;
-  used: boolean;
+  lifecycle: CalendarCatalogLifecycle | null;
   onBack: () => void;
   onSave: (location: AppointmentLocation) => Promise<void>;
   onDelete?: (location: AppointmentLocation) => void;
+  onArchive?: (location: AppointmentLocation) => void;
   onToggleActive?: (location: AppointmentLocation, isActive: boolean) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(location);
@@ -253,20 +275,21 @@ function LocationInspector({ location, isNew, used, onBack, onSave, onDelete, on
       <SidebarField label="Indirizzo"><input maxLength={160} value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} /></SidebarField>
       <SidebarField label="Città"><input maxLength={120} value={draft.city} onChange={(event) => setDraft({ ...draft, city: event.target.value })} /></SidebarField>
       <ColorPicker value={draft.color} onChange={(color) => setDraft({ ...draft, color: color ?? draft.color })} />
-      {isNew ? <ActiveControl active={draft.isActive} onChange={(isActive) => setDraft({ ...draft, isActive })} noun="sede" /> : <CatalogLifecycleActions kind="location" active={draft.isActive} used={used} busy={Boolean(busyAction)} toggling={busyAction === "toggle"} onToggle={() => void toggleActive()} onDelete={onDelete ? () => onDelete(draft) : undefined} />}
+      {isNew ? <ActiveControl active={draft.isActive} onChange={(isActive) => setDraft({ ...draft, isActive })} noun="sede" /> : lifecycle ? <CatalogLifecycleActions kind="location" active={draft.isActive} lifecycle={lifecycle} busy={Boolean(busyAction)} toggling={busyAction === "toggle"} onToggle={() => void toggleActive()} onDelete={onDelete ? () => onDelete(draft) : undefined} onArchive={onArchive ? () => onArchive(draft) : undefined} /> : null}
       {serverError ? <p className={styles.catalogFormError} role="alert">{serverError}</p> : null}
       <InspectorActions busy={Boolean(busyAction)} saving={busyAction === "save"} saveLabel={isNew ? "Crea sede" : "Salva modifiche"} />
     </form>
   </SidebarInspector>;
 }
 
-function ServiceInspector({ service, isNew, used, onBack, onSave, onDelete, onToggleActive }: {
+function ServiceInspector({ service, isNew, lifecycle, onBack, onSave, onDelete, onArchive, onToggleActive }: {
   service: AppointmentService;
   isNew: boolean;
-  used: boolean;
+  lifecycle: CalendarCatalogLifecycle | null;
   onBack: () => void;
   onSave: (service: AppointmentService) => Promise<void>;
   onDelete?: (service: AppointmentService) => void;
+  onArchive?: (service: AppointmentService) => void;
   onToggleActive?: (service: AppointmentService, isActive: boolean) => Promise<void>;
 }) {
   const [name, setName] = useState(service.name);
@@ -314,7 +337,7 @@ function ServiceInspector({ service, isNew, used, onBack, onSave, onDelete, onTo
       <SidebarField label="Prezzo predefinito" error={errors.price}><div className={styles.catalogInputSuffix}><input name="price" inputMode="decimal" placeholder="Non specificato" value={price} aria-invalid={Boolean(errors.price)} onChange={(event) => { setPrice(event.target.value); setErrors(withoutField(errors, "price")); }} /><span>€</span></div></SidebarField>
       <p className={styles.catalogHint}>Vuoto = non specificato · 0 = gratuito</p>
       <ColorPicker value={color} optional onChange={setColor} />
-      {isNew ? <ActiveControl active={isActive} onChange={setIsActive} noun="prestazione" /> : <CatalogLifecycleActions kind="service" active={isActive} used={used} busy={Boolean(busyAction)} toggling={busyAction === "toggle"} onToggle={() => void toggleActive()} onDelete={onDelete ? () => onDelete({ ...service, name, description, defaultDurationMinutes: Number(duration) || service.defaultDurationMinutes, defaultPriceCents: service.defaultPriceCents, color, isActive }) : undefined} />}
+      {isNew ? <ActiveControl active={isActive} onChange={setIsActive} noun="prestazione" /> : lifecycle ? <CatalogLifecycleActions kind="service" active={isActive} lifecycle={lifecycle} busy={Boolean(busyAction)} toggling={busyAction === "toggle"} onToggle={() => void toggleActive()} onDelete={onDelete ? () => onDelete({ ...service, name, description, defaultDurationMinutes: Number(duration) || service.defaultDurationMinutes, defaultPriceCents: service.defaultPriceCents, color, isActive }) : undefined} onArchive={onArchive ? () => onArchive(service) : undefined} /> : null}
       {serverError ? <p className={styles.catalogFormError} role="alert">{serverError}</p> : null}
       <InspectorActions busy={Boolean(busyAction)} saving={busyAction === "save"} saveLabel={isNew ? "Crea prestazione" : "Salva modifiche"} />
     </form>
@@ -343,22 +366,25 @@ function ActiveControl({ active, noun, onChange }: { active: boolean; noun: stri
   return <label className={styles.catalogActive}><input type="checkbox" checked={active} onChange={(event) => onChange(event.target.checked)} /><span>{noun === "sede" ? "Sede attiva" : "Prestazione attiva"}</span></label>;
 }
 
-function CatalogLifecycleActions({ kind, active, used, busy, toggling, onToggle, onDelete }: {
+function CatalogLifecycleActions({ kind, active, lifecycle, busy, toggling, onToggle, onDelete, onArchive }: {
   kind: "location" | "service";
   active: boolean;
-  used: boolean;
+  lifecycle: CalendarCatalogLifecycle;
   busy: boolean;
   toggling: boolean;
   onToggle: () => void;
   onDelete?: () => void;
+  onArchive?: () => void;
 }) {
   const noun = kind === "location" ? "sede" : "prestazione";
-  const management = calendarCatalogManagement({ kind, active, canDelete: !used });
+  const management = calendarCatalogManagement({ kind, active, lifecycle: lifecycle.state });
   return <section className={styles.catalogLifecycle} aria-label={`Gestione ${noun}`}>
-    {used ? <p>Questa {noun} è utilizzata da appuntamenti esistenti e non può essere eliminata. Puoi {active ? "disattivarla" : "riattivarla"} senza modificare lo storico.</p> : null}
+    {lifecycle.state === "historical_only" ? <p>Questa {noun} è usata soltanto nello storico. Puoi rimuoverla dal catalogo senza alterare gli appuntamenti esistenti.</p> : null}
+    {lifecycle.state === "operationally_used" ? <p>Questa {noun} è utilizzata da {lifecycle.blockingAppointmentCount} {lifecycle.blockingAppointmentCount === 1 ? "appuntamento futuro o ancora da registrare" : "appuntamenti futuri o ancora da registrare"}. Modifica prima gli appuntamenti oppure disattiva la {noun}.</p> : null}
     <div>
       <button type="button" disabled={busy} aria-busy={toggling} onClick={onToggle}>{toggling ? "Aggiornamento…" : management.toggleLabel}</button>
       {management.deleteLabel && onDelete ? <button type="button" className={styles.catalogDelete} disabled={busy} onClick={onDelete}>{management.deleteLabel}</button> : null}
+      {management.archiveLabel && onArchive ? <button type="button" className={styles.catalogDelete} disabled={busy} onClick={onArchive}>{management.archiveLabel}</button> : null}
     </div>
   </section>;
 }
@@ -379,14 +405,22 @@ function withoutField(errors: FieldErrors, field: string): FieldErrors {
   return next;
 }
 
-function catalogError(cause: unknown, kind: "location" | "service", action: "save" | "delete" | "toggle") {
-  const message = cause instanceof Error ? cause.message : "";
+function catalogError(cause: unknown, kind: "location" | "service", action: "save" | "delete" | "archive" | "toggle") {
+  const message = cause instanceof Error
+    ? cause.message
+    : cause && typeof cause === "object" && "message" in cause && typeof cause.message === "string"
+      ? cause.message
+      : "";
   if (action === "delete" && (/collegat|disattiv/i.test(message) || /23503|foreign key/i.test(message))) {
     return kind === "location"
       ? "Questa sede è collegata ad appuntamenti. Disattivala per conservarne lo storico."
       : "Questa prestazione è collegata ad appuntamenti. Disattivala per conservarne lo storico.";
   }
   if (action === "delete") return `Non è stato possibile eliminare ${kind === "location" ? "la sede" : "la prestazione"}. Riprova.`;
+  if (action === "archive") {
+    if (/calendar_catalog_archive_blocked/.test(message)) return `Questa ${kind === "location" ? "sede" : "prestazione"} è ora usata da appuntamenti futuri o ancora da registrare. Modifica prima quegli appuntamenti oppure disattivala.`;
+    return `Non è stato possibile rimuovere ${kind === "location" ? "la sede" : "la prestazione"} dal catalogo. Riprova.`;
+  }
   if (action === "toggle") return `Non è stato possibile aggiornare lo stato ${kind === "location" ? "della sede" : "della prestazione"}. Riprova.`;
   return `Non è stato possibile salvare ${kind === "location" ? "la sede" : "la prestazione"}. Controlla i dati e riprova.`;
 }

@@ -1,4 +1,5 @@
 import { nextCalendarColor } from "../calendar-v2.ts";
+import type { CalendarCatalogLifecycleState } from "../calendar-v2.ts";
 import type { AppointmentLocation, AppointmentService } from "../types.ts";
 
 export type CalendarSidebarMode =
@@ -16,13 +17,14 @@ export const fixtureServiceFilterKey = (name: string) => `fixture-service:${name
 export function calendarCatalogManagement(input: {
   kind: "location" | "service";
   active: boolean;
-  canDelete: boolean;
+  lifecycle: CalendarCatalogLifecycleState;
 }) {
   const noun = input.kind === "location" ? "sede" : "prestazione";
   return {
-    used: !input.canDelete,
+    used: input.lifecycle !== "unused",
     toggleLabel: `${input.active ? "Disattiva" : "Riattiva"} ${noun}`,
-    deleteLabel: input.canDelete ? "Elimina definitivamente" : null,
+    deleteLabel: input.lifecycle === "unused" ? "Elimina definitivamente" : null,
+    archiveLabel: input.lifecycle === "historical_only" ? "Rimuovi dal catalogo" : null,
   } as const;
 }
 

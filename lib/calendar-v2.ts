@@ -1,4 +1,4 @@
-import type { Appointment, AppointmentLocation, AppointmentService } from "./types";
+import type { Appointment, AppointmentLocation, AppointmentService, Session } from "./types";
 
 export const CALENDAR_COLOR_PALETTE = [
   { name: "Salvia", hex: "#77A886" },
@@ -64,6 +64,107 @@ export function canDeleteAppointmentService(appointments: readonly Appointment[]
   return !appointments.some((item) => item.serviceId === id);
 }
 
+export type CalendarCatalogLifecycleState = "unused" | "historical_only" | "operationally_used" | "archived";
+
+export type CalendarCatalogLifecycle = {
+  state: CalendarCatalogLifecycleState;
+  appointmentCount: number;
+  blockingAppointmentCount: number;
+};
+
+export function calendarRomeDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+export function isCalendarCatalogAppointmentBlocking(
+  appointment: Appointment,
+  sessions: readonly Session[],
+  currentRomeDate: string,
+): boolean {
+  if (appointment.type === "cancelled") return false;
+  const hasSession = sessions.some((session) => session.appointmentId === appointment.id);
+  return appointment.date >= currentRomeDate || !hasSession;
+}
+
+export function getCalendarCatalogLifecycle(input: {
+  kind: "location" | "service";
+  id: string;
+  archivedAt?: string;
+  appointments: readonly Appointment[];
+  sessions: readonly Session[];
+  currentRomeDate?: string;
+}): CalendarCatalogLifecycle {
+  const references = input.appointments.filter((appointment) =>
+    input.kind === "location" ? appointment.locationId === input.id : appointment.serviceId === input.id);
+  const blockingAppointmentCount = references.filter((appointment) =>
+    isCalendarCatalogAppointmentBlocking(appointment, input.sessions, input.currentRomeDate ?? calendarRomeDate())).length;
+  return {
+    state: input.archivedAt
+      ? "archived"
+      : references.length === 0
+        ? "unused"
+        : blockingAppointmentCount > 0
+          ? "operationally_used"
+          : "historical_only",
+    appointmentCount: references.length,
+    blockingAppointmentCount,
+  };
+}
+
+function archiveCatalogItem<T extends { id: string; archivedAt?: string; isActive: boolean; updatedAt: string }>(
+  items: T[],
+  item: T,
+  lifecycle: CalendarCatalogLifecycle,
+  archivedAt: string,
+): T[] {
+  if (lifecycle.state === "operationally_used") {
+    throw new Error(`calendar_catalog_archive_blocked:${lifecycle.blockingAppointmentCount}`);
+  }
+  if (lifecycle.state !== "historical_only") {
+    throw new Error("calendar_catalog_archive_not_historical");
+  }
+  return items.map((current) => current.id === item.id
+    ? { ...current, archivedAt, isActive: false, updatedAt: archivedAt }
+    : current);
+}
+
+export function archiveAppointmentLocation(
+  locations: AppointmentLocation[],
+  appointments: readonly Appointment[],
+  sessions: readonly Session[],
+  id: string,
+  archivedAt: string,
+  currentRomeDate = calendarRomeDate(),
+): AppointmentLocation[] {
+  const location = locations.find((item) => item.id === id);
+  if (!location) throw new Error("Sede non trovata.");
+  return archiveCatalogItem(locations, location, getCalendarCatalogLifecycle({
+    kind: "location", id, archivedAt: location.archivedAt, appointments, sessions, currentRomeDate,
+  }), archivedAt);
+}
+
+export function archiveAppointmentService(
+  services: AppointmentService[],
+  appointments: readonly Appointment[],
+  sessions: readonly Session[],
+  id: string,
+  archivedAt: string,
+  currentRomeDate = calendarRomeDate(),
+): AppointmentService[] {
+  const service = services.find((item) => item.id === id);
+  if (!service) throw new Error("Prestazione non trovata.");
+  return archiveCatalogItem(services, service, getCalendarCatalogLifecycle({
+    kind: "service", id, archivedAt: service.archivedAt, appointments, sessions, currentRomeDate,
+  }), archivedAt);
+}
+
 export function removeAppointmentLocation(
   locations: AppointmentLocation[],
   appointments: Appointment[],
@@ -112,11 +213,15 @@ export function withAppointmentService(appointment: Appointment, service: Appoin
 }
 
 export function selectableAppointmentLocations(locations: AppointmentLocation[], currentId?: string): AppointmentLocation[] {
-  return locations.filter((location) => location.isActive || location.id === currentId);
+  return locations.filter((location) => !location.archivedAt
+    ? location.isActive || location.id === currentId
+    : location.id === currentId);
 }
 
 export function selectableAppointmentServices(services: AppointmentService[], currentId?: string): AppointmentService[] {
-  return services.filter((service) => service.isActive || service.id === currentId);
+  return services.filter((service) => !service.archivedAt
+    ? service.isActive || service.id === currentId
+    : service.id === currentId);
 }
 
 export function buildWeeklyAppointmentOccurrences(

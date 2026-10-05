@@ -27,7 +27,7 @@ function humanLocationError(cause: unknown, action: "save" | "delete") {
 
 export function LocationsSettings() {
   const { data, saveAppointmentLocation, setAppointmentLocationActive, deleteAppointmentLocation } = useData();
-  const locations = useMemo(() => sortLocations(data.locations), [data.locations]);
+  const locations = useMemo(() => sortLocations(data.locations.filter((item) => !item.archivedAt)), [data.locations]);
   const [editing, setEditing] = useState<AppointmentLocation | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
