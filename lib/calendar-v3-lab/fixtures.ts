@@ -5,6 +5,9 @@ export type CalendarLabSessionState = "registered" | "to_register";
 
 export type CalendarLabEvent = {
   id: string;
+  source?: "fixture" | "real";
+  appointmentId?: string;
+  patientId?: string;
   patientName: string;
   date: CalendarDate;
   startMinutes: number;
@@ -15,6 +18,15 @@ export type CalendarLabEvent = {
   serviceColor?: string;
   locationName?: string;
   locationColor?: string;
+  appointmentType?: "regular" | "assessment" | "checkup" | "cancelled";
+  notes?: string;
+  locationId?: string;
+  serviceId?: string;
+  effectivePriceCents?: number;
+  recurrenceSeriesId?: string;
+  isRecurring?: boolean;
+  createdAt?: string;
+  displayColor?: string;
 };
 
 export const CALENDAR_LAB_WEEK: CalendarDate = "2026-10-05";
@@ -32,6 +44,7 @@ export const CALENDAR_LAB_EVENTS: readonly CalendarLabEvent[] = Object.freeze([
 const HEX_COLOR = /^#[0-9A-F]{6}$/i;
 
 export function calendarLabEventColor(event: CalendarLabEvent): string {
+  if (event.displayColor && HEX_COLOR.test(event.displayColor)) return event.displayColor;
   if (event.status === "cancelled") return "#9CA3AF";
   if (event.serviceColor && HEX_COLOR.test(event.serviceColor)) return event.serviceColor;
   if (event.locationColor && HEX_COLOR.test(event.locationColor)) return event.locationColor;

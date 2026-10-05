@@ -7,6 +7,8 @@
 .iconButton, .textButton, .viewButton { min-width: 42px; height: 42px; border: 0; border-radius: 10px; background: transparent; color: #627168; display: inline-flex; align-items: center; justify-content: center; transition: background .16s ease, color .16s ease, transform .16s ease; }
 .iconButton:hover, .textButton:hover, .viewButton:hover { background: #f0f3ef; color: #29372f; }
 .iconButton:active, .textButton:active, .viewButton:active { transform: scale(.97); }
+.iconButton:disabled { color: #adb5b0; cursor: not-allowed; }
+.iconButton:disabled:hover { background: transparent; }
 .iconButton:focus-visible, .textButton:focus-visible, .viewButton:focus-visible, .event:focus-visible, .miniDays button:focus-visible, .filterSection button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 2px; }
 .iconButton svg, .viewButton svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .textButton { padding: 0 11px; font-size: 13px; font-weight: 600; }
@@ -51,6 +53,10 @@
 .calendarPane { --calendar-time-gutter: 58px; --calendar-day-columns: repeat(7, minmax(88px, 1fr)); --calendar-grid-template: var(--calendar-time-gutter) var(--calendar-day-columns); --calendar-week-header-height: 62px; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; }
 .calendarPaneDay { --calendar-day-columns: minmax(0, 1fr); --calendar-week-header-height: 72px; }
 .calendarPaneMonth { min-height: 0; }
+.calendarPaneReadOnly .dayColumn, .calendarPaneReadOnly .monthDayCreate { cursor: default; }
+.calendarPaneReadOnly .monthDayCreate:hover { background: transparent; }
+.readOnlyNotice { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-bottom: 1px solid #dfe7e0; background: #f4f8f4; padding: 6px 16px; color: #5a695f; font-size: 11px; }
+.readOnlyNotice strong { color: #3f5949; }
 .weekHeader { position: sticky; top: 0; height: var(--calendar-week-header-height); display: grid; grid-template-columns: var(--calendar-grid-template); min-width: 720px; background: rgba(255,255,255,.97); border-bottom: 1px solid #e8ece8; z-index: 20; }
 .gutterHeader { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 9px; color: #a0aaa3; font-size: 9px; letter-spacing: .06em; }
 .dayHeader { border-left: 1px solid #f0f2f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #89948d; }
@@ -203,6 +209,11 @@
 .drawerHeader > button:hover { background: #eef2ee; color: #2e3d34; }
 .drawerForm { min-height: 0; flex: 1; display: flex; flex-direction: column; }
 .drawerBody { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 22px 24px 32px; scrollbar-width: thin; }
+.readOnlyDetails { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; margin: 0; }
+.readOnlyDetails > div { min-width: 0; padding-bottom: 13px; border-bottom: 1px solid #e7ece7; }
+.readOnlyDetails dt { margin: 0 0 5px; color: #77837b; font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.readOnlyDetails dd { margin: 0; overflow-wrap: anywhere; color: #334139; font-size: 13px; line-height: 1.45; }
+.readOnlyDetails .readOnlyDetailWide { grid-column: 1 / -1; }
 .appointmentState { width: fit-content; margin: 0 0 18px; padding: 6px 9px; border-radius: 8px; background: #e7f0e9; color: #416c55; font-size: 12px; font-weight: 700; }
 .appointmentCancelled { background: #eef0ef; color: #737b76; }
 .drawerField { display: grid; gap: 7px; margin-bottom: 18px; }

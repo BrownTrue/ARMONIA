@@ -14,12 +14,13 @@ import styles from "./calendar-v3-lab.module.css";
 type CommandPaletteProps = {
   origin: HTMLElement;
   activeView: CalendarLabView;
+  disabledCommands?: readonly CalendarCommandId[];
   onCommand: (command: Exclude<CalendarCommandId, "go_to_date">) => void;
   onGoToDate: (date: CalendarDate) => void;
   onClose: () => void;
 };
 
-export function CommandPalette({ origin, activeView, onCommand, onGoToDate, onClose }: CommandPaletteProps) {
+export function CommandPalette({ origin, activeView, disabledCommands = [], onCommand, onGoToDate, onClose }: CommandPaletteProps) {
   const titleId = useId();
   const listId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -28,7 +29,11 @@ export function CommandPalette({ origin, activeView, onCommand, onGoToDate, onCl
   const [mode, setMode] = useState<"commands" | "date">("commands");
   const [query, setQuery] = useState("");
   const [date, setDate] = useState("");
-  const commands = useMemo(() => filterCalendarCommands(query, activeView), [activeView, query]);
+  const commands = useMemo(() => filterCalendarCommands(query, activeView).map((command) =>
+    disabledCommands.includes(command.id)
+      ? { ...command, enabled: false, badge: "Sola lettura" }
+      : command,
+  ), [activeView, disabledCommands, query]);
   const [activeIndex, setActiveIndex] = useState(() => commands.findIndex((command) => command.enabled));
 
   useEffect(() => {

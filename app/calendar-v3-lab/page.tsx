@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function CalendarV3LabPage() {
-  return <CalendarLab />;
+export default async function CalendarV3LabPage({ searchParams }: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
+  const { mode } = await searchParams;
+  return <CalendarLab dataMode={mode === "real" ? "real" : "fixture"} />;
 }

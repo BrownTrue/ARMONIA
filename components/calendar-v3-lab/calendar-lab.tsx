@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import styles from "./calendar-v3-lab.module.css";
+import { useData } from "@/components/data-provider";
 import { AppointmentDrawer } from "./appointment-drawer";
 import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
@@ -102,6 +103,8 @@ import {
   moveCalendarMonthEvent,
   type CalendarMonthEventMoveState,
 } from "@/lib/calendar-v3-lab/month-event-move";
+import { adaptCalendarV3RealData } from "@/lib/calendar-v3-lab/real-data-adapter";
+import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -113,7 +116,9 @@ type CalendarContextMenuState =
   | { kind: "empty"; anchorPoint: { x: number; y: number }; origin: HTMLElement; selection: CalendarSelection }
   | { kind: "event"; anchorPoint: { x: number; y: number }; origin: HTMLElement; eventId: string };
 
-export function CalendarLab() {
+export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "real" }) {
+  const { data, ready } = useData();
+  const readOnly = dataMode === "real";
   const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
   const scrollRef = useRef<HTMLDivElement>(null);
   const weekHeaderRef = useRef<HTMLDivElement>(null);
@@ -143,8 +148,17 @@ export function CalendarLab() {
   const resizePointerClientYRef = useRef(0);
   const suppressNextClickRef = useRef(false);
   const suppressNextEventClickRef = useRef(false);
+  const realModeInitializedRef = useRef(false);
+  const realData = useMemo(() => adaptCalendarV3RealData({
+    appointments: data.appointments,
+    patients: data.patients,
+    locations: data.locations,
+    services: data.services,
+    sessions: data.sessions,
+  }), [data.appointments, data.locations, data.patients, data.services, data.sessions]);
+  const activeEvents = readOnly ? realData.events : state.events;
   const days = useMemo(() => calendarLabVisibleDates(state.view, state.cursorDate), [state.cursorDate, state.view]);
-  const visibleEvents = state.events.filter((event) =>
+  const visibleEvents = activeEvents.filter((event) =>
     !state.hiddenFilters.includes(event.locationName ?? "") &&
     !state.hiddenFilters.includes(event.serviceName ?? ""),
   );
@@ -155,15 +169,25 @@ export function CalendarLab() {
     () => calendarLabDaySummary(visibleEvents, state.cursorDate),
     [state.cursorDate, visibleEvents],
   );
-  const labToday = calendarDateFromInstant(LAB_NOW);
-  const labNowMinutes = timeToMinutes(calendarTimeFromInstant(LAB_NOW));
+  const labNow = useMemo(() => readOnly ? new Date() : LAB_NOW, [readOnly]);
+  const labToday = calendarDateFromInstant(labNow);
+  const labNowMinutes = timeToMinutes(calendarTimeFromInstant(labNow));
   const currentDayIndex = days.indexOf(labToday);
-  const selectedEvent = state.events.find((event) => event.id === state.selectedEventId);
+  const selectedEvent = activeEvents.find((event) => event.id === state.selectedEventId);
   const drawerDraft = selectedEvent
     ? appointmentDraftFromEvent(selectedEvent)
     : state.selection
       ? createAppointmentDraft(state.selection)
       : null;
+  const contextEvent = contextMenu?.kind === "event"
+    ? activeEvents.find((event) => event.id === contextMenu.eventId)
+    : undefined;
+
+  useEffect(() => {
+    if (!readOnly || !ready || realModeInitializedRef.current) return;
+    realModeInitializedRef.current = true;
+    dispatch({ type: "set_cursor_date", date: calendarDateFromInstant(new Date()) });
+  }, [readOnly, ready]);
 
   const goToToday = () => {
     setContextMenu(null);
@@ -172,12 +196,14 @@ export function CalendarLab() {
   };
 
   const openDefaultCreate = (origin: HTMLElement) => {
+    if (readOnly) return;
     setContextMenu(null);
     setCommandPaletteOrigin(null);
     openCreate(normalizeCalendarSelection(state.cursorDate, 9 * 60, 9 * 60 + 45), origin);
   };
 
   const openMonthCreate = (date: CalendarDate, origin: HTMLElement) => {
+    if (readOnly) return;
     setExpandedMonthDate(null);
     dispatch({ type: "set_cursor_date", date });
     openCreate(normalizeCalendarSelection(date, 9 * 60, 9 * 60 + 45), origin);
@@ -190,12 +216,12 @@ export function CalendarLab() {
 
   useEffect(() => {
     if (state.view === "month") return;
-    const initialMinute = getInitialScrollMinute(days, LAB_NOW);
+    const initialMinute = getInitialScrollMinute(days, labNow);
     const weekHeaderHeight = weekHeaderRef.current?.getBoundingClientRect().height ?? 0;
     scrollRef.current?.scrollTo({
       top: Math.max(0, weekHeaderHeight + (initialMinute - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE),
     });
-  }, [days, state.view]);
+  }, [days, labNow, state.view]);
 
   useEffect(() => {
     const cancelDrag = (event: KeyboardEvent) => {
@@ -356,7 +382,7 @@ export function CalendarLab() {
       if (key === "t") {
         event.preventDefault();
         goToToday();
-      } else if (key === "c") {
+      } else if (key === "c" && !readOnly) {
         event.preventDefault();
         const origin = document.activeElement instanceof HTMLElement ? document.activeElement : commandButtonRef.current;
         if (origin) openDefaultCreate(origin);
@@ -371,6 +397,7 @@ export function CalendarLab() {
   };
 
   const openCreate = (selection: CalendarSelection, origin: HTMLElement) => {
+    if (readOnly) return;
     returnFocusRef.current = origin;
     dispatch({ type: "select_event", eventId: null });
     dispatch({ type: "set_selection", selection });
@@ -392,7 +419,7 @@ export function CalendarLab() {
   };
 
   const beginEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
-    if (drawerDraft || eventResizeRef.current.status !== "idle") return;
+    if (readOnly || drawerDraft || eventResizeRef.current.status !== "idle") return;
     const target = eventMoveTarget(pointerEvent.clientX, pointerEvent.clientY);
     if (!target) return;
     const next = beginCalendarEventMove({
@@ -478,7 +505,7 @@ export function CalendarLab() {
   };
 
   const beginMonthEventMove = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
-    if (drawerDraft || eventResizeRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
+    if (readOnly || drawerDraft || eventResizeRef.current.status !== "idle" || eventMoveRef.current.status !== "idle") return;
     const next = beginCalendarMonthEventMove({
       event,
       pointerId: pointerEvent.pointerId,
@@ -557,7 +584,7 @@ export function CalendarLab() {
   };
 
   const beginEventResize = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
-    if (drawerDraft || eventMoveRef.current.status !== "idle" || dragSelectionRef.current.status !== "idle") return;
+    if (readOnly || drawerDraft || eventMoveRef.current.status !== "idle" || dragSelectionRef.current.status !== "idle") return;
     const next = beginCalendarEventResize({
       event,
       pointerId: pointerEvent.pointerId,
@@ -640,6 +667,7 @@ export function CalendarLab() {
   };
 
   const saveAppointment = (draft: CalendarAppointmentDraft) => {
+    if (readOnly) return;
     if (!days.includes(draft.date as CalendarDate)) {
       dispatch({ type: "set_cursor_date", date: draft.date as CalendarDate });
     }
@@ -663,10 +691,12 @@ export function CalendarLab() {
       return;
     }
 
-    const event = state.events.find((item) => item.id === currentMenu.eventId);
+    const event = activeEvents.find((item) => item.id === currentMenu.eventId);
     if (!event) return;
     if (action === "open") {
       openEdit(event.id, currentMenu.origin);
+    } else if (readOnly) {
+      return;
     } else if (action === "register_session" && event.status !== "cancelled") {
       dispatch({ type: "update_event", event: { ...event, sessionState: "registered" } });
     } else if (action === "duplicate") {
@@ -710,7 +740,7 @@ export function CalendarLab() {
               onClick={() => dispatch({ type: "set_sidebar_open", open: !state.sidebarOpen })}
             ><SidebarIcon /></IconButton>
             <IconButton buttonRef={commandButtonRef} label="Cerca o esegui un comando, ⌘K o Ctrl+K" onClick={(event) => openCommandPalette(event.currentTarget)}><SearchIcon /></IconButton>
-            <IconButton label="Nuovo appuntamento" onClick={(event) => openDefaultCreate(event.currentTarget)}><ComposeIcon /></IconButton>
+            <IconButton label={readOnly ? "Nuovo appuntamento non disponibile in modalità sola lettura" : "Nuovo appuntamento"} disabled={readOnly} onClick={(event) => openDefaultCreate(event.currentTarget)}><ComposeIcon /></IconButton>
           </div>
 
           <p className={styles.periodLabel} aria-live="polite">{periodLabel}</p>
@@ -735,28 +765,34 @@ export function CalendarLab() {
           </div>
         </header>
 
+        {readOnly ? <div className={styles.readOnlyNotice} role="status">
+          <strong>Dati reali · sola lettura</strong>
+          <span>In questa fase puoi consultare e filtrare gli appuntamenti, senza modificarli.</span>
+        </div> : null}
+
         <div className={styles.workspace}>
           <aside className={`${styles.sidebar} ${state.sidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`} aria-hidden={!state.sidebarOpen}>
             <div className={styles.sidebarInner}>
               <MiniCalendar cursorDate={state.cursorDate} visibleDates={days} view={state.view} today={labToday} onSelect={(date) => dispatch({ type: "set_cursor_date", date })} />
-              <FilterSection title="Sedi" items={[
+              <FilterSection title="Sedi" items={readOnly ? realData.locations.map((location) => ({ label: location.name, color: location.color })) : [
                 { label: "Studio Centro", color: "#8EA6C4" },
                 { label: "Studio Nord", color: "#A88BBC" },
               ]} hidden={state.hiddenFilters} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
-              <FilterSection title="Prestazioni" items={[
+              <FilterSection title="Prestazioni" items={readOnly ? realData.services.map((service) => ({ label: service.name, color: service.color || FALLBACK_APPOINTMENT_COLOR })) : [
                 { label: "Trattamento", color: "#77A886" },
                 { label: "Valutazione", color: "#D99B7B" },
                 { label: "Controllo", color: "#D6A84B" },
               ]} hidden={state.hiddenFilters} onToggle={(filter) => dispatch({ type: "toggle_filter", filter })} />
-              <div className={styles.googleStatus}>
+              {!readOnly ? <div className={styles.googleStatus}>
                 <div><span className={styles.googleDot} aria-hidden="true" /><span>Google Calendar</span></div>
                 <span>Collegato</span>
-              </div>
+              </div> : null}
             </div>
           </aside>
 
-          <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""} ${state.view === "month" ? styles.calendarPaneMonth : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : state.view === "month" ? "mensile" : "settimanale"}, ${periodLabel}`}>
+          <section className={`${styles.calendarPane} ${state.view === "day" ? styles.calendarPaneDay : ""} ${state.view === "month" ? styles.calendarPaneMonth : ""} ${readOnly ? styles.calendarPaneReadOnly : ""}`} aria-label={`Calendario ${state.view === "day" ? "giornaliero" : state.view === "month" ? "mensile" : "settimanale"}, ${periodLabel}`}>
             {state.view === "month" ? <MonthCalendar
+              interactive={!readOnly}
               containerRef={scrollRef}
               gridRef={monthGridRef}
               days={days}
@@ -765,7 +801,12 @@ export function CalendarLab() {
               eventsByDate={monthEventsByDate}
               expandedDate={expandedMonthDate}
               movingEvent={monthEventMove}
-              onCreate={openMonthCreate}
+              onCreate={readOnly
+                ? (date) => {
+                    dispatch({ type: "set_cursor_date", date });
+                    dispatch({ type: "set_view", view: "day" });
+                  }
+                : openMonthCreate}
               onOpenEvent={(eventId, date, origin) => {
                 if (suppressNextEventClickRef.current) {
                   suppressNextEventClickRef.current = false;
@@ -818,6 +859,7 @@ export function CalendarLab() {
                       className={`${styles.dayColumn} ${day === labToday ? styles.todayColumn : ""} ${dragSelection.status !== "idle" && dragSelection.date === day ? styles.dayColumnSelecting : ""} ${eventMove.status === "moving" && eventMove.preview.date === day ? styles.dayColumnSelecting : ""} ${eventResize.status === "resizing" && eventResize.preview.date === day ? styles.dayColumnSelecting : ""}`}
                       aria-label={formatFullDate(day)}
                       onMouseMove={(event) => {
+                        if (readOnly) return;
                         if (dragSelection.status !== "idle" || eventMove.status !== "idle" || eventResize.status !== "idle") return;
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
@@ -846,6 +888,7 @@ export function CalendarLab() {
                         });
                       }}
                       onPointerDown={(event) => {
+                        if (readOnly) return;
                         if (event.target !== event.currentTarget) return;
                         const rectangle = event.currentTarget.getBoundingClientRect();
                         const next = beginCalendarDragSelection({
@@ -957,8 +1000,8 @@ export function CalendarLab() {
                           menuOpen={contextMenu?.kind === "event" && contextMenu.eventId === event.id}
                           moving={eventMove.status === "moving" && eventMove.before.id === event.id}
                           resizing={resizing}
-                          draggable={isCalendarLabEventDraggable(event)}
-                          resizable={isCalendarLabEventResizable(event)}
+                          draggable={!readOnly && isCalendarLabEventDraggable(event)}
+                          resizable={!readOnly && isCalendarLabEventResizable(event)}
                           onSelect={(eventId, origin) => {
                             if (suppressNextEventClickRef.current) {
                               suppressNextEventClickRef.current = false;
@@ -990,7 +1033,7 @@ export function CalendarLab() {
                         left: `${currentDayIndex * (100 / days.length)}%`,
                         width: `${100 / days.length}%`,
                       }}
-                      aria-label={`Ora corrente demo ${minutesToTime(labNowMinutes)}`}
+                      aria-label={`${readOnly ? "Ora corrente" : "Ora corrente demo"} ${minutesToTime(labNowMinutes)}`}
                     ><span /></div>
                   ) : null}
                 </div>
@@ -1005,21 +1048,25 @@ export function CalendarLab() {
           returnFocus={returnFocusRef.current}
           onClose={closeDrawer}
           onSave={saveAppointment}
+          readOnly={readOnly}
         /> : null}
-        {contextMenu ? <ContextMenu
+        {contextMenu && (contextMenu.kind === "empty" || contextEvent) ? <ContextMenu
           anchorPoint={contextMenu.anchorPoint}
           origin={contextMenu.origin}
           scrollElement={scrollRef.current}
           items={contextMenu.kind === "empty"
-            ? EMPTY_SLOT_CONTEXT_ITEMS
-            : contextMenuItemsForEvent(state.events.find((event) => event.id === contextMenu.eventId)!)}
-          header={contextMenu.kind === "event" ? <ContextMenuEventHeader event={state.events.find((event) => event.id === contextMenu.eventId)!} /> : undefined}
+            ? (readOnly ? EMPTY_SLOT_CONTEXT_ITEMS.filter((item) => item.id === "go_to_day") : EMPTY_SLOT_CONTEXT_ITEMS)
+            : (readOnly
+                ? contextMenuItemsForEvent(contextEvent!).filter((item) => item.id === "open")
+                : contextMenuItemsForEvent(contextEvent!))}
+          header={contextMenu.kind === "event" ? <ContextMenuEventHeader event={contextEvent!} /> : undefined}
           onAction={handleContextMenuAction}
           onClose={() => setContextMenu(null)}
         /> : null}
         {commandPaletteOrigin ? <CommandPalette
           origin={commandPaletteOrigin}
           activeView={state.view}
+          disabledCommands={readOnly ? ["create"] : []}
           onCommand={handleCalendarCommand}
           onGoToDate={(date) => {
             const origin = commandPaletteOrigin;
@@ -1034,8 +1081,8 @@ export function CalendarLab() {
   );
 }
 
-function IconButton({ label, expanded, buttonRef, onClick, children }: { label: string; expanded?: boolean; buttonRef?: React.Ref<HTMLButtonElement>; onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }) {
-  return <button ref={buttonRef} type="button" className={styles.iconButton} aria-label={label} aria-expanded={expanded} onClick={onClick}>{children}</button>;
+function IconButton({ label, expanded, disabled, buttonRef, onClick, children }: { label: string; expanded?: boolean; disabled?: boolean; buttonRef?: React.Ref<HTMLButtonElement>; onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }) {
+  return <button ref={buttonRef} type="button" className={styles.iconButton} aria-label={label} aria-expanded={expanded} disabled={disabled} onClick={onClick}>{children}</button>;
 }
 
 function DayHeader({ day, today }: { day: CalendarDate; today: CalendarDate }) {
@@ -1059,7 +1106,8 @@ function DayViewHeading({ date, summary }: { date: CalendarDate; summary: { appo
   </div>;
 }
 
-function MonthCalendar({ containerRef, gridRef, days, cursorDate, today, eventsByDate, expandedDate, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
+function MonthCalendar({ interactive, containerRef, gridRef, days, cursorDate, today, eventsByDate, expandedDate, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
+  interactive: boolean;
   containerRef: React.Ref<HTMLDivElement>;
   gridRef: React.Ref<HTMLDivElement>;
   days: CalendarDate[];
@@ -1092,6 +1140,7 @@ function MonthCalendar({ containerRef, gridRef, days, cursorDate, today, eventsB
         events={eventsByDate.get(date) ?? []}
         expanded={expandedDate === date}
         movingEvent={movingEvent}
+        interactive={interactive}
         onCreate={onCreate}
         onOpenEvent={onOpenEvent}
         onToggleOverflow={onToggleOverflow}
@@ -1120,13 +1169,14 @@ function MonthCalendar({ containerRef, gridRef, days, cursorDate, today, eventsB
   </div>;
 }
 
-function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
+function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, interactive, onCreate, onOpenEvent, onToggleOverflow, onCloseOverflow, onEmptyContextMenu, onEventContextMenu, onEventPointerDown, onEventPointerMove, onEventPointerUp, onEventPointerCancel }: {
   date: CalendarDate;
   cursorDate: CalendarDate;
   today: CalendarDate;
   events: CalendarLabEvent[];
   expanded: boolean;
   movingEvent: CalendarMonthEventMoveState;
+  interactive: boolean;
   onCreate: (date: CalendarDate, origin: HTMLElement) => void;
   onOpenEvent: (eventId: string, date: CalendarDate, origin: HTMLElement) => void;
   onToggleOverflow: (date: CalendarDate) => void;
@@ -1171,7 +1221,7 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, 
     <button
       type="button"
       className={styles.monthDayCreate}
-      aria-label={`Crea appuntamento, ${formatFullDate(date)}`}
+      aria-label={`${interactive ? "Crea appuntamento" : "Apri giorno"}, ${formatFullDate(date)}`}
       onClick={(event) => onCreate(date, event.currentTarget)}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -1182,7 +1232,7 @@ function MonthDayCell({ date, cursorDate, today, events, expanded, movingEvent, 
       {visible.map((event) => <MonthEventButton
         key={event.id}
         event={event}
-        draggable={isCalendarLabEventDraggable(event)}
+        draggable={interactive && isCalendarLabEventDraggable(event)}
         moving={movingEvent.status === "movingMonthEvent" && movingEvent.before.id === event.id}
         onOpen={(origin) => onOpenEvent(event.id, date, origin)}
         onOpenContextMenu={(anchorPoint, origin) => onEventContextMenu(event.id, date, anchorPoint, origin)}

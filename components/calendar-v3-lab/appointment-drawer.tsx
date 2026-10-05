@@ -24,9 +24,10 @@ type AppointmentDrawerProps = {
   returnFocus: HTMLElement | null;
   onClose: () => void;
   onSave: (draft: CalendarAppointmentDraft) => void;
+  readOnly?: boolean;
 };
 
-export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave }: AppointmentDrawerProps) {
+export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, readOnly = false }: AppointmentDrawerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
   const patientRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,7 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
 
   const submit = (submitEvent: React.FormEvent) => {
     submitEvent.preventDefault();
+    if (readOnly) return;
     const nextErrors = validateAppointmentDraft(draft);
     setErrors(nextErrors);
     const firstError = Object.keys(nextErrors)[0];
@@ -100,14 +102,32 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
       <aside ref={panelRef} className={styles.appointmentDrawer} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className={styles.drawerHeader}>
           <div>
-            <span>{event ? "APPUNTAMENTO" : "NUOVO APPUNTAMENTO"}</span>
+            <span>{readOnly ? "DATI REALI · SOLA LETTURA" : event ? "APPUNTAMENTO" : "NUOVO APPUNTAMENTO"}</span>
             <h2 id={titleId} tabIndex={-1}>{event ? event.patientName : "Nuovo appuntamento"}</h2>
             <p>{formatDrawerDate(draft.date)} · {draft.startTime}</p>
           </div>
           <button type="button" aria-label="Chiudi pannello appuntamento" onClick={onClose}>×</button>
         </header>
 
-        <form className={styles.drawerForm} onSubmit={submit} noValidate>
+        {readOnly && event ? <div className={styles.drawerForm}>
+          <div className={styles.drawerBody}>
+            <p className={`${styles.appointmentState} ${event.status === "cancelled" ? styles.appointmentCancelled : ""}`}>{calendarLabSessionLabel(event)}</p>
+            <dl className={styles.readOnlyDetails}>
+              <ReadOnlyDetail label="Paziente" value={event.patientName} />
+              <ReadOnlyDetail label="Tipo" value={appointmentTypeLabel(event.appointmentType)} />
+              <ReadOnlyDetail label="Data e ora" value={`${formatDrawerDate(event.date)} · ${minutesToClock(event.startMinutes)}–${minutesToClock(event.endMinutes)}`} />
+              <ReadOnlyDetail label="Durata" value={`${event.endMinutes - event.startMinutes} min`} />
+              <ReadOnlyDetail label="Prestazione" value={event.serviceName || "Non specificata"} />
+              <ReadOnlyDetail label="Sede" value={event.locationName || "Non specificata"} />
+              <ReadOnlyDetail label="Prezzo" value={formatPrice(event.effectivePriceCents)} />
+              <ReadOnlyDetail label="Ricorrenza" value={event.isRecurring ? "Serie ricorrente" : "Occorrenza singola"} />
+              <ReadOnlyDetail label="Note" value={event.notes || "Nessuna nota"} wide />
+            </dl>
+          </div>
+          <footer className={styles.drawerActions}>
+            <button type="button" className={styles.secondaryAction} onClick={onClose}>Chiudi</button>
+          </footer>
+        </div> : <form className={styles.drawerForm} onSubmit={submit} noValidate>
           <div className={styles.drawerBody}>
             {event ? <p className={`${styles.appointmentState} ${event.status === "cancelled" ? styles.appointmentCancelled : ""}`}>{calendarLabSessionLabel(event)}</p> : null}
             <PatientPicker
@@ -184,10 +204,31 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
             <button type="button" className={styles.secondaryAction} onClick={onClose}>{event ? "Chiudi" : "Annulla"}</button>
             <button type="submit" className={styles.primaryAction}>{event ? "Salva modifiche" : "Salva appuntamento"}</button>
           </footer>
-        </form>
+        </form>}
       </aside>
     </div>
   );
+}
+
+function ReadOnlyDetail({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return <div className={wide ? styles.readOnlyDetailWide : undefined}><dt>{label}</dt><dd>{value}</dd></div>;
+}
+
+function appointmentTypeLabel(type: CalendarLabEvent["appointmentType"]): string {
+  if (type === "assessment") return "Prima valutazione";
+  if (type === "checkup") return "Controllo";
+  if (type === "cancelled") return "Annullato";
+  return "Seduta";
+}
+
+function minutesToClock(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function formatPrice(cents: number | undefined): string {
+  if (cents === undefined) return "Non specificato";
+  if (cents === 0) return "Gratuito";
+  return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 
 function PatientPicker({ inputRef, value, error, onChange }: {
