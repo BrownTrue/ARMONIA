@@ -26,7 +26,7 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 - `lib/today-dashboard.ts`: classificazione degli appuntamenti odierni in da fare e completati.
 - `supabase/migrations/`: schema e modifiche additive del database.
 
-Su mobile la navigazione primaria usa una bottom bar con Oggi, Calendario, Pazienti, Risorse e Altro. “Altro” apre un bottom sheet con le sole destinazioni secondarie reali — Economia, Statistiche e Impostazioni — insieme alle azioni account; la navigazione desktop resta separata e completa.
+Su mobile la shell usa un header sticky minimale con titolo contestuale e un menu laterale accessibile. Il drawer riunisce le destinazioni primarie — Oggi, Calendario, Pazienti e Risorse — e quelle secondarie — Economia, Statistiche e Impostazioni — con identità account e logout; la precedente bottom bar non è più presente. Desktop e mobile condividono lo stesso modello di navigazione, mentre la shell desktop conserva struttura e aspetto esistenti.
 
 ## Modalità dati
 

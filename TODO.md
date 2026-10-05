@@ -2,6 +2,9 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- La Mobile Shell 1A è predisposta per una futura preferenza tema Sistema/Chiaro/Scuro, ma dark mode e revisione completa dei token semantici restano un workstream separato non ancora avviato.
+- Valutare in futuro, soltanto come enhancement opzionale, un coachmark mobile mostrato una volta sul trigger di navigazione: “Qui trovi tutte le sezioni”. Il trigger resta comunque comprensibile senza questo aiuto.
+
 - Collaudare manualmente Statistiche V2 su desktop e mobile verificando periodi, KPI, grafico, prestazioni, Agenda, Pazienti, sintesi Economia e intervalli senza sedute. L'implementazione non introduce migration e non usa dati clinici per stimare outcome.
 
 ## Priorità alta
