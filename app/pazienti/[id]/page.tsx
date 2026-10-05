@@ -11,6 +11,7 @@ import { PatientForm } from "@/components/patient-form";
 import { Field } from "@/components/form-controls";
 import { PatientResourcesSection } from "@/components/patient-resources-section";
 import { MobilePatientOverview } from "@/components/patients/mobile-patient-overview";
+import { MobilePatientActivity } from "@/components/patients/mobile-patient-activity";
 import { buildPatientTimeline, filterPatientTimeline } from "@/lib/clinical/timeline";
 import type { PatientTimelineFilter, PatientTimelineItem } from "@/lib/clinical/timeline";
 import { centsToEuroInput, euroInputToCents, formatEuroCents, selectableAppointmentServices } from "@/lib/calendar-v2";
@@ -19,6 +20,7 @@ import { clinicalAssessmentTypeLabel, getPatientOverview } from "@/lib/patient-o
 import type { PatientOverview } from "@/lib/patient-overview";
 import { getFuturePatientAppointments } from "@/lib/patient-resources";
 import { patientEconomicSummary } from "@/lib/payments";
+import { buildMobilePatientActivity, filterMobilePatientActivity } from "@/lib/patient-mobile-activity";
 import type { Appointment, Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
 import { focusFirstInvalidField, validateGoalForm, validateSessionForm, type FieldErrors } from "@/lib/form-validation";
@@ -76,6 +78,8 @@ export default function PatientPage() {
   const goals = data.goals.filter((g) => g.patientId === id);
   const timeline = buildPatientTimeline(id, data.sessions, data.clinicalAssessments, data.goals, data.materials, data.appointments);
   const visibleTimeline = filterPatientTimeline(timeline, activityFilter, activityQuery);
+  const mobileActivity = buildMobilePatientActivity(id, timeline, data.appointments, data.sessions);
+  const visibleMobileActivity = filterMobilePatientActivity(mobileActivity, activityFilter, activityQuery);
   const overview = getPatientOverview(data, id);
   const futureAppointments = getFuturePatientAppointments(data.appointments, id);
   const recentActivity = timeline.slice(0, 3);
@@ -161,7 +165,7 @@ export default function PatientPage() {
         <details className="card p-4 sm:p-5 lg:col-span-12"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>)}
       {tab === "clinical" && <div className="px-4 pb-6 pt-5 md:px-0 md:pb-0"><PatientClinicalPathway patientId={p.id} goals={goals} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onOpenActivity={() => selectTab("activity")} /></div>}
-      {tab === "activity" && <div className="space-y-4 px-4 pb-6 pt-4 md:space-y-5 md:px-0 md:pb-0 md:pt-5">
+      {tab === "activity" && (mobileLayout ? <MobilePatientActivity patientId={p.id} items={visibleMobileActivity} filter={activityFilter} query={activityQuery} onFilterChange={setActivityFilter} onQueryChange={setActivityQuery} onOpenSession={setDetail} onDeleteSession={setDeleteSessionTarget}/> : <div className="hidden space-y-4 px-4 pb-6 pt-4 md:block md:space-y-5 md:px-0 md:pb-0 md:pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3"><div className="min-w-0"><h2 className="text-xl font-bold">Attività</h2><p className="mt-0.5 text-sm text-slate-500 sm:mt-1">Sedute e valutazioni cliniche in ordine cronologico.</p></div><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary px-3 text-sm sm:px-4 sm:text-base">Registra seduta</Link></div>
         <section className="card p-3 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -178,7 +182,7 @@ export default function PatientPage() {
             </div>
           )}
         </section>
-      </div>}
+      </div>)}
       {tab === "resources" && <div className="px-4 pb-6 md:px-0 md:pb-0"><PatientResourcesSection patientId={p.id} /></div>}
       {patientActionsOpen && <Modal title="Azioni paziente" onClose={() => setPatientActionsOpen(false)}><div className="divide-y divide-slate-100"><button type="button" onClick={() => { setPatientActionsOpen(false); setEdit(true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-slate-800">Modifica paziente</button><button type="button" onClick={() => { setPatientActionsOpen(false); setDeletePatientOpen(true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-red-600">Elimina paziente</button></div></Modal>}
       {edit && (
