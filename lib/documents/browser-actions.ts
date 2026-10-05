@@ -45,7 +45,8 @@ export async function shareDocument(
     if (source.kind === "blob") {
       await shareNavigator.share!({ title, files: [documentFile(source, fileName)] });
     } else {
-      await shareNavigator.share!({ title, url: source.url });
+      const url = typeof location === "undefined" ? source.url : new URL(source.url, location.href).href;
+      await shareNavigator.share!({ title, url });
     }
     return "shared";
   } catch (error) {
@@ -68,9 +69,22 @@ export function prepareDocumentUrl(source: DocumentSource, objectUrls: ObjectUrl
   };
 }
 
+export async function loadSameOriginPdf(
+  source: Extract<DocumentSource, { kind: "url" }>,
+  fetcher: typeof fetch = fetch,
+  baseUrl = window.location.href,
+): Promise<Extract<DocumentSource, { kind: "blob" }>> {
+  const resolved = new URL(source.url, baseUrl);
+  if (resolved.origin !== new URL(baseUrl).origin) throw new Error("external_document_source");
+  const response = await fetcher(resolved.href, { credentials: "same-origin", cache: "no-store" });
+  if (!response.ok) throw new Error("document_unavailable");
+  const blob = await response.blob();
+  if (blob.type !== "application/pdf") throw new Error("document_not_pdf");
+  return { kind: "blob", blob };
+}
+
 export function isShareCancellation(error: unknown) {
   return error instanceof DOMException
     ? error.name === "AbortError"
     : Boolean(error && typeof error === "object" && "name" in error && error.name === "AbortError");
 }
-

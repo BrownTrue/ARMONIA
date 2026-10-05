@@ -47,7 +47,7 @@ In modalità cloud l'accesso usa email e password Supabase, mantenendo invariati
 
 Ogni professionista può usare un logo personale nelle stampe. L'immagine viene validata, ridimensionata proporzionalmente e normalizzata in WebP nel browser. In assenza del logo personale viene usato il marchio Armonia. Il logo non fa parte di `AppData`: resta isolato in IndexedDB locale o in Storage privato per utente.
 
-Le azioni browser sui documenti usano una foundation leggera distinta dai generatori e dal dominio: una sorgente può essere un Blob client-side oppure un URL già autorizzato (route, signed URL o file statico), mentre apertura, condivisione con feature detection, download e stampa/fallback restano capability della superficie. Il pilota MOBILE 5A è limitato alle attestazioni Blob; non introduce upload esterni, URL pubblici, persistenza, PWA o un nuovo sistema documentale.
+Le azioni browser sui documenti usano una foundation leggera distinta dai generatori e dal dominio: una sorgente può essere un Blob client-side oppure un URL già autorizzato (route autenticata, risorsa ufficiale o file statico), mentre apertura, condivisione con feature detection, download e stampa/fallback restano capability della superficie. MOBILE 5A/5B applica la stessa gerarchia mobile alle attestazioni Blob, agli handout statici, ai PDF della Libreria Materiali e ai PDF autenticati degli strumenti originali ARMONIA. Le route private vengono trasformate in file solo sul dispositivo e non sono condivise come URL; i link esterni restano presso la fonte ufficiale. Non vengono introdotti upload esterni, URL pubblici per asset privati, persistenza, PWA o un nuovo sistema documentale.
 
 ### Pazienti
 

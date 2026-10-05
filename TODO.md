@@ -3,7 +3,7 @@
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
 - Collaudare MOBILE 4A a 360–430 px in fixture e `?mode=real`: week strip, confronto Giorno/Agenda, baseline Mese, create, dettaglio e registrazione Session; scegliere poi la vista operativa mobile principale. Drag/move/resize touch, long-press, cataloghi sidebar e sostituzione di `/calendario` restano fasi successive.
-- Collaudare MOBILE 5A su telefono, sia nel browser sia da Home se disponibile: creare un’attestazione, aprire il PDF, provare la condivisione file, il download/fallback e verificare il desktop. Una fase successiva dovrà decidere una vera pipeline PDF per Worksheet e Valutazioni, oggi ancora dipendenti da `window.print()`; non estendere la primitive agli altri flussi prima del collaudo del pilota.
+- Collaudare MOBILE 5A/5B su telefono, sia nel browser sia da Home se disponibile: creare un’attestazione; aprire, condividere, scaricare e stampare un handout, un PDF Materiale e un PDF originale ARMONIA; verificare che una risorsa ufficiale esterna condivida soltanto il link e che il desktop resti invariato. MOBILE 5C dovrà decidere una vera pipeline PDF per Worksheet e Valutazioni, oggi ancora dipendenti da `window.print()`; Data Export e documenti non PDF restano fuori da questa foundation.
 
 - La Mobile Shell 1A è predisposta per una futura preferenza tema Sistema/Chiaro/Scuro, ma dark mode e revisione completa dei token semantici restano un workstream separato non ancora avviato.
 - Valutare in futuro, soltanto come enhancement opzionale, un coachmark mobile mostrato una volta sul trigger di navigazione: “Qui trovi tutte le sezioni”. Il trigger resta comunque comprensibile senza questo aiuto.
