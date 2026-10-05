@@ -26,6 +26,11 @@ import { selectableAppointmentLocations, selectableAppointmentServices } from "@
 import type { AppointmentLocation, AppointmentService, Patient } from "@/lib/types";
 import { fullName } from "@/lib/types";
 import type { FieldErrors } from "@/lib/form-validation";
+import {
+  availableCalendarV3RealAppointmentActions,
+  type CalendarV3RealAppointmentActionId,
+  type CalendarV3RealAppointmentActions,
+} from "@/lib/calendar-v3-lab/real-appointment-actions";
 import styles from "./calendar-v3-lab.module.css";
 
 type AppointmentDrawerProps = {
@@ -39,15 +44,20 @@ type AppointmentDrawerProps = {
   locations?: readonly AppointmentLocation[];
   services?: readonly AppointmentService[];
   scopeDialogOpen?: boolean;
+  actionDialogOpen?: boolean;
+  appointmentActions?: CalendarV3RealAppointmentActions;
+  actionBusy?: CalendarV3RealAppointmentActionId | null;
+  actionError?: string;
+  onAppointmentAction?: (action: CalendarV3RealAppointmentActionId, origin: HTMLButtonElement) => void;
 };
 
-export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, realMode = false, patients = [], locations = [], services = [], scopeDialogOpen = false }: AppointmentDrawerProps) {
+export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, realMode = false, patients = [], locations = [], services = [], scopeDialogOpen = false, actionDialogOpen = false, appointmentActions, actionBusy = null, actionError = "", onAppointmentAction }: AppointmentDrawerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
   const patientRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
-  const scopeDialogOpenRef = useRef(scopeDialogOpen);
-  scopeDialogOpenRef.current = scopeDialogOpen;
+  const nestedDialogOpenRef = useRef(scopeDialogOpen || actionDialogOpen);
+  nestedDialogOpenRef.current = scopeDialogOpen || actionDialogOpen;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const [draft, setDraft] = useState(initialDraft);
@@ -67,7 +77,7 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
     });
     const handleKeyDown = (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.defaultPrevented) return;
-      if (scopeDialogOpenRef.current) return;
+      if (nestedDialogOpenRef.current) return;
       if (keyboardEvent.key === "Escape") {
         keyboardEvent.preventDefault();
         if (savingRef.current) return;
@@ -225,6 +235,19 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
                 </div> : null}
               </Field>
             </div></>}
+            {realMode && event && appointmentActions && onAppointmentAction ? <div className={styles.clinicalActions} aria-label="Azioni appuntamento">
+              <h3>Azioni</h3>
+              <div>
+                {availableCalendarV3RealAppointmentActions(appointmentActions).map((action) => <button
+                  key={action.id}
+                  type="button"
+                  className={`${action.id === "register_session" ? styles.clinicalActionPrimary : styles.clinicalActionSecondary} ${action.destructive ? styles.clinicalActionDestructive : ""}`}
+                  disabled={saving || Boolean(actionBusy)}
+                  onClick={(clickEvent) => onAppointmentAction(action.id, clickEvent.currentTarget)}
+                >{actionBusy === action.id ? "Operazione in corso…" : action.label}</button>)}
+              </div>
+              {actionError ? <p className={styles.drawerSaveError} role="alert">{actionError}</p> : null}
+            </div> : null}
             {saveError ? <p className={styles.drawerSaveError} role="alert">{saveError}</p> : null}
           </div>
 

@@ -1,10 +1,17 @@
 import type { CalendarLabEvent } from "./fixtures.ts";
+import {
+  availableCalendarV3RealAppointmentActions,
+  type CalendarV3RealAppointmentActions,
+} from "./real-appointment-actions.ts";
 
 export type CalendarContextMenuAction =
   | "create"
   | "go_to_day"
   | "open"
+  | "open_patient"
   | "register_session"
+  | "open_session"
+  | "cancel_appointment"
   | "duplicate"
   | "cancel";
 
@@ -35,6 +42,20 @@ export function contextMenuItemsForEvent(event: CalendarLabEvent): readonly Cale
       : []),
     { id: "duplicate", label: "Duplica" },
     { id: "cancel", label: "Annulla appuntamento", separatorBefore: true, destructive: true },
+  ];
+}
+
+export function contextMenuItemsForRealAppointment(
+  model: CalendarV3RealAppointmentActions,
+): readonly CalendarContextMenuItem[] {
+  return [
+    { id: "open", label: "Apri" },
+    ...availableCalendarV3RealAppointmentActions(model).map((action) => ({
+      id: action.id,
+      label: action.label,
+      separatorBefore: action.destructive,
+      destructive: action.destructive,
+    })),
   ];
 }
 

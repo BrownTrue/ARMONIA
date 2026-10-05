@@ -83,6 +83,15 @@
 .recurrenceDialog footer button { min-height: 38px; border: 1px solid #d5ded6; border-radius: 10px; background: #fff; padding: 0 15px; color: #4b5b52; font-weight: 700; }
 .recurrenceDialog footer button:hover, .recurrenceDialog footer button:focus-visible { border-color: #9db2a3; outline: none; }
 .recurrenceDialog footer span { color: #607269; font-size: 12px; }
+.cancelDialog { width: min(430px, 100%); border: 1px solid #e6dcd9; border-radius: 18px; background: #fbfcfa; box-shadow: 0 24px 70px rgba(30,46,36,.2); padding: 22px; }
+.cancelDialog header > span { color: #9a625a; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.cancelDialog h2 { margin: 7px 0 6px; color: #29372f; font-size: 20px; line-height: 1.2; }
+.cancelDialog header p { margin: 0; color: #68756d; font-size: 13px; line-height: 1.55; }
+.cancelDialog footer { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+.cancelDialog footer button { min-height: 40px; border: 1px solid #d5ded6; border-radius: 10px; background: #fff; padding: 0 14px; color: #4b5b52; font-weight: 700; }
+.cancelDialog footer .cancelDialogConfirm { border-color: #d9bdb7; color: #944e47; }
+.cancelDialog footer button:hover:not(:disabled), .cancelDialog footer button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 2px; }
+.cancelDialog footer button:disabled { cursor: wait; opacity: .62; }
 .weekHeader { position: sticky; top: 0; height: var(--calendar-week-header-height); display: grid; grid-template-columns: var(--calendar-grid-template); min-width: 720px; background: rgba(255,255,255,.97); border-bottom: 1px solid #e8ece8; z-index: 20; }
 .gutterHeader { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 9px; color: #a0aaa3; font-size: 9px; letter-spacing: .06em; }
 .dayHeader { border-left: 1px solid #f0f2f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #89948d; }
@@ -272,6 +281,15 @@
 .drawerHeader button:focus-visible, .drawerField input:focus-visible, .drawerField select:focus-visible, .patientOptions button:focus-visible, .drawerActions button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 2px; }
 .drawerActions button:hover { filter: brightness(.98); }
 .drawerActions button:disabled { cursor: wait; opacity: .65; }
+.clinicalActions { display: grid; gap: 10px; border-top: 1px solid #e2e8e2; padding-top: 18px; }
+.clinicalActions h3 { color: #526159; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.clinicalActions > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.clinicalActions button { min-height: 40px; border: 1px solid #d8e2da; border-radius: 10px; padding: 0 12px; font-size: 13px; font-weight: 700; }
+.clinicalActionPrimary { border-color: #5f8f76 !important; background: #5f8f76; color: white; }
+.clinicalActionSecondary { background: white; color: #3d5145; }
+.clinicalActionDestructive { border-color: #ead5d1 !important; color: #9a514a; }
+.clinicalActions button:hover:not(:disabled), .clinicalActions button:focus-visible { filter: brightness(.97); outline: 2px solid #5f8f76; outline-offset: 2px; }
+.clinicalActions button:disabled { cursor: wait; opacity: .62; }
 .drawerSaveError { margin: 4px 0 0; border-radius: 10px; background: #fff2f0; padding: 10px 12px; color: #9b4f47; font-size: 12px; line-height: 1.45; }
 .recurrenceNote { margin: 2px 0 0; border-radius: 10px; background: #f1f6f2; padding: 10px 12px; color: #53675a; font-size: 12px; line-height: 1.45; }
 

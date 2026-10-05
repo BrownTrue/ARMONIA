@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./calendar-v3-lab.module.css";
 import { useData } from "@/components/data-provider";
 import { AppointmentDrawer } from "./appointment-drawer";
+import { AppointmentCancelDialog } from "./appointment-cancel-dialog";
 import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog";
@@ -55,9 +57,15 @@ import {
 import {
   EMPTY_SLOT_CONTEXT_ITEMS,
   contextMenuItemsForEvent,
+  contextMenuItemsForRealAppointment,
   duplicateCalendarLabEvent,
   type CalendarContextMenuAction,
 } from "@/lib/calendar-v3-lab/context-menu";
+import {
+  getCalendarV3RealAppointmentActions,
+  type CalendarV3RealAppointmentActionId,
+} from "@/lib/calendar-v3-lab/real-appointment-actions";
+import { cancelAppointment } from "@/lib/appointment-actions";
 import {
   isCalendarShortcutTypingTarget,
   type CalendarCommandId,
@@ -167,6 +175,7 @@ type CalendarGestureFeedback = {
 
 export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "real" }) {
   const { data, ready, saveAppointment: saveRealAppointment, saveAppointments: saveRealAppointments } = useData();
+  const router = useRouter();
   const realMode = dataMode === "real";
   const [state, dispatch] = useReducer(calendarLabReducer, CALENDAR_LAB_EVENTS, createCalendarLabState);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -186,6 +195,9 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const [gestureFeedback, setGestureFeedback] = useState<CalendarGestureFeedback | null>(null);
   const [recurrenceRequest, setRecurrenceRequest] = useState<CalendarRecurrenceRequest | null>(null);
   const [recurrenceError, setRecurrenceError] = useState("");
+  const [cancelCandidate, setCancelCandidate] = useState<Appointment | null>(null);
+  const [appointmentActionBusy, setAppointmentActionBusy] = useState<CalendarV3RealAppointmentActionId | null>(null);
+  const [appointmentActionError, setAppointmentActionError] = useState("");
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
@@ -206,6 +218,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const blockedGestureAttemptRef = useRef<CalendarBlockedGestureAttempt>(IDLE_CALENDAR_BLOCKED_GESTURE_ATTEMPT);
   const blockedGestureMessageRef = useRef<string | null>(null);
   const gestureFeedbackTimeoutRef = useRef<number | null>(null);
+  const appointmentActionOriginRef = useRef<HTMLElement | null>(null);
   const realData = useMemo(() => adaptCalendarV3RealData({
     appointments: data.appointments,
     patients: data.patients,
@@ -245,6 +258,23 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
       : null;
   const contextEvent = contextMenu?.kind === "event"
     ? activeEvents.find((event) => event.id === contextMenu.eventId)
+    : undefined;
+  const selectedAppointmentActions = realAppointment
+    ? getCalendarV3RealAppointmentActions({
+        appointment: realAppointment,
+        sessions: data.sessions,
+        patientExists: data.patients.some((patient) => patient.id === realAppointment.patientId),
+      })
+    : undefined;
+  const contextAppointment = realMode && contextEvent
+    ? data.appointments.find((appointment) => appointment.id === contextEvent.id)
+    : undefined;
+  const contextAppointmentActions = contextAppointment
+    ? getCalendarV3RealAppointmentActions({
+        appointment: contextAppointment,
+        sessions: data.sessions,
+        patientExists: data.patients.some((patient) => patient.id === contextAppointment.patientId),
+      })
     : undefined;
   const recurrenceOptions = useMemo(() => {
     if (!recurrenceRequest) return [];
@@ -1007,6 +1037,63 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     closeDrawer();
   };
 
+  const closeCancelDialog = () => {
+    if (appointmentActionBusy) return;
+    const origin = appointmentActionOriginRef.current;
+    setCancelCandidate(null);
+    setAppointmentActionError("");
+    appointmentActionOriginRef.current = null;
+    window.requestAnimationFrame(() => origin?.focus());
+  };
+
+  const runRealAppointmentAction = (
+    action: CalendarV3RealAppointmentActionId,
+    appointment: Appointment,
+    origin: HTMLElement,
+  ) => {
+    const model = getCalendarV3RealAppointmentActions({
+      appointment,
+      sessions: data.sessions,
+      patientExists: data.patients.some((patient) => patient.id === appointment.patientId),
+    });
+    const availability = model.actions.find((item) => item.id === action);
+    if (!availability?.available) {
+      const message = availability?.unavailableReason ?? "Questa azione non è disponibile.";
+      setAppointmentActionError(message);
+      showGestureFeedback({ tone: "error", message });
+      return;
+    }
+    setAppointmentActionError("");
+    if (action === "cancel_appointment") {
+      appointmentActionOriginRef.current = origin;
+      setCancelCandidate(appointment);
+      return;
+    }
+    closeDrawer();
+    if (action === "register_session") router.push(`/sedute/nuova?a=${appointment.id}`);
+    else if (action === "open_patient" || action === "open_session") router.push(`/pazienti/${appointment.patientId}${action === "open_session" ? "?tab=activity" : ""}`);
+  };
+
+  const confirmAppointmentCancellation = async () => {
+    if (!cancelCandidate || appointmentActionBusy) return;
+    setAppointmentActionBusy("cancel_appointment");
+    setAppointmentActionError("");
+    try {
+      const origin = appointmentActionOriginRef.current;
+      await saveRealAppointment(cancelAppointment(cancelCandidate));
+      const wasOpen = state.selectedEventId === cancelCandidate.id;
+      setCancelCandidate(null);
+      appointmentActionOriginRef.current = null;
+      if (wasOpen) closeDrawer();
+      else window.requestAnimationFrame(() => origin?.focus());
+      showGestureFeedback({ tone: "info", message: "Appuntamento annullato. Resta disponibile nello storico." });
+    } catch {
+      setAppointmentActionError("Non è stato possibile annullare l’appuntamento. Nessuna modifica è stata applicata.");
+    } finally {
+      setAppointmentActionBusy(null);
+    }
+  };
+
   const handleContextMenuAction = (action: CalendarContextMenuAction) => {
     if (!contextMenu) return;
     const currentMenu = contextMenu;
@@ -1025,7 +1112,10 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     if (action === "open") {
       openEdit(event.id, currentMenu.origin);
     } else if (realMode) {
-      return;
+      const appointment = data.appointments.find((item) => item.id === event.id);
+      if (appointment && ["open_patient", "register_session", "open_session", "cancel_appointment"].includes(action)) {
+        runRealAppointmentAction(action as CalendarV3RealAppointmentActionId, appointment, currentMenu.origin);
+      }
     } else if (action === "register_session" && event.status !== "cancelled") {
       dispatch({ type: "update_event", event: { ...event, sessionState: "registered" } });
     } else if (action === "duplicate") {
@@ -1386,6 +1476,13 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
           locations={data.locations}
           services={data.services}
           scopeDialogOpen={Boolean(recurrenceRequest)}
+          actionDialogOpen={Boolean(cancelCandidate)}
+          appointmentActions={selectedAppointmentActions}
+          actionBusy={appointmentActionBusy}
+          actionError={appointmentActionError}
+          onAppointmentAction={(action, origin) => {
+            if (realAppointment) runRealAppointmentAction(action, realAppointment, origin);
+          }}
         /> : null}
         {recurrenceRequest ? <RecurrenceScopeDialog
           options={recurrenceOptions}
@@ -1394,6 +1491,13 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
           onChoose={(scope) => { void confirmRecurrenceScope(scope); }}
           onCancel={cancelRecurrenceScope}
         /> : null}
+        {cancelCandidate ? <AppointmentCancelDialog
+          recurring={Boolean(cancelCandidate.recurrenceSeriesId)}
+          saving={appointmentActionBusy === "cancel_appointment"}
+          error={appointmentActionError}
+          onConfirm={() => { void confirmAppointmentCancellation(); }}
+          onCancel={closeCancelDialog}
+        /> : null}
         {contextMenu && (contextMenu.kind === "empty" || contextEvent) ? <ContextMenu
           anchorPoint={contextMenu.anchorPoint}
           origin={contextMenu.origin}
@@ -1401,7 +1505,9 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
           items={contextMenu.kind === "empty"
             ? EMPTY_SLOT_CONTEXT_ITEMS
             : (realMode
-                ? contextMenuItemsForEvent(contextEvent!).filter((item) => item.id === "open")
+                ? contextAppointmentActions
+                  ? contextMenuItemsForRealAppointment(contextAppointmentActions)
+                  : contextMenuItemsForEvent(contextEvent!).filter((item) => item.id === "open")
                 : contextMenuItemsForEvent(contextEvent!))}
           header={contextMenu.kind === "event" ? <ContextMenuEventHeader event={contextEvent!} /> : undefined}
           onAction={handleContextMenuAction}
