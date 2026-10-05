@@ -55,8 +55,8 @@
 .calendarPaneMonth { min-height: 0; }
 .calendarPaneReadOnly .dayColumn, .calendarPaneReadOnly .monthDayCreate { cursor: default; }
 .calendarPaneReadOnly .monthDayCreate:hover { background: transparent; }
-.readOnlyNotice { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-bottom: 1px solid #dfe7e0; background: #f4f8f4; padding: 6px 16px; color: #5a695f; font-size: 11px; }
-.readOnlyNotice strong { color: #3f5949; }
+.realModeNotice { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-bottom: 1px solid #dfe7e0; background: #f4f8f4; padding: 6px 16px; color: #5a695f; font-size: 11px; }
+.realModeNotice strong { color: #3f5949; }
 .weekHeader { position: sticky; top: 0; height: var(--calendar-week-header-height); display: grid; grid-template-columns: var(--calendar-grid-template); min-width: 720px; background: rgba(255,255,255,.97); border-bottom: 1px solid #e8ece8; z-index: 20; }
 .gutterHeader { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 9px; color: #a0aaa3; font-size: 9px; letter-spacing: .06em; }
 .dayHeader { border-left: 1px solid #f0f2f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #89948d; }
@@ -218,9 +218,10 @@
 .appointmentCancelled { background: #eef0ef; color: #737b76; }
 .drawerField { display: grid; gap: 7px; margin-bottom: 18px; }
 .drawerField label { color: #45534a; font-size: 12px; font-weight: 700; }
-.drawerField input, .drawerField select { width: 100%; min-height: 44px; border: 1px solid #d8dfd9; border-radius: 11px; background: #fff; padding: 0 12px; color: #29372f; font: inherit; font-size: 14px; outline: none; }
-.drawerField input:focus, .drawerField select:focus { border-color: #6f9c82; box-shadow: 0 0 0 3px rgba(95,143,118,.13); }
-.drawerField input[aria-invalid="true"], .drawerField select[aria-invalid="true"] { border-color: #b86d65; }
+.drawerField input, .drawerField select, .drawerField textarea { width: 100%; min-height: 44px; border: 1px solid #d8dfd9; border-radius: 11px; background: #fff; padding: 0 12px; color: #29372f; font: inherit; font-size: 14px; outline: none; }
+.drawerField textarea { min-height: 96px; resize: vertical; padding-block: 11px; line-height: 1.45; }
+.drawerField input:focus, .drawerField select:focus, .drawerField textarea:focus { border-color: #6f9c82; box-shadow: 0 0 0 3px rgba(95,143,118,.13); }
+.drawerField input[aria-invalid="true"], .drawerField select[aria-invalid="true"], .drawerField textarea[aria-invalid="true"] { border-color: #b86d65; }
 .drawerField > p { margin: -1px 0 0; color: #a45149; font-size: 12px; line-height: 1.4; }
 .compactFields { display: grid; grid-template-columns: 1.2fr .9fr .9fr; gap: 10px; align-items: start; }
 .compactFields .drawerField { margin-bottom: 0; }
@@ -241,6 +242,9 @@
 .primaryAction { border: 1px solid #5f8f76; background: #5f8f76; color: #fff; box-shadow: 0 4px 12px rgba(66,105,83,.16); }
 .drawerHeader button:focus-visible, .drawerField input:focus-visible, .drawerField select:focus-visible, .patientOptions button:focus-visible, .drawerActions button:focus-visible { outline: 2px solid #5f8f76; outline-offset: 2px; }
 .drawerActions button:hover { filter: brightness(.98); }
+.drawerActions button:disabled { cursor: wait; opacity: .65; }
+.drawerSaveError { margin: 4px 0 0; border-radius: 10px; background: #fff2f0; padding: 10px 12px; color: #9b4f47; font-size: 12px; line-height: 1.45; }
+.recurrenceNote { margin: 2px 0 0; border-radius: 10px; background: #f1f6f2; padding: 10px 12px; color: #53675a; font-size: 12px; line-height: 1.45; }
 
 @keyframes drawer-enter { from { transform: translateX(22px); opacity: .7; } to { transform: translateX(0); opacity: 1; } }
 .mobileFallback { display: none; }
