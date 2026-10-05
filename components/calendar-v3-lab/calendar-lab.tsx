@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import styles from "./calendar-v3-lab.module.css";
 import { useData } from "@/components/data-provider";
 import { AppointmentDrawer } from "./appointment-drawer";
+import { AppointmentDetailPanel } from "./appointment-detail-panel";
 import { AppointmentCancelDialog } from "./appointment-cancel-dialog";
+import { SessionRegistrationPanel } from "./session-registration-panel";
 import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog";
@@ -144,6 +146,10 @@ import {
 } from "@/lib/calendar-v3-lab/recurrence-scope";
 import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
 import { uid, type Appointment } from "@/lib/types";
+import {
+  CALENDAR_CREATE_DRAFT_PREVIEW_ID,
+  calendarCreateDraftPreview,
+} from "@/lib/calendar-v3-lab/create-draft-preview";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -173,6 +179,8 @@ type CalendarGestureFeedback = {
   message: string;
 };
 
+type CalendarPanelMode = "closed" | "appointment-create" | "appointment-detail" | "appointment-edit" | "session-create";
+
 export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "real" }) {
   const { data, ready, saveAppointment: saveRealAppointment, saveAppointments: saveRealAppointments } = useData();
   const router = useRouter();
@@ -198,6 +206,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const [cancelCandidate, setCancelCandidate] = useState<Appointment | null>(null);
   const [appointmentActionBusy, setAppointmentActionBusy] = useState<CalendarV3RealAppointmentActionId | null>(null);
   const [appointmentActionError, setAppointmentActionError] = useState("");
+  const [panelMode, setPanelMode] = useState<CalendarPanelMode>("closed");
+  const [createDraft, setCreateDraft] = useState<CalendarAppointmentDraft | null>(null);
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
@@ -232,7 +242,18 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     !state.hiddenFilters.includes(event.locationName ?? "") &&
     !state.hiddenFilters.includes(event.serviceName ?? ""),
   );
-  const eventLayouts = useMemo(() => layoutCalendarLabEvents(visibleEvents), [visibleEvents]);
+  const createDraftPreview = useMemo(() => panelMode === "appointment-create" && createDraft && state.view !== "month"
+    ? calendarCreateDraftPreview({
+        draft: createDraft,
+        realMode,
+        locations: data.locations,
+        services: data.services,
+      })
+    : null, [createDraft, data.locations, data.services, panelMode, realMode, state.view]);
+  const eventLayouts = useMemo(
+    () => layoutCalendarLabEvents(createDraftPreview ? [...visibleEvents, createDraftPreview] : visibleEvents),
+    [createDraftPreview, visibleEvents],
+  );
   const periodLabel = calendarLabPeriodLabel(state.view, state.cursorDate);
   const monthEventsByDate = useMemo(() => calendarMonthEventsByDate(visibleEvents), [visibleEvents]);
   const daySummary = useMemo(
@@ -247,14 +268,12 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const realAppointment = realMode && selectedEvent
     ? data.appointments.find((appointment) => appointment.id === selectedEvent.id)
     : undefined;
-  const drawerDraft = selectedEvent
+  const drawerDraft = panelMode === "appointment-edit" && selectedEvent
     ? realAppointment
       ? calendarV3RealAppointmentDraftFromAppointment(realAppointment, data.patients, data.locations, data.services)
       : appointmentDraftFromEvent(selectedEvent)
-    : state.selection
-      ? realMode
-        ? createCalendarV3RealAppointmentDraft({ selection: state.selection, appointmentId: uid(), createdAt: new Date().toISOString() })
-        : createAppointmentDraft(state.selection)
+    : panelMode === "appointment-create"
+      ? createDraft
       : null;
   const contextEvent = contextMenu?.kind === "event"
     ? activeEvents.find((event) => event.id === contextMenu.eventId)
@@ -508,7 +527,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
   useEffect(() => {
     const handleCalendarShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat || drawerDraft || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle" || monthEventMoveRef.current.status !== "idle" || eventResizeRef.current.status !== "idle") return;
+      if (event.defaultPrevented || event.repeat || panelMode !== "closed" || dragSelectionRef.current.status !== "idle" || eventMoveRef.current.status !== "idle" || monthEventMoveRef.current.status !== "idle" || eventResizeRef.current.status !== "idle") return;
       if (isCalendarShortcutTypingTarget(event.target)) return;
       const key = event.key.toLocaleLowerCase("it");
       if ((event.metaKey || event.ctrlKey) && !event.altKey && key === "k") {
@@ -531,7 +550,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     };
     document.addEventListener("keydown", handleCalendarShortcut);
     return () => document.removeEventListener("keydown", handleCalendarShortcut);
-  }, [commandPaletteOrigin, drawerDraft, state.cursorDate]);
+  }, [commandPaletteOrigin, panelMode, state.cursorDate]);
 
   const movePeriod = (direction: -1 | 1) => {
     dispatch({ type: "set_cursor_date", date: navigateCalendarLabDate(state.view, state.cursorDate, direction) });
@@ -539,6 +558,10 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
   const openCreate = (selection: CalendarSelection, origin: HTMLElement) => {
     returnFocusRef.current = origin;
+    setCreateDraft(realMode
+      ? createCalendarV3RealAppointmentDraft({ selection, appointmentId: uid(), createdAt: new Date().toISOString() })
+      : createAppointmentDraft(selection));
+    setPanelMode("appointment-create");
     dispatch({ type: "select_event", eventId: null });
     dispatch({ type: "set_selection", selection });
   };
@@ -546,6 +569,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const openEdit = (eventId: string, origin: HTMLElement) => {
     if (realMode && realMutationRef.current?.appointmentId === eventId) return;
     returnFocusRef.current = origin;
+    setCreateDraft(null);
+    setPanelMode(realMode ? "appointment-detail" : "appointment-edit");
     dispatch({ type: "set_selection", selection: null });
     dispatch({ type: "select_event", eventId });
   };
@@ -933,6 +958,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     setMonthEventMove(IDLE_CALENDAR_MONTH_EVENT_MOVE);
     eventResizeRef.current = IDLE_CALENDAR_EVENT_RESIZE;
     setEventResize(IDLE_CALENDAR_EVENT_RESIZE);
+    setCreateDraft(null);
+    setPanelMode("closed");
     dispatch({ type: "set_selection", selection: null });
     dispatch({ type: "select_event", eventId: null });
   };
@@ -975,7 +1002,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
       const source = recurrenceRequest.source;
       const origin = recurrenceRequest.origin;
       setRecurrenceRequest(null);
-      if (source === "drawer") closeDrawer();
+      if (source === "drawer") setPanelMode("appointment-detail");
       else window.requestAnimationFrame(() => origin?.focus());
       showGestureFeedback({
         tone: "info",
@@ -1017,12 +1044,13 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
         return;
       }
       if (existing && plan.kind === "single" && !hasCalendarV3AppointmentChanges(existing, plan.appointment)) {
-        closeDrawer();
+        setPanelMode("appointment-detail");
         return;
       }
       if (plan.kind === "single") await saveRealAppointment(plan.appointment);
       else await saveRealAppointments(plan.appointments);
-      closeDrawer();
+      if (existing) setPanelMode("appointment-detail");
+      else closeDrawer();
       return;
     }
     if (!days.includes(draft.date as CalendarDate)) {
@@ -1069,9 +1097,16 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
       setCancelCandidate(appointment);
       return;
     }
-    closeDrawer();
-    if (action === "register_session") router.push(`/sedute/nuova?a=${appointment.id}`);
-    else if (action === "open_patient" || action === "open_session") router.push(`/pazienti/${appointment.patientId}${action === "open_session" ? "?tab=activity" : ""}`);
+    if (action === "register_session") {
+      appointmentActionOriginRef.current = origin;
+      returnFocusRef.current = origin;
+      dispatch({ type: "set_selection", selection: null });
+      dispatch({ type: "select_event", eventId: appointment.id });
+      setPanelMode("session-create");
+    } else if (action === "open_patient" || action === "open_session") {
+      closeDrawer();
+      router.push(`/pazienti/${appointment.patientId}${action === "open_session" ? "?tab=activity" : ""}`);
+    }
   };
 
   const confirmAppointmentCancellation = async () => {
@@ -1084,7 +1119,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
       const wasOpen = state.selectedEventId === cancelCandidate.id;
       setCancelCandidate(null);
       appointmentActionOriginRef.current = null;
-      if (wasOpen) closeDrawer();
+      if (wasOpen) setPanelMode("appointment-detail");
       else window.requestAnimationFrame(() => origin?.focus());
       showGestureFeedback({ tone: "info", message: "Appuntamento annullato. Resta disponibile nello storico." });
     } catch {
@@ -1409,6 +1444,9 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
                         <span>{minutesToTime(eventMove.preview.startMinutes)} – {minutesToTime(eventMove.preview.endMinutes)}</span>
                       </span> : null}
                       {eventLayouts.filter((event) => event.date === day).map((event) => {
+                        if (event.id === CALENDAR_CREATE_DRAFT_PREVIEW_ID) {
+                          return <CreateDraftPreview key={event.id} event={event} />;
+                        }
                         const resizing = eventResize.status === "resizing" && eventResize.before.id === event.id;
                         const renderedEvent = resizing
                           ? { ...event, endMinutes: eventResize.preview.endMinutes }
@@ -1464,25 +1502,47 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
             </div>}
           </section>
         </div>
+        {realMode && panelMode === "appointment-detail" && realAppointment && selectedAppointmentActions ? <AppointmentDetailPanel
+          appointment={realAppointment}
+          patient={data.patients.find((patient) => patient.id === realAppointment.patientId)}
+          location={data.locations.find((location) => location.id === realAppointment.locationId)}
+          service={data.services.find((service) => service.id === realAppointment.serviceId)}
+          actions={selectedAppointmentActions}
+          busyAction={appointmentActionBusy}
+          error={appointmentActionError}
+          returnFocus={returnFocusRef.current}
+          onClose={closeDrawer}
+          onEdit={() => setPanelMode("appointment-edit")}
+          onAction={(action, origin) => runRealAppointmentAction(action, realAppointment, origin)}
+        /> : null}
+        {realMode && panelMode === "session-create" && realAppointment ? (() => {
+          const patient = data.patients.find((item) => item.id === realAppointment.patientId);
+          return patient ? <SessionRegistrationPanel
+            appointment={realAppointment}
+            patient={patient}
+            returnFocus={returnFocusRef.current}
+            onCancel={() => setPanelMode("appointment-detail")}
+            onSaved={() => {
+              appointmentActionOriginRef.current = null;
+              setPanelMode("appointment-detail");
+              showGestureFeedback({ tone: "info", message: "Seduta registrata. L’appuntamento è stato aggiornato." });
+            }}
+          /> : null;
+        })() : null}
         {drawerDraft ? <AppointmentDrawer
           key={selectedEvent?.id ?? `${state.selection?.date}-${state.selection?.startMinutes}`}
           initialDraft={drawerDraft}
           event={selectedEvent}
           returnFocus={returnFocusRef.current}
-          onClose={closeDrawer}
+          onClose={() => realMode && realAppointment ? setPanelMode("appointment-detail") : closeDrawer()}
           onSave={saveAppointment}
+          onDraftChange={panelMode === "appointment-create" ? setCreateDraft : undefined}
           realMode={realMode}
           patients={data.patients}
           locations={data.locations}
           services={data.services}
           scopeDialogOpen={Boolean(recurrenceRequest)}
           actionDialogOpen={Boolean(cancelCandidate)}
-          appointmentActions={selectedAppointmentActions}
-          actionBusy={appointmentActionBusy}
-          actionError={appointmentActionError}
-          onAppointmentAction={(action, origin) => {
-            if (realAppointment) runRealAppointmentAction(action, realAppointment, origin);
-          }}
         /> : null}
         {recurrenceRequest ? <RecurrenceScopeDialog
           options={recurrenceOptions}
@@ -1775,6 +1835,29 @@ function MonthEventButton({ event, focusMarker = false, draggable = false, movin
 function TimeGutter() {
   const hours = Array.from({ length: CALENDAR_LAB_CONFIG.endHour - CALENDAR_LAB_CONFIG.startHour + 1 }, (_, index) => CALENDAR_LAB_CONFIG.startHour + index);
   return <div className={styles.timeGutter}>{hours.map((hour) => <span key={hour} style={{ top: (hour - CALENDAR_LAB_CONFIG.startHour) * CALENDAR_LAB_PIXELS_PER_HOUR }}>{String(hour).padStart(2, "0")}:00</span>)}</div>;
+}
+
+function CreateDraftPreview({ event }: { event: CalendarLabEventLayout }) {
+  const color = calendarLabEventColor(event);
+  const duration = event.endMinutes - event.startMinutes;
+  const top = (event.startMinutes - CALENDAR_LAB_CONFIG.startHour * 60) * PIXELS_PER_MINUTE;
+  return <div
+    className={styles.createDraftPreview}
+    style={{
+      top,
+      height: Math.max(duration * PIXELS_PER_MINUTE - 2, 18),
+      ...eventHorizontalStyle(event),
+      "--event-color": color,
+      "--event-tint": colorToTint(color),
+    } as React.CSSProperties}
+    role="status"
+    aria-label={`Da salvare: ${event.patientName}, ${minutesToTime(event.startMinutes)}, ${duration} minuti`}
+  >
+    <span className={styles.createDraftBadge}>Da salvare</span>
+    <strong>{event.patientName}</strong>
+    {duration >= 30 ? <span>{minutesToTime(event.startMinutes)}–{minutesToTime(event.endMinutes)} · {duration} min</span> : null}
+    {duration >= 60 && event.serviceName ? <span>{event.serviceName}</span> : null}
+  </div>;
 }
 
 function EventChip({ event, view, selected, menuOpen, moving, resizing, busy, draggable, resizable, onSelect, onOpenContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onResizePointerDown, onResizePointerMove, onResizePointerUp, onResizePointerCancel }: {

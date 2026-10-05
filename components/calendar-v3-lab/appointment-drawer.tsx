@@ -39,6 +39,7 @@ type AppointmentDrawerProps = {
   returnFocus: HTMLElement | null;
   onClose: () => void;
   onSave: (draft: CalendarAppointmentDraft) => Promise<void> | void;
+  onDraftChange?: (draft: CalendarAppointmentDraft) => void;
   realMode?: boolean;
   patients?: readonly Patient[];
   locations?: readonly AppointmentLocation[];
@@ -51,7 +52,7 @@ type AppointmentDrawerProps = {
   onAppointmentAction?: (action: CalendarV3RealAppointmentActionId, origin: HTMLButtonElement) => void;
 };
 
-export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, realMode = false, patients = [], locations = [], services = [], scopeDialogOpen = false, actionDialogOpen = false, appointmentActions, actionBusy = null, actionError = "", onAppointmentAction }: AppointmentDrawerProps) {
+export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, onDraftChange, realMode = false, patients = [], locations = [], services = [], scopeDialogOpen = false, actionDialogOpen = false, appointmentActions, actionBusy = null, actionError = "", onAppointmentAction }: AppointmentDrawerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
   const patientRef = useRef<HTMLInputElement>(null);
@@ -67,6 +68,10 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
   const [customDurationOpen, setCustomDurationOpen] = useState(
     !isCalendarLabDurationPreset(initialDraft.durationMinutes),
   );
+
+  useEffect(() => {
+    if (!event) onDraftChange?.(draft);
+  }, [draft, event, onDraftChange]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
