@@ -120,5 +120,6 @@ export function buildWeeklyAppointmentOccurrences(
     ...appointment,
     id: index === 0 ? appointment.id : createId(),
     date,
+    recurrencePosition: index,
   }));
 }

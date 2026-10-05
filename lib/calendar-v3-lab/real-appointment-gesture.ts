@@ -3,7 +3,7 @@ import { minutesToTime } from "./date-time.ts";
 import type { CalendarLabEvent } from "./fixtures.ts";
 
 export type CalendarV3RealGesture = "move" | "resize" | "month_move";
-export type CalendarV3GestureBlockReason = "cancelled" | "registered" | "recurring";
+export type CalendarV3GestureBlockReason = "cancelled" | "registered" | "recurrence_inconsistent";
 
 export type CalendarV3GestureBlock = {
   reason: CalendarV3GestureBlockReason;
@@ -23,10 +23,10 @@ export function getCalendarV3GestureBlockReason(event: CalendarLabEvent): Calend
       message: "Seduta già registrata. Questo appuntamento non può essere spostato rapidamente.",
     };
   }
-  if (event.recurrenceSeriesId) {
+  if (event.recurrenceSeriesId && (!Number.isInteger(event.recurrencePosition) || Number(event.recurrencePosition) < 0)) {
     return {
-      reason: "recurring",
-      message: "Appuntamento ricorrente. La modifica della serie sarà disponibile nella gestione delle ricorrenze.",
+      reason: "recurrence_inconsistent",
+      message: "La posizione di questo appuntamento nella serie non è disponibile. Ricarica la pagina e riprova.",
     };
   }
   return null;
@@ -36,7 +36,7 @@ export function isCalendarV3RealGestureEligible(event: CalendarLabEvent): boolea
   return event.source === "real" &&
     event.status === "scheduled" &&
     event.sessionState === "to_register" &&
-    !event.recurrenceSeriesId;
+    (!event.recurrenceSeriesId || (Number.isInteger(event.recurrencePosition) && Number(event.recurrencePosition) >= 0));
 }
 
 export function appointmentAfterCalendarV3RealGesture(

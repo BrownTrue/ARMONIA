@@ -104,6 +104,7 @@ export function calendarV3EventFromAppointment(
     serviceId: appointment.serviceId,
     effectivePriceCents: appointment.effectivePriceCents,
     recurrenceSeriesId: appointment.recurrenceSeriesId,
+    recurrencePosition: appointment.recurrencePosition,
     isRecurring: Boolean(appointment.recurrenceSeriesId),
     createdAt: appointment.createdAt,
     displayColor: getAppointmentDisplayColor(appointment, [...context.locations], [...context.services]),

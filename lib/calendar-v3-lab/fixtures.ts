@@ -24,6 +24,7 @@ export type CalendarLabEvent = {
   serviceId?: string;
   effectivePriceCents?: number;
   recurrenceSeriesId?: string;
+  recurrencePosition?: number;
   isRecurring?: boolean;
   createdAt?: string;
   displayColor?: string;

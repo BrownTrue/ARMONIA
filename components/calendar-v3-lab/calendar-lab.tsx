@@ -6,6 +6,7 @@ import { useData } from "@/components/data-provider";
 import { AppointmentDrawer } from "./appointment-drawer";
 import { ContextMenu } from "./context-menu";
 import { CommandPalette } from "./command-palette";
+import { RecurrenceScopeDialog } from "./recurrence-scope-dialog";
 import {
   CALENDAR_LAB_CONFIG,
   calendarDateFromInstant,
@@ -111,6 +112,7 @@ import {
   isCalendarV3RealAppointmentDraft,
 } from "@/lib/calendar-v3-lab/real-appointment-editor";
 import {
+  appointmentAfterCalendarV3RealGesture,
   executeCalendarV3RealGesture,
   getCalendarV3GestureBlockReason,
   isCalendarV3RealGestureEligible,
@@ -124,8 +126,16 @@ import {
   moveCalendarBlockedGestureAttempt,
   type CalendarBlockedGestureAttempt,
 } from "@/lib/calendar-v3-lab/blocked-gesture-attempt";
+import {
+  buildCalendarV3RecurrencePlan,
+  calendarV3RecurrencePlanSummary,
+  executeCalendarV3RecurrencePlan,
+  hasCalendarV3AppointmentChanges,
+  type CalendarV3RecurrenceScope,
+  type CalendarV3RecurringMutation,
+} from "@/lib/calendar-v3-lab/recurrence-scope";
 import { FALLBACK_APPOINTMENT_COLOR } from "@/lib/calendar-visual";
-import { uid } from "@/lib/types";
+import { uid, type Appointment } from "@/lib/types";
 
 const LAB_NOW = new Date("2026-10-05T08:00:00.000Z");
 const DAY_LABELS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
@@ -139,7 +149,15 @@ type CalendarContextMenuState =
 
 type CalendarRealMutation = {
   appointmentId: string;
-  gesture: CalendarV3RealGesture;
+  gesture: CalendarV3RecurringMutation;
+};
+
+type CalendarRecurrenceRequest = {
+  selectedBefore: Appointment;
+  selectedAfter: Appointment;
+  mutation: CalendarV3RecurringMutation;
+  source: "gesture" | "drawer";
+  origin: HTMLElement | null;
 };
 
 type CalendarGestureFeedback = {
@@ -166,6 +184,8 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const [expandedMonthDate, setExpandedMonthDate] = useState<CalendarDate | null>(null);
   const [realMutation, setRealMutation] = useState<CalendarRealMutation | null>(null);
   const [gestureFeedback, setGestureFeedback] = useState<CalendarGestureFeedback | null>(null);
+  const [recurrenceRequest, setRecurrenceRequest] = useState<CalendarRecurrenceRequest | null>(null);
+  const [recurrenceError, setRecurrenceError] = useState("");
   const dragSelectionRef = useRef<CalendarDragSelectionState>(IDLE_CALENDAR_DRAG_SELECTION);
   const dragOriginRef = useRef<HTMLDivElement | null>(null);
   const eventMoveRef = useRef<CalendarEventMoveState>(IDLE_CALENDAR_EVENT_MOVE);
@@ -226,6 +246,34 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   const contextEvent = contextMenu?.kind === "event"
     ? activeEvents.find((event) => event.id === contextMenu.eventId)
     : undefined;
+  const recurrenceOptions = useMemo(() => {
+    if (!recurrenceRequest) return [];
+    return ([
+      ["single", "Solo questo appuntamento"],
+      ["following", "Questo e i successivi"],
+      ["entire", "Intera serie"],
+    ] as const).map(([scope, label]) => {
+      const plan = buildCalendarV3RecurrencePlan({
+        appointments: data.appointments,
+        sessions: data.sessions,
+        selectedBefore: recurrenceRequest.selectedBefore,
+        selectedAfter: recurrenceRequest.selectedAfter,
+        mutation: recurrenceRequest.mutation,
+        scope,
+      });
+      return {
+        scope,
+        label,
+        description: scope === "single"
+          ? "Modifica soltanto questa data."
+          : scope === "following"
+            ? "Applica il nuovo orario o giorno da questo appuntamento in avanti."
+            : "Applica il nuovo schema a tutta la serie.",
+        summary: calendarV3RecurrencePlanSummary(plan),
+        disabled: plan.appointments.length === 0,
+      };
+    });
+  }, [data.appointments, data.sessions, recurrenceRequest]);
 
   useEffect(() => {
     if (!realMode || !ready || realModeInitializedRef.current) return;
@@ -481,7 +529,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     };
   };
 
-  const beginBlockedGestureFeedback = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+  const beginBlockedGestureFeedback = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLElement>) => {
     if (!realMode) return false;
     const block = getCalendarV3GestureBlockReason(event);
     if (!block) return false;
@@ -500,7 +548,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     return true;
   };
 
-  const updateBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+  const updateBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLElement>) => {
     const current = blockedGestureAttemptRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return false;
     const next = moveCalendarBlockedGestureAttempt(current, {
@@ -518,7 +566,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     return true;
   };
 
-  const finishBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+  const finishBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLElement>) => {
     const current = blockedGestureAttemptRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return false;
     const completion = completeCalendarBlockedGestureAttempt(current, {
@@ -541,7 +589,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     return true;
   };
 
-  const abortBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLButtonElement>) => {
+  const abortBlockedGestureFeedback = (pointerEvent: React.PointerEvent<HTMLElement>) => {
     const current = blockedGestureAttemptRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return false;
     if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
@@ -552,12 +600,24 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     return true;
   };
 
-  const persistRealGesture = async (intent: CalendarLabEvent, gesture: CalendarV3RealGesture) => {
+  const persistRealGesture = async (intent: CalendarLabEvent, gesture: CalendarV3RealGesture, origin: HTMLElement) => {
     if (!realMode || realMutationRef.current) return;
     const before = data.appointments.find((appointment) => appointment.id === intent.id);
     const sourceEvent = realData.events.find((event) => event.id === intent.id);
     if (!before || !sourceEvent || !isCalendarV3RealGestureEligible(sourceEvent)) {
       showGestureFeedback({ tone: "error", message: "Questo appuntamento non può essere modificato con una gesture." });
+      return;
+    }
+    if (before.recurrenceSeriesId) {
+      setRecurrenceError("");
+      setRecurrenceRequest({
+        selectedBefore: before,
+        selectedAfter: appointmentAfterCalendarV3RealGesture(before, intent, gesture),
+        mutation: gesture,
+        source: "gesture",
+        origin,
+      });
+      dismissGestureFeedback();
       return;
     }
     const mutation = { appointmentId: before.id, gesture };
@@ -645,7 +705,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     if (completion.wasMove && completion.event) {
       pointerEvent.preventDefault();
       suppressNextEventClickRef.current = true;
-      if (realMode) void persistRealGesture(completion.event, "move");
+      if (realMode) void persistRealGesture(completion.event, "move", pointerEvent.currentTarget);
       else dispatch({ type: "move_event", event: completion.event });
       window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
     }
@@ -732,7 +792,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     if (completion.wasMove && completion.event) {
       pointerEvent.preventDefault();
       suppressNextEventClickRef.current = true;
-      if (realMode) void persistRealGesture(completion.event, "month_move");
+      if (realMode) void persistRealGesture(completion.event, "month_move", pointerEvent.currentTarget);
       else dispatch({ type: "move_event", event: completion.event });
       window.setTimeout(() => { suppressNextEventClickRef.current = false; }, 0);
     }
@@ -758,7 +818,10 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
   const beginEventResize = (event: CalendarLabEvent, pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
     if (drawerDraft || realMutationRef.current || eventMoveRef.current.status !== "idle" || dragSelectionRef.current.status !== "idle") return;
-    if (realMode && !isCalendarV3RealGestureEligible(event)) return;
+    if (realMode && !isCalendarV3RealGestureEligible(event)) {
+      beginBlockedGestureFeedback(event, pointerEvent);
+      return;
+    }
     const next = beginCalendarEventResize({
       event,
       pointerId: pointerEvent.pointerId,
@@ -779,6 +842,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const updateEventResize = (pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    if (updateBlockedGestureFeedback(pointerEvent)) return;
     const current = eventResizeRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     const pointerEndMinute = eventResizeTarget(pointerEvent.clientY);
@@ -795,6 +859,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const finishEventResize = (pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    if (finishBlockedGestureFeedback(pointerEvent)) return;
     const current = eventResizeRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     const pointerEndMinute = eventResizeTarget(pointerEvent.clientY);
@@ -812,12 +877,13 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     eventResizeOriginRef.current = null;
     if (completion.wasResize && completion.event) {
       pointerEvent.preventDefault();
-      if (realMode) void persistRealGesture(completion.event, "resize");
+      if (realMode) void persistRealGesture(completion.event, "resize", pointerEvent.currentTarget);
       else dispatch({ type: "resize_event", event: completion.event });
     }
   };
 
   const abortEventResize = (pointerEvent: React.PointerEvent<HTMLSpanElement>) => {
+    if (abortBlockedGestureFeedback(pointerEvent)) return;
     const current = eventResizeRef.current;
     if (current.status === "idle" || current.pointerId !== pointerEvent.pointerId) return;
     if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
@@ -841,6 +907,60 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
     dispatch({ type: "select_event", eventId: null });
   };
 
+  const cancelRecurrenceScope = () => {
+    if (realMutationRef.current) return;
+    const origin = recurrenceRequest?.origin;
+    setRecurrenceRequest(null);
+    setRecurrenceError("");
+    window.requestAnimationFrame(() => origin?.focus());
+  };
+
+  const confirmRecurrenceScope = async (scope: CalendarV3RecurrenceScope) => {
+    if (!recurrenceRequest || realMutationRef.current) return;
+    const plan = buildCalendarV3RecurrencePlan({
+      appointments: data.appointments,
+      sessions: data.sessions,
+      selectedBefore: recurrenceRequest.selectedBefore,
+      selectedAfter: recurrenceRequest.selectedAfter,
+      mutation: recurrenceRequest.mutation,
+      scope,
+    });
+    if (!plan.appointments.length) {
+      setRecurrenceError(plan.consistencyError ?? "Nessun appuntamento modificabile nello scope scelto.");
+      return;
+    }
+    const mutation = {
+      appointmentId: recurrenceRequest.selectedBefore.id,
+      gesture: recurrenceRequest.mutation,
+    };
+    realMutationRef.current = mutation;
+    setRealMutation(mutation);
+    setRecurrenceError("");
+    try {
+      const result = await executeCalendarV3RecurrencePlan(plan, saveRealAppointments);
+      if (!result.ok) {
+        setRecurrenceError("Non è stato possibile aggiornare la serie. Nessuna modifica è stata applicata nell’interfaccia.");
+        return;
+      }
+      const source = recurrenceRequest.source;
+      const origin = recurrenceRequest.origin;
+      setRecurrenceRequest(null);
+      if (source === "drawer") closeDrawer();
+      else window.requestAnimationFrame(() => origin?.focus());
+      showGestureFeedback({
+        tone: "info",
+        message: result.count === 1
+          ? "Appuntamento aggiornato."
+          : `${result.count} appuntamenti aggiornati.`,
+      });
+    } finally {
+      if (realMutationRef.current === mutation) {
+        realMutationRef.current = null;
+        setRealMutation(null);
+      }
+    }
+  };
+
   const saveAppointment = async (draft: CalendarAppointmentDraft) => {
     if (realMode) {
       if (!isCalendarV3RealAppointmentDraft(draft)) throw new Error("Bozza appuntamento reale non valida.");
@@ -851,6 +971,25 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
         createId: uid,
         createdAt: () => new Date().toISOString(),
       });
+      if (
+        existing?.recurrenceSeriesId &&
+        plan.kind === "single" &&
+        hasCalendarV3AppointmentChanges(existing, plan.appointment)
+      ) {
+        setRecurrenceError("");
+        setRecurrenceRequest({
+          selectedBefore: existing,
+          selectedAfter: plan.appointment,
+          mutation: "drawer",
+          source: "drawer",
+          origin: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+        });
+        return;
+      }
+      if (existing && plan.kind === "single" && !hasCalendarV3AppointmentChanges(existing, plan.appointment)) {
+        closeDrawer();
+        return;
+      }
       if (plan.kind === "single") await saveRealAppointment(plan.appointment);
       else await saveRealAppointments(plan.appointments);
       closeDrawer();
@@ -957,7 +1096,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
         {realMode ? <div className={styles.realModeNotice} role="status">
           <strong>Dati reali</strong>
-          <span>Creazione, modifica e gesture sugli appuntamenti singoli attive.</span>
+          <span>Creazione, modifica e gesture sugli appuntamenti attive.</span>
         </div> : null}
         {gestureFeedback ? <div
           className={`${styles.gestureFeedback} ${gestureFeedback.tone === "error" ? styles.gestureError : styles.gestureNotice}`}
@@ -1246,6 +1385,14 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
           patients={data.patients}
           locations={data.locations}
           services={data.services}
+          scopeDialogOpen={Boolean(recurrenceRequest)}
+        /> : null}
+        {recurrenceRequest ? <RecurrenceScopeDialog
+          options={recurrenceOptions}
+          saving={Boolean(realMutation)}
+          error={recurrenceError}
+          onChoose={(scope) => { void confirmRecurrenceScope(scope); }}
+          onCancel={cancelRecurrenceScope}
         /> : null}
         {contextMenu && (contextMenu.kind === "empty" || contextEvent) ? <ContextMenu
           anchorPoint={contextMenu.anchorPoint}

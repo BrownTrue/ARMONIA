@@ -1,4 +1,4 @@
-import type { AppData } from "../types.ts";
+import type { AppData, Appointment } from "../types.ts";
 import { parseExerciseRecipeV1 } from "../exercise-lab/recipes.ts";
 import { parseWorksheetTemplateV1 } from "../exercise-lab/worksheet-templates.ts";
 import { parsePatientWorksheetV1 } from "../exercise-lab/patient-worksheets.ts";
@@ -26,6 +26,58 @@ const validExerciseRecipes = (value: unknown) => arrayOrEmpty<unknown>(value).fl
 const validWorksheetTemplates = (value: unknown) => arrayOrEmpty<unknown>(value).flatMap((entry) => { try { return [parseWorksheetTemplateV1(entry)]; } catch { return []; } });
 const validPatientWorksheets = (value: unknown) => arrayOrEmpty<unknown>(value).flatMap((entry) => { try { return [parsePatientWorksheetV1(entry)]; } catch { return []; } });
 
+const validRecurrencePosition = (value: unknown): value is number =>
+  Number.isInteger(value) && Number(value) >= 0;
+
+const compareCurrentAppointmentOrder = (left: Appointment, right: Appointment) =>
+  left.date.localeCompare(right.date) || left.time.localeCompare(right.time) || left.id.localeCompare(right.id);
+
+export function normalizeAppointmentRecurrencePositions(value: unknown): Appointment[] {
+  const appointments = arrayOrEmpty<Appointment>(value).map((appointment) => ({ ...appointment }));
+  const series = new Map<string, number[]>();
+  appointments.forEach((appointment, index) => {
+    if (!appointment.recurrenceSeriesId) {
+      delete appointment.recurrencePosition;
+      return;
+    }
+    const indexes = series.get(appointment.recurrenceSeriesId) ?? [];
+    indexes.push(index);
+    series.set(appointment.recurrenceSeriesId, indexes);
+  });
+  for (const indexes of series.values()) {
+    const ordered = [...indexes].sort((left, right) =>
+      compareCurrentAppointmentOrder(appointments[left], appointments[right]));
+    const used = new Set<number>();
+    for (const index of ordered) {
+      const position = appointments[index].recurrencePosition;
+      if (validRecurrencePosition(position) && !used.has(position)) used.add(position);
+      else delete appointments[index].recurrencePosition;
+    }
+    let nextPosition = 0;
+    for (const index of ordered) {
+      if (appointments[index].recurrencePosition !== undefined) continue;
+      while (used.has(nextPosition)) nextPosition += 1;
+      appointments[index].recurrencePosition = nextPosition;
+      used.add(nextPosition);
+    }
+  }
+  return appointments;
+}
+
+function needsRecurrencePositionMigration(value: unknown): boolean {
+  const appointments = arrayOrEmpty<Appointment>(value);
+  const seen = new Map<string, Set<number>>();
+  return appointments.some((appointment) => {
+    if (!appointment.recurrenceSeriesId) return appointment.recurrencePosition !== undefined;
+    if (!validRecurrencePosition(appointment.recurrencePosition)) return true;
+    const positions = seen.get(appointment.recurrenceSeriesId) ?? new Set<number>();
+    if (positions.has(appointment.recurrencePosition)) return true;
+    positions.add(appointment.recurrencePosition);
+    seen.set(appointment.recurrenceSeriesId, positions);
+    return false;
+  });
+}
+
 export function normalizeAppData(value: unknown): AppData {
   const source = isRecord(value) ? value : {};
   const profile = isRecord(source.profile) ? source.profile : {};
@@ -41,7 +93,7 @@ export function normalizeAppData(value: unknown): AppData {
     exerciseRecipes: validExerciseRecipes(source.exerciseRecipes),
     worksheetTemplates: validWorksheetTemplates(source.worksheetTemplates),
     patientWorksheets: validPatientWorksheets(source.patientWorksheets),
-    appointments: arrayOrEmpty(source.appointments),
+    appointments: normalizeAppointmentRecurrencePositions(source.appointments),
     locations: arrayOrEmpty(source.locations),
     services: arrayOrEmpty(source.services),
     sessions: arrayOrEmpty(source.sessions),
@@ -94,7 +146,7 @@ export function readLocalData(raw: string | null, whenMissing: () => AppData): L
       || !Array.isArray(parsed.data.exerciseRecipes)
       || !Array.isArray(parsed.data.worksheetTemplates)
       || !Array.isArray(parsed.data.patientWorksheets);
-    return { data: normalized, writable: true, migrated: missingCollections };
+    return { data: normalized, writable: true, migrated: missingCollections || needsRecurrencePositionMigration(parsed.data.appointments) };
   }
   return { data: normalizeAppData(parsed), writable: true, migrated: true };
 }

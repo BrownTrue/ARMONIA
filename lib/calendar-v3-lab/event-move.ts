@@ -25,8 +25,7 @@ export const IDLE_CALENDAR_EVENT_MOVE: CalendarEventMoveState = Object.freeze({ 
 
 export function isCalendarLabEventDraggable(event: CalendarLabEvent): boolean {
   return event.status === "scheduled" &&
-    event.sessionState === "to_register" &&
-    !event.recurrenceSeriesId;
+    event.sessionState === "to_register";
 }
 
 export function calendarDayFromClientX(

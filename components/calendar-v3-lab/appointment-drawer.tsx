@@ -38,13 +38,16 @@ type AppointmentDrawerProps = {
   patients?: readonly Patient[];
   locations?: readonly AppointmentLocation[];
   services?: readonly AppointmentService[];
+  scopeDialogOpen?: boolean;
 };
 
-export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, realMode = false, patients = [], locations = [], services = [] }: AppointmentDrawerProps) {
+export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, onSave, realMode = false, patients = [], locations = [], services = [], scopeDialogOpen = false }: AppointmentDrawerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
   const patientRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
+  const scopeDialogOpenRef = useRef(scopeDialogOpen);
+  scopeDialogOpenRef.current = scopeDialogOpen;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const [draft, setDraft] = useState(initialDraft);
@@ -64,6 +67,7 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
     });
     const handleKeyDown = (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.defaultPrevented) return;
+      if (scopeDialogOpenRef.current) return;
       if (keyboardEvent.key === "Escape") {
         keyboardEvent.preventDefault();
         if (savingRef.current) return;
@@ -349,7 +353,7 @@ function RealAppointmentFields({ draft, errors, patientRef, patients, locations,
       {draft.repeat === "weekly" ? <Field label="Ripeti fino al *" htmlFor="lab-recurrence-end" error={errors.recurrenceEndDate}>
         <input id="lab-recurrence-end" name="recurrenceEndDate" type="date" min={draft.date} value={draft.recurrenceEndDate} aria-invalid={Boolean(errors.recurrenceEndDate)} onChange={(event) => update("recurrenceEndDate", event.target.value)} />
       </Field> : null}
-    </> : draft.recurrenceSeriesId ? <p className={styles.recurrenceNote}>Questa modifica riguarda soltanto questa occorrenza.</p> : null}
+    </> : draft.recurrenceSeriesId ? <p className={styles.recurrenceNote}>Al salvataggio potrai scegliere a quali appuntamenti della serie applicare la modifica.</p> : null}
   </>;
 }
 
