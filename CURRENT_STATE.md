@@ -2,6 +2,8 @@
 
 Fotografia ricavata dal repository al 2 ottobre 2026.
 
+MOBILE 4A introduce nel solo `/calendar-v3-lab` una presentazione sotto 768 px per confrontare Giorno, Agenda e Mese sugli stessi eventi fixture o reali. La week strip è esclusivamente navigazione; Giorno conserva asse 07–21, overlap e current time, Agenda ordina gli Appointment senza slot vuoti e Mese riprende la baseline mobile approvata con griglia, indicatori e lista del giorno. Create, dettaglio, modifica e registrazione Session riusano i pannelli Calendar V3 in modalità full-screen. Touch drag/move/resize, long-press, sidebar cataloghi, `/calendario` e il desktop V3 restano invariati.
+
 ## Stato Git rilevato prima dell'intervento corrente
 
 - Branch: `main`, 7 commit locali avanti rispetto a `origin/main`; HEAD iniziale `ccc5db3` — “improve clinical anamnesis experience”.

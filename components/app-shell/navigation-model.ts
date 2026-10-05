@@ -29,6 +29,7 @@ export function isNavigationItemActive(pathname: string, href: string) {
 }
 
 const detailTitles: readonly [prefix: string, title: string][] = [
+  ["/calendar-v3-lab", "Calendario"],
   ["/pazienti/", "Paziente"],
   ["/sedute/", "Seduta"],
   ["/risorse/laboratorio", "Laboratorio"],

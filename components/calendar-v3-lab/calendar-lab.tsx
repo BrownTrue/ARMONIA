@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./calendar-v3-lab.module.css";
+import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
+import { MobileCalendar } from "./mobile-calendar";
 import { AppointmentDrawer } from "./appointment-drawer";
 import { AppointmentDetailPanel } from "./appointment-detail-panel";
 import { AppointmentCancelDialog } from "./appointment-cancel-dialog";
@@ -1194,10 +1196,21 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
 
   return (
     <main className={styles.shell}>
-      <div className={styles.mobileFallback}>
-        <span className={styles.mobileMark}>Calendar V3 Lab</span>
-        <h1>La vista mobile verrà progettata separatamente.</h1>
-        <p>Questa fase valuta le viste desktop Giorno, Settimana e Mese di ARMONIA. Apri il laboratorio da uno schermo di almeno 768 px.</p>
+      <div className={styles.mobileApp}>
+        <AppShell mobileFullScreen>
+          <MobileCalendar
+            events={visibleEvents}
+            selectedDate={state.cursorDate}
+            today={labToday}
+            nowMinutes={labNowMinutes}
+            realMode={realMode}
+            feedback={gestureFeedback}
+            onDismissFeedback={dismissGestureFeedback}
+            onSelectDate={(date) => dispatch({ type: "set_cursor_date", date })}
+            onCreate={openCreate}
+            onOpenEvent={openEdit}
+          />
+        </AppShell>
       </div>
 
       <div className={styles.desktopApp}>
