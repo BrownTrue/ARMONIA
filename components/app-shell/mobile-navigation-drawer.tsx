@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { RefObject } from "react";
 import { MobileAccountMenu } from "./mobile-account-menu";
 import { NavigationIcon } from "./navigation-icons";
@@ -17,7 +18,7 @@ export function MobileNavigationDrawer({ pathname, drawerRef, profile, accountOp
         <div className="flex items-start gap-2">
           <button type="button" aria-expanded={accountOpen} aria-controls="mobile-account-menu" onClick={onToggleAccount} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl px-1 text-left transition hover:bg-[#eef1e9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#e2e9dc] text-[0.72rem] font-semibold tracking-[0.08em] text-[#385842]">{profile.initials}</span>
-            <span className="min-w-0 flex-1"><span className="block truncate text-[0.92rem] font-semibold tracking-[-0.01em] text-[#24352f]">{profile.name}</span><span className="mt-0.5 block text-[0.66rem] font-semibold uppercase tracking-[0.14em] text-[#819087]">Armonia</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-[0.92rem] font-semibold tracking-[-0.01em] text-[#24352f]">{profile.name}</span><span className="mt-0.5 flex items-center gap-1.5 text-[0.66rem] font-semibold uppercase tracking-[0.14em] text-[#819087]"><Image src="/branding/logo-mark.svg" alt="" width={9} height={11} className="h-[0.72rem] w-auto"/>Armonia</span></span>
             <span aria-hidden="true" className={`mr-1 text-xs text-[#89958e] transition-transform duration-200 ${accountOpen ? "rotate-180" : ""}`}>⌄</span>
           </button>
           <button type="button" aria-label="Chiudi navigazione" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-light text-[#758179] transition hover:bg-[#e9ede5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500">×</button>

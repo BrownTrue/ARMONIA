@@ -13,3 +13,22 @@ const paths: Record<NavigationIconName, React.ReactNode> = {
 export function NavigationIcon({ name, className = "h-5 w-5" }: { name: NavigationIconName; className?: string }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className}>{paths[name]}</svg>;
 }
+
+type IconProps = { className?: string };
+const iconProps = { "aria-hidden": true, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.65, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+export function TwoLineMenuIcon({ className = "h-5 w-5" }: IconProps) {
+  return <svg {...iconProps} className={className}><path d="M4.5 8.25h15M4.5 15.75h11"/></svg>;
+}
+
+export function CalendarPlusIcon({ className = "h-4 w-4" }: IconProps) {
+  return <svg {...iconProps} className={className}><rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M8 3.75v3.5M16 3.75v3.5M4 9.5h16M12 12.25v4.5M9.75 14.5h4.5"/></svg>;
+}
+
+export function SessionIcon({ className = "h-4 w-4" }: IconProps) {
+  return <svg {...iconProps} className={className}><path d="M5 4.5h14v15H5zM8 8h8M8 12h8M8 16h5"/></svg>;
+}
+
+export function ChevronRightIcon({ className = "h-4 w-4" }: IconProps) {
+  return <svg {...iconProps} className={className}><path d="m9 5.5 6.5 6.5L9 18.5"/></svg>;
+}
