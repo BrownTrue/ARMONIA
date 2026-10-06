@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ClinicalAssessmentPrint } from "@/components/clinical/assessment-print-dispatch";
+import { AssessmentPdfActions } from "@/components/clinical/assessment-pdf-actions";
 import { MobileAssessmentFooter, MobileAssessmentIdentity, MobileAssessmentOverview, MobileAssessmentRow, useMobileAssessmentLayout } from "@/components/clinical/mobile-assessment-layout";
 import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
@@ -208,6 +209,7 @@ export function AssessmentWizard() {
           <div className="space-y-3 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {readOnly ? <><button type="button" onClick={() => setCorrectConfirmOpen(true)} className="btn btn-quiet min-h-11 w-full">Correggi valutazione</button><button type="button" disabled={!brandingReady} onClick={async () => { await waitForPrintableLogo(); window.print(); }} className="btn btn-primary min-h-11 w-full">Stampa valutazione</button></> : correcting ? <><button type="button" onClick={saveCorrection} className="btn btn-primary min-h-11 w-full">Salva correzioni</button><button type="button" onClick={cancelCorrection} className="btn btn-quiet min-h-11 w-full">Annulla correzione</button></> : <><button type="button" onClick={complete} className="btn btn-primary min-h-11 w-full">Completa valutazione</button><button type="button" onClick={saveAndClose} className="btn btn-quiet min-h-11 w-full">Salva e chiudi</button></>}
             {!correcting && <button type="button" onClick={() => setDeleteOpen(true)} className="min-h-11 w-full text-sm font-bold text-red-600">{draft.status === "draft" ? "Elimina bozza" : "Elimina valutazione"}</button>}
+            {readOnly && <AssessmentPdfActions patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
           </div>
         </> : <>
           <main className="px-4 pb-2 pt-5">{stepContent}</main>
@@ -248,6 +250,7 @@ export function AssessmentWizard() {
           </div>
         </div>
       </div>
+      {readOnly && <AssessmentPdfActions patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
       {!correcting && <div className="mt-5 rounded-2xl border border-red-100 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Area riservata</p><button type="button" onClick={() => setDeleteOpen(true)} className="mt-2 text-sm font-bold text-red-600">{draft.status === "draft" ? "Elimina bozza" : "Elimina valutazione"}</button></div>}
     </div>
     {correctConfirmOpen && <Modal title="Correggi valutazione" onClose={() => setCorrectConfirmOpen(false)}><p className="text-sm leading-6 text-slate-600">Stai per modificare una valutazione già completata. L’autosave resterà disattivato: potrai annullare le modifiche oppure salvarle esplicitamente mantenendo la valutazione completata.</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCorrectConfirmOpen(false)} className="btn btn-quiet">Annulla</button><button type="button" onClick={startCorrection} className="btn btn-primary">Inizia correzione</button></div></Modal>}
