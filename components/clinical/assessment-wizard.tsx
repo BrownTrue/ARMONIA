@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ClinicalAssessmentPrint } from "@/components/clinical/assessment-print-dispatch";
+import { AssessmentPdfActions } from "@/components/clinical/assessment-pdf-actions";
+import { MobileAssessmentFooter, MobileAssessmentIdentity, MobileAssessmentOverview, MobileAssessmentRow, useMobileAssessmentLayout } from "@/components/clinical/mobile-assessment-layout";
 import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
@@ -42,6 +44,7 @@ export function AssessmentWizard() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const originalCompletedRef = useRef<ClinicalAssessmentV1 | null>(null);
   const printRequestedRef = useRef(false);
+  const mobileNavigation = useMobileAssessmentLayout(STEPS.length);
 
   useEffect(() => {
     if (!source || draftRef.current) return;
@@ -184,6 +187,41 @@ export function AssessmentWizard() {
     }
   };
 
+  if (mobileNavigation.mobile) {
+    const mobileStep = mobileNavigation.surface.kind === "section" ? mobileNavigation.surface.step : undefined;
+    const openStep = (index: number) => { setStep(index); mobileNavigation.navigate({ kind: "section", step: index }); };
+    const saveLabel = correcting ? (dirty ? "Non salvato" : "Salvataggio manuale") : readOnly ? "Sola lettura" : saveState === "saving" ? "Salvataggio…" : saveState === "error" ? "Errore salvataggio" : "Salvato";
+    const statusLabel = `${draft.clinicalDate ? new Date(`${draft.clinicalDate}T12:00:00`).toLocaleDateString("it-IT") : "Data non indicata"} · ${correcting ? "Correzione" : readOnly ? "Completata" : "Bozza"}`;
+    const backHref = `/pazienti/${id}?tab=clinical&section=assessments`;
+    const stepContent = mobileStep === 0 ? <AccessReasonStep value={draft.data} onChange={updateData} readOnly={readOnly} />
+      : mobileStep === 1 ? <AnamnesisStep value={draft.data} onChange={updateData} readOnly={readOnly} />
+      : mobileStep === 2 ? <ObservationStep value={draft.data} onChange={updateData} readOnly={readOnly} />
+      : mobileStep === 3 ? <TestsStep value={draft.data} onChange={updateData} readOnly={readOnly} />
+      : mobileStep === 4 ? <SummaryStep value={draft.data} onChange={updateData} readOnly={readOnly} />
+      : mobileStep === 5 ? <PlanningStep value={draft.data} onChange={updateData} readOnly={readOnly} goals={data.goals.filter((goal) => goal.patientId === patient.id)} /> : undefined;
+    return <AppShell mobileFullScreen mobileHeader={{ variant: "detail", title: mobileStep === undefined ? "Valutazione" : STEPS[mobileStep], backHref, backLabel: mobileStep === undefined ? "Torna alle valutazioni" : "Torna alla valutazione", onBack: mobileStep === undefined ? undefined : mobileNavigation.back }}>
+      {readOnly && <ClinicalAssessmentPrint patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
+      <div className="assessment-screen-only min-h-[calc(100dvh-3.65rem)] bg-[#f7f7f2] md:hidden">
+        <MobileAssessmentIdentity patientName={fullName(patient)} assessmentType="Prima valutazione" status={statusLabel} saveLabel={saveLabel} saveError={saveState === "error"} />
+        {mobileStep === undefined ? <>
+          <MobileAssessmentOverview>{STEPS.map((label, index) => <MobileAssessmentRow key={label} title={label} subtitle="Apri sezione" onClick={() => openStep(index)} />)}</MobileAssessmentOverview>
+          {message && <p role={saveState === "error" ? "alert" : "status"} className={`mx-4 mb-4 rounded-xl px-4 py-3 text-sm ${saveState === "error" ? "bg-red-50 text-red-700" : "bg-sage-50 text-sage-700"}`}>{message}</p>}
+          <div className="space-y-3 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            {readOnly ? <><button type="button" onClick={() => setCorrectConfirmOpen(true)} className="btn btn-quiet min-h-11 w-full">Correggi valutazione</button><button type="button" disabled={!brandingReady} onClick={async () => { await waitForPrintableLogo(); window.print(); }} className="btn btn-primary min-h-11 w-full">Stampa valutazione</button></> : correcting ? <><button type="button" onClick={saveCorrection} className="btn btn-primary min-h-11 w-full">Salva correzioni</button><button type="button" onClick={cancelCorrection} className="btn btn-quiet min-h-11 w-full">Annulla correzione</button></> : <><button type="button" onClick={complete} className="btn btn-primary min-h-11 w-full">Completa valutazione</button><button type="button" onClick={saveAndClose} className="btn btn-quiet min-h-11 w-full">Salva e chiudi</button></>}
+            {!correcting && <button type="button" onClick={() => setDeleteOpen(true)} className="min-h-11 w-full text-sm font-bold text-red-600">{draft.status === "draft" ? "Elimina bozza" : "Elimina valutazione"}</button>}
+            {readOnly && <AssessmentPdfActions patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
+          </div>
+        </> : <>
+          <main className="px-4 pb-2 pt-5">{stepContent}</main>
+          {message && <p role={saveState === "error" ? "alert" : "status"} className={`mx-4 mt-4 rounded-xl px-4 py-3 text-sm ${saveState === "error" ? "bg-red-50 text-red-700" : "bg-sage-50 text-sage-700"}`}>{message}</p>}
+          <MobileAssessmentFooter showBack onBack={() => mobileStep === 0 ? mobileNavigation.navigate({ kind: "overview" }) : openStep(mobileStep - 1)} nextLabel={mobileStep === STEPS.length - 1 ? "Rivedi" : "Continua"} onNext={() => mobileStep === STEPS.length - 1 ? mobileNavigation.navigate({ kind: "overview" }) : openStep(mobileStep + 1)} />
+        </>}
+      </div>
+      {correctConfirmOpen && <Modal title="Correggi valutazione" onClose={() => setCorrectConfirmOpen(false)}><p className="text-sm leading-6 text-slate-600">Stai per modificare una valutazione già completata. L’autosave resterà disattivato: potrai annullare le modifiche oppure salvarle esplicitamente mantenendo la valutazione completata.</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCorrectConfirmOpen(false)} className="btn btn-quiet">Annulla</button><button type="button" onClick={startCorrection} className="btn btn-primary">Inizia correzione</button></div></Modal>}
+      {deleteOpen && (draft.status === "draft" ? <DeleteDraftModal onClose={() => setDeleteOpen(false)} onConfirm={removeAssessment} /> : <DeleteCompletedModal assessment={draft} onClose={() => setDeleteOpen(false)} onConfirm={removeAssessment} />)}
+    </AppShell>;
+  }
+
   return <AppShell>
     {readOnly && <ClinicalAssessmentPrint patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
     <div className="assessment-screen-only mx-auto max-w-4xl">
@@ -212,6 +250,7 @@ export function AssessmentWizard() {
           </div>
         </div>
       </div>
+      {readOnly && <AssessmentPdfActions patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
       {!correcting && <div className="mt-5 rounded-2xl border border-red-100 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Area riservata</p><button type="button" onClick={() => setDeleteOpen(true)} className="mt-2 text-sm font-bold text-red-600">{draft.status === "draft" ? "Elimina bozza" : "Elimina valutazione"}</button></div>}
     </div>
     {correctConfirmOpen && <Modal title="Correggi valutazione" onClose={() => setCorrectConfirmOpen(false)}><p className="text-sm leading-6 text-slate-600">Stai per modificare una valutazione già completata. L’autosave resterà disattivato: potrai annullare le modifiche oppure salvarle esplicitamente mantenendo la valutazione completata.</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCorrectConfirmOpen(false)} className="btn btn-quiet">Annulla</button><button type="button" onClick={startCorrection} className="btn btn-primary">Inizia correzione</button></div></Modal>}

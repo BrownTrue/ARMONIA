@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
+import { MobileResourceDirectory } from "@/components/resources/mobile-resource-directory";
 import { formatStorageBytes } from "@/lib/therapeutic-library/files";
 import { filterResourceMaterials, materialKind, recentMaterials } from "@/lib/resources-home";
 import type { Material } from "@/lib/types";
@@ -43,6 +44,8 @@ export default function ResourcesPage() {
   };
   const used = storage ? storage.usedBytes + storage.reservedBytes : undefined;
   return <AppShell>
+    <MobileResourceDirectory areas={areas}/>
+    <div className="hidden md:block">
     <header className="max-w-3xl">
       <p className="text-xs font-bold uppercase tracking-[.2em] text-sage-600">Workspace</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Risorse</h1>
@@ -67,6 +70,7 @@ export default function ResourcesPage() {
       {favoriteError && <p role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{favoriteError}</p>}
       {recent.length ? <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-sage-100 bg-white">{recent.map((material, index) => <RecentMaterial key={material.id} material={material} last={index === recent.length - 1} busy={favoriteIds.has(material.id)} onOpen={() => void openMaterial(material, { newTab: true })} onFavorite={() => void favorite(material)} />)}</div> : <div className="mt-5 rounded-[1.5rem] border border-dashed border-sage-200 bg-white p-8 text-center"><p className="font-bold">{filter === "favorites" ? "Nessun preferito recente" : "Nessun materiale disponibile"}</p><p className="mt-2 text-sm text-slate-500">{filter === "favorites" ? "Aggiungi una stella ai materiali che vuoi ritrovare più facilmente." : "Apri la Libreria per caricare un file o aggiungere un link."}</p><Link href="/materiali" className="mt-4 inline-flex min-h-11 items-center font-bold text-sage-700">Apri libreria →</Link></div>}
     </section>
+    </div>
   </AppShell>;
 }
 

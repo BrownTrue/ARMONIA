@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { DocumentActions } from "@/components/documents/document-actions";
 import { HANDOUTS_V1, type ArmoniaHandout } from "@/data/resources/handouts-v1";
 
 const attestations = [
@@ -63,7 +64,8 @@ function HandoutCard({ handout }: { handout: ArmoniaHandout }) {
     <p className="mt-1 text-sm font-medium text-sage-700">{handout.subtitle}</p>
     <p className="mt-4 flex-1 text-sm leading-6 text-slate-600">{handout.description}</p>
     <p className="mt-4 text-xs text-slate-500"><span className="font-bold text-slate-600">Destinatari:</span> {handout.audience}</p>
-    <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+    <DocumentActions title={handout.title} fileName={handout.fileName} source={{ kind: "url", url: handout.pdfPath }} downloadSource={{ kind: "url", url: handout.pdfPath }} className="mt-6 md:hidden" />
+    <div className="mt-6 hidden flex-col gap-2 md:flex md:flex-row">
       <a href={handout.pdfPath} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-sage-700 px-4 text-center text-sm font-bold text-white transition hover:bg-sage-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2">Apri anteprima</a>
       <a href={handout.pdfPath} download={handout.fileName} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-sage-200 bg-white px-4 text-center text-sm font-bold text-sage-700 transition hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2">Scarica PDF</a>
     </div>

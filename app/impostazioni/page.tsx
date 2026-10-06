@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { Field } from "@/components/form-controls";
@@ -16,11 +16,17 @@ import { Modal } from "@/components/modal";
 import { DataExportSection } from "@/components/settings/data-export-section";
 import { DestructiveActionModal } from "@/components/destructive-action-modal";
 import { AccountSecurity } from "@/components/settings/account-security";
+import { mobileSettingsHref, mobileSettingsSections, parseMobileSettingsSection, type MobileSettingsSection } from "@/lib/mobile-settings";
 type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
 const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
 const emptyProfessionalDetails=(details?:ProfessionalDocumentDetails):ProfessionalDocumentDetails=>details||{userId:"local",taxCode:"",vatNumber:"",address:"",postalCode:"",city:"",province:"",country:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
 export default function Settings() {
+  return <Suspense fallback={<AppShell><p role="status" className="text-sm text-slate-500">Caricamento impostazioni…</p></AppShell>}><SettingsContent/></Suspense>;
+}
+
+function SettingsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, ready, user, connection, saveProfile, saveProfessionalDocumentDetails, deleteProfessionalDocumentDetails, signOut } = useData();
   const { logoSrc, hasCustomLogo, ready: brandingReady, saveLogo, removeLogo } = useBranding();
   const logoInput = useRef<HTMLInputElement>(null);
@@ -47,7 +53,7 @@ export default function Settings() {
   useEffect(() => { if (ready) { setV(data.profile); setProfessionalDetails(emptyProfessionalDetails(data.professionalDocumentDetails)); } }, [ready, data.profile, data.professionalDocumentDetails]);
   useEffect(() => { if (!saved) return; const timeout = window.setTimeout(() => setSaved(false), 4000); return () => window.clearTimeout(timeout); }, [saved]);
   useEffect(()=>{setGooglePrefs(getGoogleCalendarPreferences());setSyncState(getGoogleSyncState());return subscribeGoogleSync(()=>setSyncState(getGoogleSyncState()))},[]);
-  useEffect(()=>{fetch("/api/google-calendar/status",{cache:"no-store"}).then(r=>r.json()).then((status:GoogleStatus)=>{setGoogle(status);const result=new URLSearchParams(window.location.search).get("google"),oauthResult=consumeGoogleOAuthResult(result);if(oauthResult==="reconnected"){clearGoogleSyncError();setGoogleNotice({kind:"success",text:"Google Calendar è stato ricollegato. Le operazioni rimaste in attesa possono ora essere ritentate."})}else if(result?.startsWith("reconnect-")){const text=result==="reconnect-calendar-unavailable"?"Il calendario Armonia esistente non è accessibile con l’account autorizzato. La connessione precedente non è stata modificata.":result==="reconnect-missing-refresh-token"?"Google non ha fornito una nuova autorizzazione persistente. La connessione precedente non è stata modificata.":"Riconnessione Google non riuscita. La connessione precedente non è stata modificata.";setGoogleNotice({kind:"error",text})}if(status.connected){const current=getGoogleCalendarPreferences(),preferences={...current,enabled:status.syncEnabled??true,nameFormat:cloudDataMode&&status.nameFormat?status.nameFormat:current.nameFormat,reminderMinutes:cloudDataMode&&status.reminderMinutes!==undefined?status.reminderMinutes:current.reminderMinutes};saveGoogleCalendarPreferences(preferences);setGooglePrefs(preferences);if(oauthResult==="connected")void queueAllGoogleAppointments(data.appointments,data.patients)}if(oauthResult)router.replace("/impostazioni",{scroll:false})}).catch(()=>setGoogle({configured:true,connected:false,error:"Non è stato possibile verificare il collegamento a Google Calendar."}))},[ready,consumeGoogleOAuthResult,router]);
+  useEffect(()=>{fetch("/api/google-calendar/status",{cache:"no-store"}).then(r=>r.json()).then((status:GoogleStatus)=>{setGoogle(status);const result=new URLSearchParams(window.location.search).get("google"),oauthResult=consumeGoogleOAuthResult(result);if(oauthResult==="reconnected"){clearGoogleSyncError();setGoogleNotice({kind:"success",text:"Google Calendar è stato ricollegato. Le operazioni rimaste in attesa possono ora essere ritentate."})}else if(result?.startsWith("reconnect-")){const text=result==="reconnect-calendar-unavailable"?"Il calendario Armonia esistente non è accessibile con l’account autorizzato. La connessione precedente non è stata modificata.":result==="reconnect-missing-refresh-token"?"Google non ha fornito una nuova autorizzazione persistente. La connessione precedente non è stata modificata.":"Riconnessione Google non riuscita. La connessione precedente non è stata modificata.";setGoogleNotice({kind:"error",text})}if(status.connected){const current=getGoogleCalendarPreferences(),preferences={...current,enabled:status.syncEnabled??true,nameFormat:cloudDataMode&&status.nameFormat?status.nameFormat:current.nameFormat,reminderMinutes:cloudDataMode&&status.reminderMinutes!==undefined?status.reminderMinutes:current.reminderMinutes};saveGoogleCalendarPreferences(preferences);setGooglePrefs(preferences);if(oauthResult==="connected")void queueAllGoogleAppointments(data.appointments,data.patients)}if(oauthResult)router.replace(mobileSettingsHref("calendars"),{scroll:false})}).catch(()=>setGoogle({configured:true,connected:false,error:"Non è stato possibile verificare il collegamento a Google Calendar."}))},[ready,consumeGoogleOAuthResult,router]);
   const updateGooglePreferences=(patch:Partial<GoogleCalendarPreferences>)=>{const next={...googlePrefs,...patch};setGooglePrefs(next);void persistGoogleCalendarPreferences(next).then(()=>{if(google?.connected)queueAllGoogleAppointments(data.appointments,data.patients)}).catch(error=>setGoogle(old=>({...old!,error:error instanceof Error?error.message:"Salvataggio non riuscito"})))};
   const set =
     (k: keyof Profile) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,17 +64,21 @@ export default function Settings() {
   const setProfessional=(key:keyof ProfessionalDocumentDetails)=>(event:React.ChangeEvent<HTMLInputElement>)=>{setSaved(false);setProfessionalDetails((current)=>({...current,[key]:event.target.value,updatedAt:new Date().toISOString()}))};
   const syncPresentation=googleSyncStatusPresentation(syncState.error,syncState.pending);
   const connectionError=googleSyncErrorPresentation(google?.error);
+  const mobileSection=parseMobileSettingsSection(searchParams.get("section"));
+  const mobileSectionTitle=mobileSettingsSections.find((section)=>section.id===mobileSection)?.label||"Impostazioni";
+  const surface=(section:MobileSettingsSection)=>mobileSection===section?"block":"hidden md:block";
   useEffect(()=>{if(!google||googleAutoOpened.current)return;if(!google.connected||syncPresentation.kind!=="active"||googleNotice?.kind==="error"){googleAutoOpened.current=true;setGoogleExpanded(true)}},[google,syncPresentation.kind,googleNotice]);
   return (
-    <AppShell>
-      <h1 className="text-3xl font-bold">Impostazioni</h1>
+    <AppShell mobileFullScreen={Boolean(mobileSection)} mobileHeader={mobileSection?{variant:"detail",title:mobileSectionTitle,backHref:"/impostazioni",backLabel:"Torna alle Impostazioni",onBack:()=>router.back()}:undefined}>
+      <div className={mobileSection?"hidden md:block":""}><h1 className="text-3xl font-bold">Impostazioni</h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${connection.kind === "local" ? "bg-sage-100 text-sage-700" : connection.kind === "cloud" ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-700"}`}>
           <span className={`h-2 w-2 rounded-full ${connection.kind === "local" ? "bg-sage-500" : connection.kind === "cloud" ? "bg-blue-500" : "bg-red-500"}`}/>{connection.label}
         </span>
         <p className="text-sm text-slate-500">{connection.message}</p>
-      </div>
-      <form
+      </div></div>
+      {!mobileSection&&<MobileSettingsIndex connectionKind={connection.kind} connectionLabel={connection.label} connectionMessage={connection.message} onOpen={(section)=>router.push(mobileSettingsHref(section))}/>}
+      <div className={surface("professional")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><form
         className="card mt-8 max-w-2xl p-4 sm:p-6"
         onSubmit={async (e) => {
           e.preventDefault();
@@ -128,8 +138,8 @@ export default function Settings() {
         <button disabled={profileSaving} aria-busy={profileSaving} className="btn btn-primary mt-6 w-full disabled:cursor-wait disabled:opacity-60 sm:w-auto">{profileSaving?"Salvataggio…":"Salva dati professionali"}</button>
         {profileError&&<p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{profileError}</p>}
         {saved && <p role="status" className="mt-3 text-sm font-bold text-sage-700">Modifiche salvate.</p>}
-      </form>
-      <section className="card mt-5 max-w-2xl p-4 sm:p-6">
+      </form></div></div>
+      <div className={surface("branding")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <div><h2 className="font-bold">Logo dei documenti</h2><p className="mt-1 text-sm text-slate-500">Completa l’identità professionale usata nelle stampe. PNG, JPG o WebP · massimo 2 MB.</p></div>
         <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
           <div className="grid h-28 place-items-center overflow-hidden rounded-2xl border border-sage-100 bg-sage-50 p-4">
@@ -143,8 +153,8 @@ export default function Settings() {
         <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async(event)=>{const file=event.target.files?.[0];event.target.value="";if(!file)return;setBrandingBusy(true);setBrandingMessage(null);try{await saveLogo(file);setBrandingMessage({kind:"success",text:"Logo salvato."})}catch(cause){setBrandingMessage({kind:"error",text:cause instanceof Error?cause.message:"Non è stato possibile salvare il logo."})}finally{setBrandingBusy(false)}}}/>
         <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={brandingBusy||!brandingReady} onClick={()=>logoInput.current?.click()} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{hasCustomLogo?"Cambia logo":"Carica logo"}</button>{hasCustomLogo&&<button type="button" disabled={brandingBusy} onClick={()=>{setBrandingMessage(null);setRemoveLogoOpen(true)}} className="btn btn-quiet">Rimuovi logo</button>}</div>
         {brandingMessage&&<p role={brandingMessage.kind==="error"?"alert":"status"} className={`mt-3 text-sm font-bold ${brandingMessage.kind==="error"?"text-red-600":"text-sage-700"}`}>{brandingMessage.text}</p>}
-      </section>
-      <section className="mt-8 max-w-2xl" aria-labelledby="calendars-title">
+      </section></div></div>
+      <div className={surface("calendars")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><section className="mt-8 max-w-2xl" aria-labelledby="calendars-title">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 id="calendars-title" className="text-lg font-bold uppercase tracking-wide text-sage-700">Calendari</h2><button type="button" onClick={()=>setCalendarsHelpOpen(true)} className="rounded-lg px-2 py-1 text-sm font-bold text-sage-700 outline-none hover:bg-sage-50 focus-visible:ring-2 focus-visible:ring-sage-500">ⓘ Come funzionano</button></div>
         <div className="card p-4 sm:p-6">
         <button type="button" aria-expanded={googleExpanded} aria-controls="google-calendar-settings" onClick={()=>setGoogleExpanded(open=>!open)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-4">
@@ -173,13 +183,13 @@ export default function Settings() {
         </div>}
         </div>
         <div className="mt-4"><CalendarFeedSettings cloudAvailable={cloudDataMode} googleConnected={Boolean(google?.connected)}/></div>
-      </section>
+      </section></div></div>
       {calendarsHelpOpen&&<Modal title="Come funzionano i calendari?" onClose={()=>setCalendarsHelpOpen(false)}><div className="space-y-5 text-sm leading-6 text-slate-600"><section><h3 className="font-bold text-slate-800">Google Calendar</h3><p className="mt-1">Per chi usa Google Calendar. ARMONIA crea e aggiorna automaticamente gli appuntamenti nel calendario Google dedicato.</p></section><section><h3 className="font-bold text-slate-800">Calendario ARMONIA</h3><p className="mt-1">Per Apple Calendar, Outlook e altri client compatibili. È un calendario privato in sola lettura. Gli appuntamenti si modificano sempre in ARMONIA.</p><p className="mt-2">Il Calendario ARMONIA espone sempre gli appuntamenti aggiornati, ma è l’app calendario a decidere quando ricontrollarli. Con intervalli lunghi, ad esempio settimanali, le modifiche possono comparire con molto ritardo.</p></section><p className="rounded-xl bg-amber-50 p-4 text-amber-900">Puoi usare entrambi, ma se sono visibili nella stessa app potresti vedere gli stessi appuntamenti due volte.</p></div></Modal>}
       {googleAction==="disconnect"&&<DestructiveActionModal title="Scollegare Google Calendar?" description="La sincronizzazione automatica verrà interrotta. Gli eventi già presenti nel calendario Google non saranno eliminati." confirmLabel="Scollega Google" busyLabel="Scollegamento…" busy={googleActionBusy} error={googleActionError} onClose={()=>setGoogleAction(null)} onConfirm={async()=>{if(googleActionFlight.current)return;googleActionFlight.current=true;setGoogleActionBusy(true);setGoogleActionError("");try{const response=await fetch("/api/google-calendar/disconnect",{method:"POST"});if(!response.ok)throw new Error("disconnect_failed");clearGoogleCalendarLocalState();setGoogle({configured:true,connected:false});setGooglePrefs(getGoogleCalendarPreferences());setGoogleAction(null)}catch{setGoogleActionError("Non è stato possibile scollegare Google Calendar. Riprova.")}finally{googleActionFlight.current=false;setGoogleActionBusy(false)}}}/>}
       {googleAction==="resync"&&<DestructiveActionModal title="Risincronizzare tutti gli appuntamenti?" description="È un’operazione eccezionale: tutti gli appuntamenti ARMONIA verranno rimessi in coda per riallineare Google Calendar." confirmLabel="Avvia risincronizzazione" busyLabel="Preparazione…" danger={false} busy={googleActionBusy} error={googleActionError} onClose={()=>setGoogleAction(null)} onConfirm={async()=>{if(googleActionFlight.current)return;googleActionFlight.current=true;setGoogleActionBusy(true);setGoogleActionError("");try{await resyncAllGoogleAppointments(()=>queueAllGoogleAppointments(data.appointments,data.patients));setGoogleAction(null)}catch{setGoogleActionError("Non è stato possibile avviare la risincronizzazione completa. Riprova.")}finally{googleActionFlight.current=false;setGoogleActionBusy(false)}}}/>}
       {removeLogoOpen&&<DestructiveActionModal title="Rimuovere il logo?" description="Il logo non verrà più utilizzato nei documenti generati da ARMONIA." confirmLabel="Rimuovi logo" busyLabel="Rimozione…" busy={brandingBusy} error={brandingMessage?.kind==="error"?brandingMessage.text:undefined} onClose={()=>setRemoveLogoOpen(false)} onConfirm={async()=>{setBrandingBusy(true);setBrandingMessage(null);try{await removeLogo();setBrandingMessage({kind:"success",text:"Logo rimosso. È stato ripristinato il logo Armonia."});setRemoveLogoOpen(false)}catch{setBrandingMessage({kind:"error",text:"Non è stato possibile rimuovere il logo. Riprova."})}finally{setBrandingBusy(false)}}}/>}
-      <DataExportSection data={data} user={user} mode={connection.kind}/>
-      <AccountSecurity />
+      <div className={surface("export")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><DataExportSection data={data} user={user} mode={connection.kind}/></div></div>
+      <div className={surface("security")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><AccountSecurity />
       <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <h2 className="font-bold">Account</h2>
         <button
@@ -192,7 +202,11 @@ export default function Settings() {
           Esci dall’app
         </button>
         {connection.kind === "local" && <p id="local-signout-hint" className="mt-2 text-sm text-slate-500">Stai usando ARMONIA in modalità locale: non c’è una sessione account da chiudere.</p>}
-      </section>
+      </section></div></div>
     </AppShell>
   );
+}
+
+function MobileSettingsIndex({connectionKind,connectionLabel,connectionMessage,onOpen}:{connectionKind:"local"|"cloud"|"error";connectionLabel:string;connectionMessage:string;onOpen:(section:MobileSettingsSection)=>void}){
+  return <div className="md:hidden"><section className="mt-5 rounded-2xl border border-sage-100 bg-sage-50/50 p-4"><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${connectionKind==="local"?"bg-sage-500":connectionKind==="cloud"?"bg-blue-500":"bg-red-500"}`}/><strong className="text-sm">{connectionLabel}</strong></div><p className="mt-1 text-xs leading-5 text-slate-500">{connectionMessage}</p></section><nav aria-label="Sezioni Impostazioni" className="mt-5 overflow-hidden rounded-2xl border border-sage-100 bg-white">{mobileSettingsSections.map((section)=><button key={section.id} type="button" onClick={()=>onOpen(section.id)} className="flex min-h-[4.75rem] w-full items-center gap-3 border-b border-sage-100 px-4 py-3 text-left last:border-b-0 active:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sage-500"><span className="min-w-0 flex-1"><span className="block font-semibold text-slate-900">{section.label}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{section.description}</span></span><span aria-hidden="true" className="text-xl text-sage-600">›</span></button>)}</nav></div>;
 }

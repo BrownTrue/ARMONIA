@@ -13,8 +13,8 @@ const singleton = new Set<DataExportKind>(["appointments","sessions","clinical"]
 
 function download(bytes:BlobPart,name:string,type:string){
   const url=URL.createObjectURL(new Blob([bytes],{type}));
-  const anchor=document.createElement("a");anchor.href=url;anchor.download=name;anchor.click();
-  setTimeout(()=>URL.revokeObjectURL(url),0);
+  const anchor=document.createElement("a");anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60_000);
 }
 
 export function DataExportSection({data,user,mode}:{data:AppData;user:User|null;mode:"local"|"cloud"|"error"}){

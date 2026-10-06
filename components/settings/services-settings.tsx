@@ -27,7 +27,7 @@ function humanServiceError(cause: unknown, action: "save" | "delete") {
 
 export function ServicesSettings() {
   const { data, saveAppointmentService, setAppointmentServiceActive, deleteAppointmentService } = useData();
-  const services = useMemo(() => sortServices(data.services), [data.services]);
+  const services = useMemo(() => sortServices(data.services.filter((item) => !item.archivedAt)), [data.services]);
   const [editing, setEditing] = useState<AppointmentService | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBranding } from "@/components/branding-provider";
 import { useData } from "@/components/data-provider";
+import { GeneratedPdfActions } from "@/components/documents/generated-pdf-actions";
 import { currentProfessionalDocumentSnapshot } from "@/lib/economic-documents";
 import {
   attendanceFileName,
@@ -34,8 +35,6 @@ export function AttendanceAttestationGenerator() {
   const [draft, setDraft] = useState<AttendanceAttestationDraft>(() => emptyDraft(defaultAttendanceIssuePlace(data.profile, data.professionalDocumentDetails), false));
   const [issues, setIssues] = useState<AttendanceAttestationIssues>({});
   const [preview, setPreview] = useState<AttendanceAttestationModel>();
-  const [busy, setBusy] = useState(false);
-  const [downloadError, setDownloadError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const logoDefaultApplied = useRef(false);
   const patientSessions = useMemo(() => sessionsForAttendance(data.sessions, draft.patientId), [data.sessions, draft.patientId]);
@@ -55,14 +54,12 @@ export function AttendanceAttestationGenerator() {
     setDraft((current) => ({ ...current, [key]: value }));
     if (key in issues) setIssues((current) => ({ ...current, [key]: undefined }));
     setPreview(undefined);
-    setDownloadError("");
   };
 
   const choosePatient = (patientId: string) => {
     setDraft((current) => ({ ...current, patientId, sessionId: "", sessionDate: "", startTime: "", endTime: "", location: "" }));
     setIssues({});
     setPreview(undefined);
-    setDownloadError("");
   };
 
   const chooseSession = (sessionId: string) => {
@@ -75,7 +72,6 @@ export function AttendanceAttestationGenerator() {
     setDraft((current) => ({ ...current, sessionId, sessionDate: prefill.sessionDate, startTime: prefill.startTime, endTime: prefill.endTime, location: prefill.location }));
     setIssues((current) => ({ ...current, sessionId: undefined, startTime: undefined, endTime: undefined, location: undefined }));
     setPreview(undefined);
-    setDownloadError("");
   };
 
   const validModel = () => {
@@ -96,26 +92,13 @@ export function AttendanceAttestationGenerator() {
     if (model) setPreview(model);
   };
 
-  const download = async () => {
+  const generatePdf = async () => {
     const model = validModel();
     if (!model || !selectedPatient) return;
-    setBusy(true);
-    setDownloadError("");
-    try {
-      const [{ pdf }, { attendanceAttestationPdfDocument }] = await Promise.all([import("@react-pdf/renderer"), import("@/components/resources/attendance-attestation-pdf")]);
-      const blob = await pdf(attendanceAttestationPdfDocument(model)).toBlob();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = attendanceFileName(selectedPatient, selectedSession!.date);
-      anchor.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      setPreview(model);
-    } catch {
-      setDownloadError("Non è stato possibile creare il PDF. Riprova.");
-    } finally {
-      setBusy(false);
-    }
+    const [{ pdf }, { attendanceAttestationPdfDocument }] = await Promise.all([import("@react-pdf/renderer"), import("@/components/resources/attendance-attestation-pdf")]);
+    const blob = await pdf(attendanceAttestationPdfDocument(model)).toBlob();
+    setPreview(model);
+    return blob;
   };
 
   if (!ready) return <div className="mt-8 rounded-2xl border border-sage-100 bg-white p-6 text-sm text-slate-500">Caricamento dati…</div>;
@@ -170,16 +153,18 @@ export function AttendanceAttestationGenerator() {
         {brandingReady && hasCustomLogo && <label className="mt-2 flex min-h-11 items-center gap-3 text-sm font-bold"><input type="checkbox" checked={draft.includeLogo} onChange={(event) => update("includeLogo", event.target.checked)} className="h-5 w-5 accent-sage-700" />Includi logo professionale</label>}
       </section>
 
-      {downloadError && <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{downloadError}</p>}
-      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button type="button" disabled={busy} onClick={showPreview} className="min-h-11 rounded-xl border border-sage-200 px-5 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 disabled:opacity-50">Anteprima</button>
-        <button type="button" disabled={busy} aria-busy={busy} onClick={() => void download()} className="min-h-11 rounded-xl bg-sage-700 px-5 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">{busy ? "Creazione PDF…" : "Scarica PDF"}</button>
-      </div>
+      <div className="mt-6"><button type="button" onClick={showPreview} className="min-h-11 w-full rounded-xl border border-sage-200 px-5 text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 sm:w-auto">Anteprima contenuto</button></div>
+      <GeneratedPdfActions
+        title="Attestazione di presenza"
+        fileName={selectedPatient && selectedSession ? attendanceFileName(selectedPatient, selectedSession.date) : "Attestazione_presenza.pdf"}
+        revisionKey={JSON.stringify(draft)}
+        generate={generatePdf}
+      />
     </form>
 
     <section aria-labelledby="attendance-preview-title" className="min-w-0">
       <h2 id="attendance-preview-title" className="text-lg font-bold">Anteprima</h2>
-      <p className="mt-1 text-sm text-slate-500">Il documento viene creato soltanto al download e non viene salvato in ARMONIA.</p>
+      <p className="mt-1 text-sm text-slate-500">Il documento viene creato sul dispositivo e non viene salvato in ARMONIA.</p>
       {preview ? <AttendancePreview model={preview} /> : <div className="mt-4 grid min-h-72 place-items-center rounded-[1.5rem] border border-dashed border-sage-200 bg-white p-8 text-center text-sm text-slate-500">Compila i dati e scegli “Anteprima”.</div>}
     </section>
   </div>;
