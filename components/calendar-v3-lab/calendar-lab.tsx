@@ -193,7 +193,11 @@ type CalendarGestureFeedback = {
 type CalendarPanelMode = "closed" | "appointment-create" | "appointment-detail" | "appointment-edit" | "session-create";
 type MobileCalendarSurface = "calendar" | "filters" | "settings";
 
-export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "real" }) {
+export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v3-lab", showModeNotice = false }: {
+  dataMode?: "fixture" | "real";
+  canonicalHref?: string;
+  showModeNotice?: boolean;
+}) {
   const { data, ready, saveAppointment: saveRealAppointment, saveAppointments: saveRealAppointments } = useData();
   const router = useRouter();
   const realMode = dataMode === "real";
@@ -595,6 +599,10 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
   };
 
   const openCreate = (selection: CalendarSelection, origin: HTMLElement) => {
+    if (realMode && data.patients.length === 0) {
+      showGestureFeedback({ tone: "error", message: "Per creare un appuntamento devi prima aggiungere un paziente." });
+      return;
+    }
     returnFocusRef.current = origin;
     setCreateDraft(realMode
       ? createCalendarV3RealAppointmentDraft({ selection, appointmentId: uid(), createdAt: new Date().toISOString() })
@@ -1221,7 +1229,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
         <AppShell mobileFullScreen mobileHeader={mobileSurface === "calendar" ? undefined : {
           variant: "detail",
           title: mobileSurface === "filters" ? "Filtri" : mobileSettingsTitle,
-          backHref: "/calendar-v3-lab",
+          backHref: canonicalHref,
           backLabel: mobileSurface === "filters" || sidebarMode.kind === "main" ? "Torna al calendario" : "Indietro",
           onBack: closeMobileSurface,
         }}>
@@ -1288,7 +1296,7 @@ export function CalendarLab({ dataMode = "fixture" }: { dataMode?: "fixture" | "
           </div>
         </header>
 
-        {realMode ? <div className={styles.realModeNotice} role="status">
+        {showModeNotice && realMode ? <div className={styles.realModeNotice} role="status">
           <strong>Dati reali</strong>
           <span>Creazione, modifica e gesture sugli appuntamenti attive.</span>
         </div> : null}

@@ -10,5 +10,9 @@ export default async function CalendarV3LabPage({ searchParams }: {
   searchParams: Promise<{ mode?: string }>;
 }) {
   const { mode } = await searchParams;
-  return <CalendarLab dataMode={mode === "real" ? "real" : "fixture"} />;
+  return <CalendarLab
+    dataMode={mode === "real" ? "real" : "fixture"}
+    canonicalHref="/calendar-v3-lab"
+    showModeNotice
+  />;
 }

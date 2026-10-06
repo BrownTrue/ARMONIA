@@ -1,6 +1,6 @@
-.shell { min-height: 100vh; background: #fbfcfa; color: #25312b; }
+.shell { min-height: 100vh; min-height: 100dvh; background: #fbfcfa; color: #25312b; }
 .mobileApp { display: none; }
-.desktopApp { height: 100vh; min-height: 680px; display: flex; flex-direction: column; overflow: hidden; }
+.desktopApp { height: 100vh; height: 100dvh; min-height: 680px; display: flex; flex-direction: column; overflow: hidden; }
 .toolbar { height: 54px; flex: 0 0 54px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 0 14px; background: rgba(255,255,255,.96); border-bottom: 1px solid #e8ece8; position: relative; z-index: 30; }
 .toolbarCluster { display: flex; align-items: center; gap: 2px; }
 .toolbarRight { justify-content: flex-end; }
@@ -130,7 +130,7 @@
 .gestureNotice button { border: 1px solid #c9dbce; color: #3f5e4d; }
 .gestureNotice button:hover, .gestureNotice button:focus-visible { border-color: #94b49e; }
 .recurrenceDialogLayer { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(27,37,31,.16); padding: 24px; }
-.recurrenceDialog { width: min(460px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; border: 1px solid #dce5dd; border-radius: 18px; background: #fbfcfa; box-shadow: 0 24px 70px rgba(30,46,36,.2); padding: 22px; }
+.recurrenceDialog { width: min(460px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; border: 1px solid #dce5dd; border-radius: 18px; background: #fbfcfa; box-shadow: 0 24px 70px rgba(30,46,36,.2); padding: 22px; }
 .recurrenceDialog header > span { color: #698072; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
 .recurrenceDialog h2 { margin: 7px 0 5px; color: #29372f; font-size: 20px; line-height: 1.2; }
 .recurrenceDialog header p, .recurrenceWarning { margin: 0; color: #68756d; font-size: 12px; line-height: 1.5; }
@@ -385,10 +385,10 @@
 }
 
 @media (max-width: 767px) {
-  .mobileApp { display: block; min-height: 100vh; background: #f7f8f4; }
+  .mobileApp { display: block; min-height: 100vh; min-height: 100dvh; background: #f7f8f4; }
   .desktopApp { display: contents; }
   .desktopApp > .toolbar, .desktopApp > .realModeNotice, .desktopApp > .gestureFeedback, .desktopApp > .workspace { display: none; }
-  .mobileCalendar { min-height: calc(100vh - 58px); background: #f7f8f4; color: #27352d; }
+  .mobileCalendar { min-height: calc(100dvh - 58px); background: #f7f8f4; color: #27352d; }
   .mobileCalendarTop { position: sticky; top: calc(3.65rem + env(safe-area-inset-top)); z-index: 24; border-bottom: 1px solid #dde5de; background: rgba(250,251,248,.96); padding: 12px 12px 10px; backdrop-filter: blur(14px); }
   .mobilePeriodRow { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .mobilePeriodRow > div:first-child { min-width: 0; display: grid; gap: 1px; }
@@ -417,7 +417,7 @@
   .mobileFeedback { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d6e4d9; background: #eff6f0; padding: 9px 14px; color: #456451; font-size: 12px; }
   .mobileFeedbackError { border-color: #efd7d2; background: #fff3f1; color: #874b45; }
   .mobileFeedback button { min-height: 36px; border: 0; background: transparent; color: inherit; font-weight: 750; }
-  .mobileDay { height: calc(100vh - 58px - 235px - env(safe-area-inset-top)); min-height: 360px; background: #fff; }
+  .mobileDay { height: calc(100dvh - 58px - 235px - env(safe-area-inset-top)); min-height: 360px; background: #fff; }
   .mobileDayScroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
   .mobileDayGrid { display: grid; grid-template-columns: 47px minmax(0, 1fr); position: relative; }
   .mobileTimeGutter { position: relative; border-right: 1px solid #e7ece8; background: #fbfcfa; }
@@ -438,7 +438,7 @@
   .mobileStateRegistered, .mobileStatePending { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; }
   .mobileStateRegistered { background: #5f8f76; box-shadow: inset 0 0 0 2px #5f8f76, 0 0 0 1px #fff; }
   .mobileStatePending { border: 1.5px solid #9a7b54; background: #fff9ef; }
-  .mobileAgenda, .mobileMonth { min-height: calc(100vh - 58px - 235px - env(safe-area-inset-top)); padding: 18px 14px max(28px, env(safe-area-inset-bottom)); }
+  .mobileAgenda, .mobileMonth { min-height: calc(100dvh - 58px - 235px - env(safe-area-inset-top)); padding: 18px 14px max(28px, env(safe-area-inset-bottom)); }
   .mobileSectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .mobileSectionHeading h2 { margin: 0; color: #2f3d35; font-size: 17px; line-height: 1.25; text-transform: capitalize; }
   .mobileSectionHeading p { margin: 3px 0 0; color: #7a877f; font-size: 12px; }
@@ -479,7 +479,7 @@
   .mobileMonthGrid button:focus-visible { z-index: 2; outline: 2px solid #4f7d64; outline-offset: -2px; }
   .mobileMonthSelectedDay { margin-top: 14px; }
   .mobileMonthSelectedDay .mobileAgendaList { margin-top: 10px; }
-  .mobileToolsSurface { min-height: calc(100vh - 58px - env(safe-area-inset-top)); background: #f7f8f4; padding: 18px 14px max(28px, env(safe-area-inset-bottom)); color: #2f3d35; }
+  .mobileToolsSurface { min-height: calc(100dvh - 58px - env(safe-area-inset-top)); background: #f7f8f4; padding: 18px 14px max(28px, env(safe-area-inset-bottom)); color: #2f3d35; }
   .mobileToolsIntro { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
   .mobileToolsIntro span, .mobileCatalogSurface header span, .mobileGoogleSurface > span { color: #849087; font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
   .mobileToolsIntro h1, .mobileCatalogSurface h2, .mobileGoogleSurface h2 { margin: 3px 0 0; font-size: 21px; line-height: 1.2; }
