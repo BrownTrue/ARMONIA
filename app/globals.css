@@ -6,6 +6,39 @@
   .field { @apply mt-1 block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400; }
 }
 
+@media (max-width: 767px) {
+  div[role="dialog"]:has(.proforma-mobile) > div {
+    height: 100dvh;
+    border-radius: 0;
+  }
+  div[role="dialog"]:has(#payment-amount) > div {
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .proforma-mobile[data-mobile-step="1"] > :is(section, div):has([data-proforma-field="lines-lines"]),
+  .proforma-mobile[data-mobile-step="1"] > #economic-recipient-section,
+  .proforma-mobile[data-mobile-step="1"] > #economic-professional-section,
+  .proforma-mobile[data-mobile-step="1"] > [data-proforma-field="total-total"],
+  .proforma-mobile[data-mobile-step="2"] > [data-proforma-field="patient-patient"],
+  .proforma-mobile[data-mobile-step="2"] > #economic-recipient-section,
+  .proforma-mobile[data-mobile-step="2"] > #economic-professional-section,
+  .proforma-mobile[data-mobile-step="2"] > section:has(> label > textarea),
+  .proforma-mobile[data-mobile-step="2"] > [data-proforma-field="total-total"],
+  .proforma-mobile[data-mobile-step="3"] > [data-proforma-field="patient-patient"],
+  .proforma-mobile[data-mobile-step="3"] > :is(section, div):has([data-proforma-field="lines-lines"]),
+  .proforma-mobile[data-mobile-step="3"] > section:has(> label > textarea),
+  .proforma-mobile[data-mobile-step="3"] > [data-proforma-field="total-total"],
+  .proforma-mobile[data-mobile-step="4"] > [data-proforma-field="patient-patient"],
+  .proforma-mobile[data-mobile-step="4"] > :is(section, div):has([data-proforma-field="lines-lines"]),
+  .proforma-mobile[data-mobile-step="4"] > #economic-recipient-section,
+  .proforma-mobile[data-mobile-step="4"] > #economic-professional-section,
+  .proforma-mobile[data-mobile-step="4"] > section:has(> label > textarea),
+  .proforma-mobile:not([data-mobile-step="4"]) > .sticky,
+  .proforma-mobile[data-mobile-step="4"] > .proforma-mobile-nav {
+    display: none;
+  }
+}
+
 *{box-sizing:border-box} html,body{max-width:100%;overflow-x:hidden} body{margin:0;background:#f8faf7;color:#24352f;font-family:Arial,Helvetica,sans-serif} button,input,select,textarea{font:inherit} button,a,input,select,textarea{outline-color:#6f9075} img,iframe{max-width:100%} .card{min-width:0;border:1px solid #e4ece2;background:#fff;border-radius:20px;box-shadow:0 12px 35px rgba(43,69,55,.06)} .nav-link{display:flex;gap:.75rem;align-items:center;border-radius:12px;padding:.7rem .9rem;color:#65756b;font-size:.92rem}.nav-link.active{background:#e5efe3;color:#46654c;font-weight:700}.chip{border:1px solid #d9e5d8;border-radius:999px;padding:.45rem .7rem;font-size:.75rem;background:#f4f8f3;color:#46654c}.btn{min-height:44px;border:0;border-radius:12px;padding:.72rem 1rem;font-weight:700;cursor:pointer;text-align:center}.btn-primary{background:#46654c;color:white}.btn-quiet{background:#f4f8f3;color:#46654c}.page-header{display:flex;flex-direction:column;align-items:stretch;gap:1rem}.page-header-actions{display:flex;flex-wrap:wrap;gap:.5rem}.page-header-actions>*{flex:1 1 auto}.form-actions{display:flex;flex-direction:column-reverse;gap:.5rem}.form-actions>*{width:100%}.mobile-drawer-backdrop{animation:mobile-drawer-backdrop-in 160ms ease-out both}.mobile-drawer-panel{animation:mobile-drawer-panel-in 220ms cubic-bezier(.22,.8,.28,1) both}@keyframes mobile-drawer-backdrop-in{from{opacity:0}to{opacity:1}}@keyframes mobile-drawer-panel-in{from{transform:translateX(-18px);opacity:.72}to{transform:translateX(0);opacity:1}}@media(prefers-reduced-motion:reduce){.mobile-drawer-backdrop,.mobile-drawer-panel{animation:none}}@media(min-width:640px){.page-header{flex-direction:row;align-items:center;justify-content:space-between}.page-header-actions>*{flex:0 0 auto}.form-actions{flex-direction:row;justify-content:flex-end}.form-actions>*{width:auto}}
 
 .assessment-print-summary{display:none}

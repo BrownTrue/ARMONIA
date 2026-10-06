@@ -28,6 +28,8 @@ Armonia è una web app per la gestione dell'attività di una logopedista. Riunis
 
 Su mobile la shell usa un header sticky minimale con titolo contestuale e un menu laterale accessibile. Il drawer riunisce le destinazioni primarie — Oggi, Calendario, Pazienti e Risorse — e quelle secondarie — Economia, Statistiche e Impostazioni — con identità account e logout; la precedente bottom bar non è più presente. Desktop e mobile condividono lo stesso modello di navigazione, mentre la shell desktop conserva struttura e aspetto esistenti.
 
+MOBILE 6 applica lo stesso principio a Economia e Impostazioni. Economia usa gli stessi dataset, calcoli, validation e repository del desktop, ricomponendo per telefono filtri, form Pagamento e flusso Proforma senza creare operazioni mobile parallele. Impostazioni usa un indice e singole superfici indirizzabili con `?section=`, ma riutilizza i form e le operazioni reali di profilo professionale, branding, Google Calendar, feed ARMONIA, sicurezza account ed export. Da `md` in su le due pagine conservano la presentazione esistente.
+
 ## Modalità dati
 
 Armonia supporta due modalità tramite `NEXT_PUBLIC_DATA_MODE`:
