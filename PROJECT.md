@@ -30,7 +30,7 @@ Su mobile la shell usa un header sticky minimale con titolo contestuale e un men
 
 MOBILE 6 applica lo stesso principio a Economia e Impostazioni. Economia usa gli stessi dataset, calcoli, validation e repository del desktop, ricomponendo per telefono filtri, form Pagamento e flusso Proforma senza creare operazioni mobile parallele. Impostazioni usa un indice e singole superfici indirizzabili con `?section=`, ma riutilizza i form e le operazioni reali di profilo professionale, branding, Google Calendar, feed ARMONIA, sicurezza account ed export. Da `md` in su le due pagine conservano la presentazione esistente.
 
-Calendar V3 è il calendario canonico su `/calendario` e usa direttamente `DataProvider`, Appointment e Session esistenti; il lab non indicizzato conserva soltanto fixture e strumenti di sviluppo. La shell web include manifest standalone, metadata iOS, icone 192/512, viewport dinamico e safe area, senza introdurre caching offline di dati clinici. Le capability native di condivisione e installazione restano progressive enhancement: apertura e download devono continuare a funzionare quando non sono disponibili.
+Calendar V3 è il calendario canonico su `/calendario`, resta dentro l'AppShell desktop con navigazione principale sempre disponibile e usa direttamente `DataProvider`, Appointment e Session esistenti; il lab non indicizzato conserva soltanto fixture e strumenti di sviluppo. La shell web include manifest standalone, metadata iOS, icone 192/512, viewport dinamico e safe area, senza introdurre caching offline di dati clinici. Le capability native di condivisione e installazione restano progressive enhancement: apertura e download devono continuare a funzionare quando non sono disponibili.
 
 ## Modalità dati
 

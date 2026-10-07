@@ -1,8 +1,10 @@
 # Stato corrente di Armonia
 
-Fotografia ricavata dal repository al 6 ottobre 2026.
+Fotografia ricavata dal repository al 7 ottobre 2026.
 
 MOBILE 8 finalizza il cutover del Calendario: `/calendario` monta Calendar V3 in modalità reale come unico ingresso di prodotto; `/calendar-v3-lab` resta una route di sviluppo non indicizzata con fixture e real-mode esplicito. Desktop conserva Giorno, Settimana e Mese, sidebar, cataloghi, gesture, ricorrenze e azioni cliniche; mobile conserva Giorno, Agenda e Mese con filtri e impostazioni dedicate. Tutti i link applicativi continuano a usare `/calendario`.
+
+Hotfix post release preparato localmente: la vista desktop di `/calendario` è montata nell'area contenuti a piena altezza dell'AppShell, lasciando visibile la navigazione primaria; il trigger mobile e la shell Calendar restano invariati. Nella sezione Attività paziente la CTA mobile “Registra seduta” usa una gerarchia compatta con target touch di 44 px. Il refresh visivo desktop resta rinviato.
 
 La shell è predisposta per installazione standalone: manifest con scope e icone 192/512, metadata iOS, viewport `cover`, viewport dinamico e safe area. Non è stato introdotto un service worker né caching offline di dati clinici. Download, apertura e condivisione continuano a usare capability browser con fallback; la verifica effettiva di Web Share, installazione e file handling resta un breve QA su HTTPS e dispositivi reali.
 
@@ -12,8 +14,8 @@ MOBILE 6 è completata localmente. Economia conserva tab, KPI, liste, calcoli e 
 
 ## Stato Git rilevato prima dell'intervento corrente
 
-- Branch: `calendar-v3-lab`, allineato a `origin/calendar-v3-lab`; HEAD iniziale `540f030` — “feat: complete Armonia mobile economy and settings”.
-- Prima di MOBILE 8 il working tree conteneva soltanto i quattro artefatti storici ammessi e nessuna modifica tracked.
+- Branch: `main`; HEAD iniziale `540f030` — “feat: complete Armonia mobile economy and settings”.
+- All'avvio le modifiche tracked erano assenti. Gli untracked storici e gli altri file untracked/duplicati già presenti sono rimasti fuori dall'intervento e non sono stati modificati.
 
 ## Funzionalità implementate
 

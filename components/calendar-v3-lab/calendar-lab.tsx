@@ -1224,7 +1224,7 @@ export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v
   };
 
   return (
-    <main className={styles.shell}>
+    <div className={styles.shell}>
       <div className={styles.mobileApp}>
         <AppShell mobileFullScreen mobileHeader={mobileSurface === "calendar" ? undefined : {
           variant: "detail",
@@ -1262,6 +1262,8 @@ export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v
         </AppShell>
       </div>
 
+      <div className={styles.desktopShell}>
+        <AppShell desktopFullScreen>
       <div className={styles.desktopApp}>
         <header className={styles.toolbar}>
           <div className={styles.toolbarCluster}>
@@ -1653,7 +1655,9 @@ export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v
           onClose={() => setCommandPaletteOrigin(null)}
         /> : null}
       </div>
-    </main>
+        </AppShell>
+      </div>
+    </div>
   );
 }
 
