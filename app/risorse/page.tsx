@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { MobileResourceDirectory } from "@/components/resources/mobile-resource-directory";
+import { SpotlightCard } from "@/components/organic-premium/spotlight-card";
 import { formatStorageBytes } from "@/lib/therapeutic-library/files";
 import { filterResourceMaterials, materialKind, recentMaterials } from "@/lib/resources-home";
 import type { Material } from "@/lib/types";
@@ -53,13 +54,13 @@ export default function ResourcesPage() {
     </header>
 
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Aree Risorse">
-      {areas.map((area, index) => <Link key={area.href} href={area.href} className={`group flex min-h-64 flex-col rounded-[1.6rem] border p-5 transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(43,69,55,.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 ${area.tone}`}>
+      {areas.map((area, index) => <SpotlightCard key={area.href} href={area.href} className={`group min-h-64 rounded-[1.6rem] border p-5 hover:shadow-[0_16px_38px_rgba(43,69,55,.08)] ${area.tone}`}>
         <div className="flex items-start justify-between gap-3"><span className={`grid h-12 w-12 place-items-center rounded-2xl text-2xl ${area.iconTone}`} aria-hidden="true">{area.icon}</span>{area.upcoming && <span className="rounded-full border border-current/10 bg-white/60 px-2.5 py-1 text-[11px] font-bold">In preparazione</span>}</div>
         <h2 className="mt-7 text-xl font-bold leading-tight">{area.title}</h2>
         <p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{area.description}</p>
         {index === 0 && <div className="mt-4 border-t border-sage-200/70 pt-3 text-sm"><strong>{data.materials.length}</strong> {data.materials.length === 1 ? "materiale" : "materiali"}{used !== undefined && storage && !storage.requiresReconciliation ? <span className="mt-1 block text-xs text-slate-500">{formatStorageBytes(used)} di {formatStorageBytes(storage.quotaBytes)}</span> : storageUnavailable ? <span className="mt-1 block text-xs text-slate-500">Spazio utilizzato temporaneamente non disponibile.</span> : null}</div>}
         <span className="mt-5 inline-flex min-h-11 items-center font-bold">{area.action}<span className="ml-2 transition group-hover:translate-x-1" aria-hidden="true">→</span></span>
-      </Link>)}
+      </SpotlightCard>)}
     </section>
 
     <section className="mt-10" aria-labelledby="recent-resources-title">

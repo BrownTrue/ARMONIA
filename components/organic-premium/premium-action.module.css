@@ -1,0 +1,86 @@
+.action {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transform: translateZ(0);
+  transition: transform 220ms cubic-bezier(.2,.8,.25,1.35), box-shadow 220ms ease, color 220ms ease, border-color 220ms ease;
+}
+
+.action::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: 55% 55% 0 0 / 32% 32% 0 0;
+  background: linear-gradient(115deg, #718b70, #49694f 48%, #3f5f47 78%, #71836a);
+  content: "";
+  transform: translateY(104%);
+  transition: transform 390ms cubic-bezier(.2,.8,.2,1), border-radius 390ms ease;
+}
+
+.action:hover::before,
+.action:focus-visible::before {
+  border-radius: 0;
+  transform: translateY(0);
+}
+
+.action::after {
+  position: absolute;
+  z-index: 0;
+  inset: -24% auto -24% -38%;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 24%), transparent);
+  content: "";
+  transform: skewX(-18deg) translateX(-150%);
+  transition: transform 560ms cubic-bezier(.18,.72,.22,1);
+}
+
+.action:hover::after,
+.action:focus-visible::after { transform: skewX(-18deg) translateX(570%); }
+
+.action:hover,
+.action:focus-visible {
+  border-color: #426348;
+  color: #fff;
+  box-shadow: 0 9px 22px rgb(47 75 53 / 21%);
+  transform: translateY(-2px);
+}
+
+.label,.icon { position: relative; z-index: 1; }
+
+.icon {
+  display: inline-grid;
+  width: 1.15em;
+  height: 1.15em;
+  margin-left: 3px;
+  place-items: center;
+  font-size: 1.05em;
+  line-height: 1;
+  transition: transform 260ms cubic-bezier(.2,.85,.25,1.5);
+}
+
+.action:hover .icon,
+.action:focus-visible .icon {
+  transform: translate(2px,-2px) rotate(8deg) scale(1.12);
+}
+
+.action:active {
+  transform: translateY(0) scale(.985);
+}
+
+.action:focus-visible {
+  outline: 2px solid #78917f;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action,.action::before,.action::after,.icon { transition: none; }
+  .action:active { transform: none; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .action:hover { box-shadow: none; transform: none; }
+  .action:hover::before { transform: translateY(104%); }
+  .action:hover::after { transform: skewX(-18deg) translateX(-150%); }
+  .action:hover .icon { transform: none; }
+}

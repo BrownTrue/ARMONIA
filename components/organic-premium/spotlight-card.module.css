@@ -1,0 +1,50 @@
+.card {
+  display: flex;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transform: translateZ(0);
+  transition: transform 220ms cubic-bezier(.2,.75,.25,1), box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.card:focus-visible {
+  outline: 2px solid #78917f;
+  outline-offset: 3px;
+}
+
+.spotlight {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(320px circle at var(--spot-x, 50%) var(--spot-y, 30%), rgb(255 255 255 / 58%), transparent 72%);
+  transition: opacity 220ms ease;
+}
+
+.card:hover .spotlight,
+.card:focus-visible .spotlight {
+  opacity: .72;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .card:hover { transform: none; }
+  .spotlight { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .spotlight { transition: none; }
+  .card:hover { transform: none; }
+}

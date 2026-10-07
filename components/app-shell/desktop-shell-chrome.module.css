@@ -1,0 +1,32 @@
+.dock{--dock-width:72px;position:sticky;top:0;z-index:40;display:none;height:100vh;height:100dvh;min-height:0;width:var(--dock-width);flex:0 0 var(--dock-width);flex-direction:column;align-items:center;gap:9px;overflow:visible;padding:12px 10px 10px;color:#66756c}
+.dock:before{position:absolute;inset:0 auto 0 0;z-index:0;width:var(--dock-width);pointer-events:none;border-right:1px solid #e3e9e1;background:linear-gradient(180deg,#fbfcf8 0%,#f4f6f0 100%);content:"";box-shadow:3px 0 18px rgba(42,60,46,.035)}
+.brand{position:relative;z-index:1;display:flex;min-height:44px;width:100%;flex:0 0 44px;align-items:center;justify-content:center;border-radius:14px;color:#3f5944;text-decoration:none}
+.brand img{width:29px;height:34px;object-fit:contain;flex:0 0 auto}
+.primaryNavigation{position:relative;z-index:1;display:flex;min-height:0;width:100%;flex:1 1 auto;flex-direction:column;align-items:center;gap:5px;overflow-y:auto;overflow-x:hidden;padding:2px 0;scrollbar-width:none}
+.primaryNavigation::-webkit-scrollbar{display:none}
+.navLink,.accountButton{position:relative;display:flex;min-height:46px;width:48px;flex:0 0 46px;align-items:center;justify-content:center;border:1px solid transparent;border-radius:15px;background:transparent;color:#718078;text-decoration:none;cursor:pointer;transition:background-color 140ms ease,color 140ms ease,transform 145ms cubic-bezier(.2,.8,.25,1),box-shadow 145ms ease}
+.navLink:hover,.accountButton:hover{z-index:2;transform:scale(1.045);background:rgba(255,255,255,.92);color:#344b39;box-shadow:0 5px 14px rgba(44,63,47,.08)}
+.navLink.active{background:#e6eee2;color:#45634b;box-shadow:inset 0 0 0 1px rgba(77,107,79,.07)}
+.navLink.active:before{position:absolute;left:3px;top:50%;width:3px;height:20px;border-radius:4px;background:#58785a;content:"";transform:translateY(-50%)}
+.icon{width:21px;height:21px;flex:0 0 21px}
+.navLink:focus-visible,.accountButton:focus-visible{outline:2px solid #557a5c;outline-offset:2px}
+.tooltip{position:fixed;z-index:1000;transform:translateY(-50%);pointer-events:none;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#26372d;padding:8px 11px;color:#fff;font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;box-shadow:0 8px 22px rgba(21,33,25,.22);animation:tooltipIn 90ms ease-out both}
+@keyframes tooltipIn{from{opacity:0;transform:translate(-3px,-50%)}to{opacity:1;transform:translate(0,-50%)}}
+.bottomArea{position:relative;z-index:2;display:flex;width:100%;flex:0 0 auto;flex-direction:column;align-items:center;gap:5px;padding-top:8px;border-top:1px solid rgba(75,95,77,.12)}
+.accountArea{position:relative;width:100%;display:flex;justify-content:center}
+.accountButton{padding:0;color:#53665a}
+.avatar{display:grid;width:29px;height:29px;flex:0 0 29px;place-items:center;border:1px solid rgba(62,89,66,.13);border-radius:50%;background:#dfe8dc;color:#405e47;font-size:9px;font-weight:750;letter-spacing:.02em}
+.accountMenu{position:absolute;bottom:calc(100% + 8px);left:calc(100% + 12px);z-index:12;width:230px;max-width:calc(100vw - 100px);border:1px solid #e1e8e0;border-radius:15px;background:#fffefa;padding:8px;box-shadow:0 15px 38px rgba(36,53,40,.15);animation:menuIn 120ms ease-out both}
+@keyframes menuIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.accountIdentity{display:flex;flex-direction:column;gap:3px;padding:8px 9px 10px;border-bottom:1px solid #edf0ec;color:#34463a;font-size:11px;font-weight:650}
+.accountIdentity small,.localHint{color:#839087;font-size:9px;font-weight:450;line-height:1.45}
+.accountMenu a,.accountMenu button{display:flex;width:100%;min-height:39px;align-items:center;border:0;border-radius:9px;background:transparent;padding:0 9px;color:#52645a;text-align:left;text-decoration:none;font:inherit;font-size:10px;cursor:pointer}
+.accountMenu a:hover,.accountMenu button:hover:not(:disabled){background:#f0f4ed;color:#3e6047}
+.accountMenu button{color:#856258}
+.accountMenu button:disabled{color:#9ba49d;cursor:not-allowed}
+.localHint{display:block;padding:3px 9px 7px}
+
+@media(min-width:768px){.dock{display:flex}}
+@media(max-width:1023px){.dock{--dock-width:64px;gap:6px;padding:9px 6px 8px}.brand{min-height:40px;flex-basis:40px}.brand img{width:27px;height:31px}.navLink,.accountButton{width:45px;min-height:43px;flex-basis:43px;border-radius:13px}.navLink:hover,.accountButton:hover{transform:scale(1.025)}.primaryNavigation{gap:3px}}
+@media(max-height:620px){.dock{gap:3px;padding-top:6px;padding-bottom:6px}.brand{min-height:34px;flex-basis:34px}.brand img{height:28px}.navLink,.accountButton{min-height:38px;flex-basis:38px}.bottomArea{gap:2px;padding-top:4px}}
+@media(prefers-reduced-motion:reduce){.navLink,.accountButton,.tooltip{transition:none;animation:none}.navLink:hover,.accountButton:hover{transform:none}.accountMenu{animation:none}}
