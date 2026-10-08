@@ -262,3 +262,226 @@
     transition-duration: .01ms;
   }
 }
+
+/* Editorial presentation: the mobile and tablet rules above remain intact. */
+@media (min-width: 1024px) {
+  main.main {
+    width: 100%;
+    max-width: 1500px;
+  }
+
+  .economyPage {
+    --economy-ink: #26392e;
+    --economy-sage: #304b3b;
+    --economy-line: #e1e5d9;
+    --economy-surface: #fffefa;
+    width: 100%;
+    color: var(--economy-ink);
+  }
+
+  .header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+    min-height: 176px;
+    padding: 28px 34px;
+    border: 1px solid #304b3b;
+    border-radius: 22px;
+    background: linear-gradient(115deg, #263c30, #304b3b 78%, #3d5943);
+    box-shadow: 0 12px 28px rgb(38 60 48 / 10%);
+    isolation: isolate;
+  }
+  .header::after {
+    z-index: -1;
+    inset: auto 29px 20px auto;
+    width: 115px;
+    height: 115px;
+    border: 1px solid rgb(237 241 229 / 12%);
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: 0 0 0 12px rgb(237 241 229 / 3%);
+    pointer-events: none;
+  }
+  .header .eyebrow {
+    margin: 0 0 10px;
+    color: #d3dfce;
+    font-size: 10px;
+    letter-spacing: .17em;
+  }
+  .header .title {
+    margin: 0;
+    color: #fffefa;
+    font: 400 clamp(40px, 3.5vw, 54px)/1 Georgia, "Times New Roman", serif;
+    letter-spacing: -.045em;
+  }
+  .header .description {
+    margin-top: 12px;
+    color: #d1ddcc;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .header .actions { gap: 10px; }
+  .header .secondaryAction {
+    border-color: #748977;
+    background: rgb(255 254 250 / 5%);
+    color: #fffefa;
+    box-shadow: none;
+  }
+  .header .secondaryAction:hover {
+    border-color: #d3dfce;
+    background: #edf1e6;
+    color: #263c30;
+  }
+  .header .primaryAction {
+    border-color: #e1e9d6;
+    background: linear-gradient(120deg, #f8f7ed, #dce8cd);
+    color: #263c30;
+    box-shadow: 0 5px 16px rgb(16 35 23 / 16%);
+  }
+  .header .primaryAction:hover {
+    background: linear-gradient(120deg, #fffefa, #edf3e3);
+    box-shadow: 0 8px 20px rgb(16 35 23 / 24%);
+  }
+
+  .metrics { margin-top: 20px; gap: 16px; }
+  .metric {
+    min-height: 146px;
+    padding: 23px 26px;
+    border-color: var(--economy-line);
+    border-radius: 18px;
+    background: var(--economy-surface);
+    box-shadow: 0 5px 18px rgb(38 60 48 / 4%);
+  }
+  .metric:first-child { background: linear-gradient(120deg, #eff3e8, #f8f9f0); }
+  .metric::before { inset-block: 23px; background: #82967e; }
+  .metric:nth-child(2)::before { background: #b28d62; }
+  .metric:nth-child(3)::before { background: #b7c4a9; }
+  .metric > p:first-child { color: #61725f; font-size: 12px; letter-spacing: .02em; }
+  .metric > p:nth-child(2) {
+    margin-top: 10px;
+    color: #26392e;
+    font: 400 clamp(30px, 2.8vw, 40px)/1.15 Georgia, "Times New Roman", serif;
+    letter-spacing: -.04em;
+  }
+  .metric > p:nth-child(3) { margin-top: 8px; color: #718074; }
+
+  .desktopTabs {
+    --ex-soft: #eeeee4;
+    --ex-surface: #304b3b;
+    --ex-line: #304b3b;
+    --ex-muted: #63715f;
+    --ex-accent-strong: #fffefa;
+    margin-top: 25px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .animatedTabs { color: #63715f; }
+  .economyPage > :global([role="tabpanel"]) { width: 100%; min-width: 0; margin-top: 26px; }
+  .sectionHeading h2, .documents :global(#economic-documents-title) {
+    color: #304535;
+    font: 400 26px/1.2 Georgia, "Times New Roman", serif;
+    letter-spacing: -.025em;
+  }
+  .sectionHeading > span {
+    min-width: 34px;
+    border: 1px solid #dce3d4;
+    border-radius: 99px;
+    padding: 5px 10px;
+    color: #61725f;
+    background: #edf1e6;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .servicesPanel:not(:global(.hidden)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 18px 24px;
+  }
+  .servicesPanel > .sectionLead { grid-column: 1; grid-row: 1; margin: 0; }
+  .servicesPanel > .serviceManagement { grid-column: 2; grid-row: 1; align-self: center; margin: 0; }
+  .servicesPanel > .filterCard { grid-column: 1 / -1; grid-row: 2; margin: 0; }
+  .servicesPanel > .serviceTable, .servicesPanel > .emptyState { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+
+  .filterCard {
+    padding: 20px;
+    border-color: var(--economy-line);
+    border-radius: 16px;
+    background: var(--economy-surface);
+    box-shadow: 0 4px 14px rgb(38 60 48 / 3%);
+  }
+  .filterCard label { color: #61725f; font-size: 12px; }
+  .filterCard input, .filterCard select {
+    background: #fffefa;
+    border-color: #dbe3d5;
+    color: #304535;
+  }
+  .economyPage > :global(#economy-payments-panel) > .filterCard { margin-top: 18px; }
+  .economyPage > :global(#economy-payments-panel) > :global(div.grid) { margin-top: 18px; gap: 16px; }
+  .serviceTable { border-color: #dce3d5; border-radius: 18px; }
+  .serviceTable thead { background: #eeeee4; color: #61725f; }
+  .serviceTable th { padding-block: 14px; font-size: 10px; letter-spacing: .1em; }
+  .serviceTable td { padding-block: 17px; line-height: 1.5; }
+  .serviceTable td:nth-child(2), .serviceTable td:nth-child(3) { overflow-wrap: anywhere; }
+  .serviceTable td:nth-child(4), .serviceTable td:nth-child(6) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .serviceTable tbody tr:hover { background: #f4f6ec; }
+  .serviceTable td:nth-child(5) > span { border-radius: 99px; font-size: 11px; }
+
+  .paymentCard {
+    padding: 23px;
+    border-color: var(--economy-line);
+    border-radius: 18px;
+    background: var(--economy-surface);
+    box-shadow: 0 5px 18px rgb(38 60 48 / 4%);
+  }
+  .paymentCard:hover { border-color: #b9c8aa; box-shadow: 0 10px 24px rgb(38 60 48 / 8%); }
+  .paymentCard > div > div:last-child > p:first-child {
+    color: #304535;
+    font: 400 26px/1.2 Georgia, "Times New Roman", serif;
+    letter-spacing: -.025em;
+    font-variant-numeric: tabular-nums;
+  }
+  .emptyState { margin-top: 18px; padding: 35px 24px; border-color: var(--economy-line); background: var(--economy-surface); color: #718074; }
+
+  .documents > :global(section[aria-labelledby="economic-documents-title"]) > div:first-child {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .documents > :global(section[aria-labelledby="economic-documents-title"]) > div:nth-of-type(2) {
+    gap: 16px;
+    margin-top: 18px;
+    padding: 20px;
+    border: 1px solid var(--economy-line);
+    border-radius: 16px;
+    background: var(--economy-surface);
+    box-shadow: 0 4px 14px rgb(38 60 48 / 3%);
+  }
+  .documents > :global(section[aria-labelledby="economic-documents-title"]) > div:nth-of-type(2) label { color: #61725f; }
+  .documents > :global(section[aria-labelledby="economic-documents-title"]) > div:nth-of-type(2) select { background: #fffefa; border-color: #dbe3d5; }
+  .documents > :global(section[aria-labelledby="economic-documents-title"]) > div:nth-of-type(3) { margin-top: 18px; gap: 16px; }
+  .documents :global(button.card) {
+    padding: 23px;
+    border-color: var(--economy-line);
+    border-radius: 18px;
+    background: var(--economy-surface);
+    box-shadow: 0 5px 18px rgb(38 60 48 / 4%);
+  }
+  .documents :global(button.card:hover) { border-color: #b9c8aa; box-shadow: 0 10px 24px rgb(38 60 48 / 8%); }
+  .documents :global(button.card) > div > div:last-child > p:first-child {
+    color: #304535;
+    font: 400 26px/1.2 Georgia, "Times New Roman", serif;
+    letter-spacing: -.025em;
+    font-variant-numeric: tabular-nums;
+  }
+  .documents > :global(section[aria-labelledby="economic-documents-title"]) > :global(div.border-dashed) {
+    border-color: #d2ddc7;
+    background: #eff3e8;
+    color: #304535;
+  }
+}
