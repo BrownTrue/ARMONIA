@@ -2,6 +2,8 @@
 
 Fotografia ricavata dal repository all’8 ottobre 2026.
 
+Impostazioni Editorial V1 è implementata localmente da 1024 px: intestazione serif, menu delle cinque aree reali a sinistra e pannello selezionato a destra, con limite interno di 1500 px. Riusa `?section=` per deep link e cronologia; tutte le superfici restano montate e cambia soltanto la visibilità CSS, preservando campi non salvati, errori e operazioni in corso. Profilo/dati amministrativi, logo, Google/Calendar feed, password/logout ed export mantengono componenti e handler originali; Sedi e Prestazioni rimandano al Calendario senza duplicazioni. Mobile e tablet 768–1023 conservano la presentazione precedente. V1.1 integra titolo e aiuto Calendari nella superficie Google mantenendo il feed ARMONIA come card distinta; la navigazione desktop resta sticky sotto la toolbar e scorre internamente solo con altezza viewport ridotta. Resta il collaudo manuale; nessuna migration o pubblicazione.
+
 Il Design Lab locale aggiunge Product Experience V3 accanto alle demo V1 e Experience V2: permette di confrontare due layout distinti per Oggi e di esplorare concept di Statistiche e Impostazioni con dati sintetici. La route resta solo development; i mock non usano DataProvider, Supabase o persistenza e non modificano le superfici reali.
 
 MOBILE 8 finalizza il cutover del Calendario: `/calendario` monta Calendar V3 in modalità reale come unico ingresso di prodotto; `/calendar-v3-lab` resta una route di sviluppo non indicizzata con fixture e real-mode esplicito. Desktop conserva Giorno, Settimana e Mese, sidebar, cataloghi, gesture, ricorrenze e azioni cliniche; mobile conserva Giorno, Agenda e Mese con filtri e impostazioni dedicate. Tutti i link applicativi continuano a usare `/calendario`.

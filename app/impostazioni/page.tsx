@@ -17,6 +17,8 @@ import { DataExportSection } from "@/components/settings/data-export-section";
 import { DestructiveActionModal } from "@/components/destructive-action-modal";
 import { AccountSecurity } from "@/components/settings/account-security";
 import { mobileSettingsHref, mobileSettingsSections, parseMobileSettingsSection, type MobileSettingsSection } from "@/lib/mobile-settings";
+import { SettingsEditorialNavigation } from "@/components/settings/settings-editorial-navigation";
+import styles from "./settings-editorial.module.css";
 type GoogleStatus={configured:boolean;connected:boolean;calendarName?:string;error?:string;nameFormat?:GoogleCalendarPreferences["nameFormat"];reminderMinutes?:number;syncEnabled?:boolean};
 const cloudDataMode=process.env.NEXT_PUBLIC_DATA_MODE!=="local";
 const emptyProfessionalDetails=(details?:ProfessionalDocumentDetails):ProfessionalDocumentDetails=>details||{userId:"local",taxCode:"",vatNumber:"",address:"",postalCode:"",city:"",province:"",country:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
@@ -66,11 +68,14 @@ function SettingsContent() {
   const connectionError=googleSyncErrorPresentation(google?.error);
   const mobileSection=parseMobileSettingsSection(searchParams.get("section"));
   const mobileSectionTitle=mobileSettingsSections.find((section)=>section.id===mobileSection)?.label||"Impostazioni";
-  const surface=(section:MobileSettingsSection)=>mobileSection===section?"block":"hidden md:block";
+  // Visibility only: all forms stay mounted, including their drafts and pending operations.
+  const surface=(section:MobileSettingsSection)=>`${mobileSection===section?"block":"hidden md:block"} ${styles.surface} ${(mobileSection||"professional")===section?styles.selected:""}`;
   useEffect(()=>{if(!google||googleAutoOpened.current)return;if(!google.connected||syncPresentation.kind!=="active"||googleNotice?.kind==="error"){googleAutoOpened.current=true;setGoogleExpanded(true)}},[google,syncPresentation.kind,googleNotice]);
   return (
-    <AppShell mobileFullScreen={Boolean(mobileSection)} mobileHeader={mobileSection?{variant:"detail",title:mobileSectionTitle,backHref:"/impostazioni",backLabel:"Torna alle Impostazioni",onBack:()=>router.back()}:undefined}>
-      <div className={mobileSection?"hidden md:block":""}><h1 className="text-3xl font-bold">Impostazioni</h1>
+    <AppShell desktopWideAtLarge mobileFullScreen={Boolean(mobileSection)} mobileHeader={mobileSection?{variant:"detail",title:mobileSectionTitle,backHref:"/impostazioni",backLabel:"Torna alle Impostazioni",onBack:()=>router.back()}:undefined}>
+      <div className={styles.page}>
+      <div className={mobileSection?"hidden md:block":""}><h1 className={`text-3xl font-bold ${styles.legacyTitle}`}>Impostazioni</h1>
+      <div className={styles.editorialHeading}><p>IL TUO SPAZIO PROFESSIONALE</p><h1>Impostazioni, <em>con chiarezza.</em></h1><span>Profilo, documenti e collegamenti. Ogni area al suo posto.</span></div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${connection.kind === "local" ? "bg-sage-100 text-sage-700" : connection.kind === "cloud" ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-700"}`}>
           <span className={`h-2 w-2 rounded-full ${connection.kind === "local" ? "bg-sage-500" : connection.kind === "cloud" ? "bg-blue-500" : "bg-red-500"}`}/>{connection.label}
@@ -78,7 +83,10 @@ function SettingsContent() {
         <p className="text-sm text-slate-500">{connection.message}</p>
       </div></div>
       {!mobileSection&&<MobileSettingsIndex connectionKind={connection.kind} connectionLabel={connection.label} connectionMessage={connection.message} onOpen={(section)=>router.push(mobileSettingsHref(section))}/>}
-      <div className={surface("professional")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><form
+      <div className={styles.layout}>
+      <SettingsEditorialNavigation selected={mobileSection||"professional"} onSelect={(section)=>router.push(mobileSettingsHref(section),{scroll:false})}/>
+      <div className={styles.panels}>
+      <div id="settings-professional-panel" className={surface("professional")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><form
         className="card mt-8 max-w-2xl p-4 sm:p-6"
         onSubmit={async (e) => {
           e.preventDefault();
@@ -139,7 +147,7 @@ function SettingsContent() {
         {profileError&&<p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{profileError}</p>}
         {saved && <p role="status" className="mt-3 text-sm font-bold text-sage-700">Modifiche salvate.</p>}
       </form></div></div>
-      <div className={surface("branding")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><section className="card mt-5 max-w-2xl p-4 sm:p-6">
+      <div id="settings-branding-panel" className={surface("branding")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <div><h2 className="font-bold">Logo dei documenti</h2><p className="mt-1 text-sm text-slate-500">Completa l’identità professionale usata nelle stampe. PNG, JPG o WebP · massimo 2 MB.</p></div>
         <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
           <div className="grid h-28 place-items-center overflow-hidden rounded-2xl border border-sage-100 bg-sage-50 p-4">
@@ -154,9 +162,10 @@ function SettingsContent() {
         <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={brandingBusy||!brandingReady} onClick={()=>logoInput.current?.click()} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">{hasCustomLogo?"Cambia logo":"Carica logo"}</button>{hasCustomLogo&&<button type="button" disabled={brandingBusy} onClick={()=>{setBrandingMessage(null);setRemoveLogoOpen(true)}} className="btn btn-quiet">Rimuovi logo</button>}</div>
         {brandingMessage&&<p role={brandingMessage.kind==="error"?"alert":"status"} className={`mt-3 text-sm font-bold ${brandingMessage.kind==="error"?"text-red-600":"text-sage-700"}`}>{brandingMessage.text}</p>}
       </section></div></div>
-      <div className={surface("calendars")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><section className="mt-8 max-w-2xl" aria-labelledby="calendars-title">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 id="calendars-title" className="text-lg font-bold uppercase tracking-wide text-sage-700">Calendari</h2><button type="button" onClick={()=>setCalendarsHelpOpen(true)} className="rounded-lg px-2 py-1 text-sm font-bold text-sage-700 outline-none hover:bg-sage-50 focus-visible:ring-2 focus-visible:ring-sage-500">ⓘ Come funzionano</button></div>
-        <div className="card p-4 sm:p-6">
+      <div id="settings-calendars-panel" className={surface("calendars")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><section className={`mt-8 max-w-2xl ${styles.calendarSection}`} aria-labelledby="calendars-title">
+        <div className={styles.calendarGroup}>
+        <div className={`mb-4 flex flex-wrap items-center justify-between gap-2 ${styles.legacyCalendarHeading}`}><div><h2 id="calendars-title" className="text-lg font-bold uppercase tracking-wide text-sage-700">Calendari</h2><p className={styles.calendarDescription}>Gestisci Google Calendar e il feed privato di ARMONIA.</p></div><button type="button" onClick={()=>setCalendarsHelpOpen(true)} className="rounded-lg px-2 py-1 text-sm font-bold text-sage-700 outline-none hover:bg-sage-50 focus-visible:ring-2 focus-visible:ring-sage-500">ⓘ Come funzionano</button></div>
+        <div className={`card p-4 sm:p-6 ${styles.googleSettings}`}>
         <button type="button" aria-expanded={googleExpanded} aria-controls="google-calendar-settings" onClick={()=>setGoogleExpanded(open=>!open)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-4">
           <span className="min-w-0"><span className="block font-bold">Google Calendar</span>{syncState.pending>0&&<span className="mt-1 block text-sm text-slate-500">{syncState.pending} {syncState.pending===1?"modifica in attesa":"modifiche in attesa"}</span>}</span>
           <span className="flex min-w-0 items-center justify-end gap-2"><span className={`max-w-[13rem] rounded-full px-3 py-1 text-right text-xs font-bold leading-snug sm:text-sm ${google?.connected?syncPresentation.kind==="reconnect"?"bg-red-50 text-red-700":syncPresentation.kind==="pending"?"bg-amber-50 text-amber-800":"bg-sage-50 text-sage-700":"bg-slate-100 text-slate-500"}`}>{google?.connected?syncPresentation.kind==="reconnect"?"Ricollegamento necessario":syncPresentation.kind==="pending"?"Sincronizzazione in attesa":"Sincronizzazione attiva":"Non collegato"}</span><span aria-hidden="true" className="shrink-0 text-xl leading-none text-sage-700">{googleExpanded?"⌃":"⌄"}</span></span>
@@ -182,14 +191,15 @@ function SettingsContent() {
         </> : <div className="mt-5"><p className="text-sm text-slate-600">Collega Google Calendar per vedere automaticamente gli appuntamenti di Armonia nel tuo calendario Google. Armonia continua a funzionare anche senza collegamento.</p><a href="/api/google-calendar/connect" className="btn btn-primary mt-4 inline-block w-full sm:w-auto">Collega Google Calendar</a>{connectionError&&<p role="alert" className="mt-3 text-sm font-bold text-red-600">{connectionError.message}</p>}</div>}
         </div>}
         </div>
+        </div>
         <div className="mt-4"><CalendarFeedSettings cloudAvailable={cloudDataMode} googleConnected={Boolean(google?.connected)}/></div>
       </section></div></div>
       {calendarsHelpOpen&&<Modal title="Come funzionano i calendari?" onClose={()=>setCalendarsHelpOpen(false)}><div className="space-y-5 text-sm leading-6 text-slate-600"><section><h3 className="font-bold text-slate-800">Google Calendar</h3><p className="mt-1">Per chi usa Google Calendar. ARMONIA crea e aggiorna automaticamente gli appuntamenti nel calendario Google dedicato.</p></section><section><h3 className="font-bold text-slate-800">Calendario ARMONIA</h3><p className="mt-1">Per Apple Calendar, Outlook e altri client compatibili. È un calendario privato in sola lettura. Gli appuntamenti si modificano sempre in ARMONIA.</p><p className="mt-2">Il Calendario ARMONIA espone sempre gli appuntamenti aggiornati, ma è l’app calendario a decidere quando ricontrollarli. Con intervalli lunghi, ad esempio settimanali, le modifiche possono comparire con molto ritardo.</p></section><p className="rounded-xl bg-amber-50 p-4 text-amber-900">Puoi usare entrambi, ma se sono visibili nella stessa app potresti vedere gli stessi appuntamenti due volte.</p></div></Modal>}
       {googleAction==="disconnect"&&<DestructiveActionModal title="Scollegare Google Calendar?" description="La sincronizzazione automatica verrà interrotta. Gli eventi già presenti nel calendario Google non saranno eliminati." confirmLabel="Scollega Google" busyLabel="Scollegamento…" busy={googleActionBusy} error={googleActionError} onClose={()=>setGoogleAction(null)} onConfirm={async()=>{if(googleActionFlight.current)return;googleActionFlight.current=true;setGoogleActionBusy(true);setGoogleActionError("");try{const response=await fetch("/api/google-calendar/disconnect",{method:"POST"});if(!response.ok)throw new Error("disconnect_failed");clearGoogleCalendarLocalState();setGoogle({configured:true,connected:false});setGooglePrefs(getGoogleCalendarPreferences());setGoogleAction(null)}catch{setGoogleActionError("Non è stato possibile scollegare Google Calendar. Riprova.")}finally{googleActionFlight.current=false;setGoogleActionBusy(false)}}}/>}
       {googleAction==="resync"&&<DestructiveActionModal title="Risincronizzare tutti gli appuntamenti?" description="È un’operazione eccezionale: tutti gli appuntamenti ARMONIA verranno rimessi in coda per riallineare Google Calendar." confirmLabel="Avvia risincronizzazione" busyLabel="Preparazione…" danger={false} busy={googleActionBusy} error={googleActionError} onClose={()=>setGoogleAction(null)} onConfirm={async()=>{if(googleActionFlight.current)return;googleActionFlight.current=true;setGoogleActionBusy(true);setGoogleActionError("");try{await resyncAllGoogleAppointments(()=>queueAllGoogleAppointments(data.appointments,data.patients));setGoogleAction(null)}catch{setGoogleActionError("Non è stato possibile avviare la risincronizzazione completa. Riprova.")}finally{googleActionFlight.current=false;setGoogleActionBusy(false)}}}/>}
       {removeLogoOpen&&<DestructiveActionModal title="Rimuovere il logo?" description="Il logo non verrà più utilizzato nei documenti generati da ARMONIA." confirmLabel="Rimuovi logo" busyLabel="Rimozione…" busy={brandingBusy} error={brandingMessage?.kind==="error"?brandingMessage.text:undefined} onClose={()=>setRemoveLogoOpen(false)} onConfirm={async()=>{setBrandingBusy(true);setBrandingMessage(null);try{await removeLogo();setBrandingMessage({kind:"success",text:"Logo rimosso. È stato ripristinato il logo Armonia."});setRemoveLogoOpen(false)}catch{setBrandingMessage({kind:"error",text:"Non è stato possibile rimuovere il logo. Riprova."})}finally{setBrandingBusy(false)}}}/>}
-      <div className={surface("export")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><DataExportSection data={data} user={user} mode={connection.kind}/></div></div>
-      <div className={surface("security")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><AccountSecurity />
+      <div id="settings-export-panel" className={surface("export")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><DataExportSection data={data} user={user} mode={connection.kind}/></div></div>
+      <div id="settings-security-panel" className={surface("security")}><div className={mobileSection?"px-4 pb-8 pt-5 md:px-0 md:pb-0 md:pt-0":""}><AccountSecurity />
       <section className="card mt-5 max-w-2xl p-4 sm:p-6">
         <h2 className="font-bold">Account</h2>
         <button
@@ -203,6 +213,7 @@ function SettingsContent() {
         </button>
         {connection.kind === "local" && <p id="local-signout-hint" className="mt-2 text-sm text-slate-500">Stai usando ARMONIA in modalità locale: non c’è una sessione account da chiudere.</p>}
       </section></div></div>
+      </div></div></div>
     </AppShell>
   );
 }
