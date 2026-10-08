@@ -2,6 +2,8 @@
 
 Fotografia ricavata dal repository all’8 ottobre 2026.
 
+Calendar Organic Editorial V1 in collaudo locale: override CSS solo desktop >=1024 px per toolbar avorio, titoli temporali serif, sidebar salvia, selezione mini-calendario verde bosco, intestazioni e orari più leggibili. Eventi mantengono colori delle prestazioni e ricevono soltanto contrasto/ombra interna raffinati. Nessuna modifica a coordinate, gradienti temporali, gutter, colonne, slot, hitbox, scroll, gesture, preview, handler o fullscreen. Tablet/mobile e form/dialog invariati. Verifica visuale e geometrica dinamica demandata all'utente.
+
 Percorso clinico Organic Editorial V1: cornice CSS desktop comune agli editor V1/V2, massimo 1364 px inclusi padding (1300 px utili), header serif e navigazione dei passaggi coordinata; superfici form avorio e azioni inferiori separate dall'area distruttiva. Percorso attivo e card Valutazioni/Obiettivi coordinati con Pazienti V2. Modifiche solo presentazionali >=1024 px, senza alterare autosave FIFO, validazione, bozze locali, persistenza, stati clinici, contenuti, PDF o componenti mobile/tablet. Collaudo manuale ancora richiesto.
 
 Pazienti Organic Editorial V2 è in collaudo locale: directory rifinita senza ricostruire le card; dettaglio con `main` locale a larghezza piena, massimo 1464 px inclusi padding (1400 px operativi), stabile fra le quattro tab. Intestazione serif, superfici avorio/salvia, Percorso vuoto più ampio e accento lilla discreto nelle Risorse. Modifiche solo CSS desktop >=1024 px e attributi presentazionali: componenti clinici, dati, callback, navigazione, mobile e tablet preservati. Nessuna pubblicazione; QA visivo dell'utente ancora necessario.

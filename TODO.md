@@ -2,6 +2,8 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- Calendar Editorial V1: collaudare desktop toolbar/sidebar, Giorno/Settimana/Mese, contrasto eventi brevi e preview, allineamento header/griglia e gesture; confermare fullscreen, tablet e mobile invariati. Nessun QA browser automatico eseguito.
+
 - Percorso clinico Editorial V1: collaudare percorso attivo/vuoto e valutazioni nei sei passaggi, larghezza stabile, focus, autosave e azioni di salvataggio/completamento distinte; verificare mobile/tablet e stampa invariati.
 
 - Pazienti Organic Editorial V2: collaudare directory e dettaglio desktop, stabilità larghezza cambiando tab, Percorso vuoto/attivo, timeline, Risorse e azioni esistenti; confermare mobile e tablet invariati.
