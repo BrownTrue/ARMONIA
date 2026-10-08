@@ -190,6 +190,15 @@
 .createDraftPreview strong, .createDraftPreview > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 1.25; }
 .createDraftPreview strong { font-size: 12px; font-weight: 700; }
 .createDraftPreview .createDraftBadge { width: fit-content; max-width: 100%; border-radius: 999px; background: color-mix(in srgb, var(--event-color) 16%, #fff); padding: 2px 5px; color: #52655a; font-size: 8px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+@media (min-width: 768px) {
+  .createDraftPreview { container: createDraftPreview / size; gap: 0; padding: 0 6px; }
+  .createDraftPreview strong, .createDraftPreview > span { flex: 0 0 auto; line-height: 1.1; }
+  .createDraftPreview strong { font-size: 11px; }
+  .createDraftPreview .createDraftBadge { padding: 1px 4px; font-size: 7px; line-height: 1; }
+  @container createDraftPreview (max-height: 47px) {
+    .createDraftPreview .createDraftBadge { display: none; }
+  }
+}
 .event:hover { z-index: 8; filter: saturate(1.08) brightness(.985); box-shadow: 0 2px 7px rgba(47,67,55,.12), inset 0 0 0 1px rgba(38,56,45,.05); transform: translateY(-1px); }
 .eventDraggable { cursor: grab; }
 .eventMovingOrigin, .eventMovingOrigin:hover { z-index: 3; opacity: .35; filter: saturate(.7); transform: none; cursor: grabbing; box-shadow: inset 0 0 0 1px rgba(38,56,45,.035); }
