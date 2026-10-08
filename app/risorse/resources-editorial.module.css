@@ -1,0 +1,83 @@
+@media (min-width: 1024px) {
+  main.main { width: 100%; max-width: 1564px; }
+  .page { width: 100%; min-width: 0; color: var(--editorial-ink, #26392e); }
+  .page .header { position: relative; max-width: none; padding-bottom: 26px; border-bottom: 1px solid #dce3d5; }
+  .header > p:first-child { display: flex; align-items: center; gap: 10px; color: #718074; font-size: 10px; letter-spacing: .17em; }
+  .header > p:first-child::before { width: 7px; height: 7px; border-radius: 50%; background: #304b3b; box-shadow: 0 0 0 4px #e5ebda; content: ""; }
+  .header h1 { margin-top: 13px; color: #263c30; font: 400 clamp(44px, 4vw, 62px)/1 Georgia, "Times New Roman", serif; letter-spacing: -.045em; }
+  .header > p:last-child { margin-top: 14px; color: #718074; font-size: 15px; line-height: 1.65; }
+
+  .page .areas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 27px; }
+  .areas .areaCard {
+    --area-ink: #3d5b39;
+    --area-line: #cfdbc1;
+    --area-icon: #dae6cb;
+    min-width: 0;
+    min-height: 310px;
+    padding: 27px;
+    border-color: var(--area-line);
+    border-radius: 24px;
+    background: linear-gradient(135deg, #e6eedb, #f3f5e9);
+    color: var(--area-ink);
+    box-shadow: 0 6px 20px rgb(38 60 48 / 4%);
+    transition-duration: 160ms;
+  }
+  .areaCard:nth-child(2) { --area-ink: #335c70; --area-line: #cbdfe5; --area-icon: #d5e9ee; background: linear-gradient(135deg, #e2eef1, #f0f6f6); }
+  .areaCard:nth-child(3) { --area-ink: #746031; --area-line: #e7dcb9; --area-icon: #f0e3b8; background: linear-gradient(135deg, #f4ebd0, #faf6e8); }
+  .areaCard:nth-child(4) { --area-ink: #635479; --area-line: #dcd3e6; --area-icon: #e4daf0; background: linear-gradient(135deg, #ebe4f2, #f6f1f8); }
+  .areas .areaCard:hover { border-color: var(--area-ink); box-shadow: 0 14px 28px rgb(38 60 48 / 9%); }
+  .areas .areaCard:focus-visible { outline: 2px solid var(--area-ink); outline-offset: 4px; }
+  .areaCard .areaIcon { width: 50px; height: 50px; border: 1px solid var(--area-line); border-radius: 16px 16px 16px 6px; background: var(--area-icon); color: var(--area-ink); box-shadow: 0 3px 8px rgb(38 60 48 / 4%); }
+  .areaCard h2 { margin-top: 24px; font: 400 27px/1.15 Georgia, "Times New Roman", serif; letter-spacing: -.025em; }
+  .areaCard h2 + p { margin-top: 12px; color: #607066; font-size: 14px; line-height: 1.65; }
+  .areaCard:nth-child(2) h2 + p { color: #5c717a; }
+  .areaCard:nth-child(3) h2 + p { color: #776e56; }
+  .areaCard:nth-child(4) h2 + p { color: #71667b; }
+  .areaCard .areaAction { justify-content: space-between; gap: 12px; margin-top: 23px; border-top: 1px solid var(--area-line); padding-top: 12px; color: var(--area-ink); font-size: 13px; }
+  .areaAction > span { display: grid; place-items: center; width: 30px; height: 30px; margin-left: 0; border: 1px solid var(--area-line); border-radius: 50%; background: rgb(255 254 250 / 45%); }
+
+  .page .recent { margin-top: 38px; padding-top: 29px; border-top: 1px solid #dce3d5; }
+  .recent h2 { color: #304535; font: 400 29px/1.2 Georgia, "Times New Roman", serif; letter-spacing: -.03em; }
+  .filters { gap: 4px; padding: 4px; border: 1px solid #e0e5d8; border-radius: 15px; background: #eeeee4; }
+  .filters button { border-color: transparent; border-radius: 11px; background: transparent; color: #61725f; font-size: 12px; transition: background 140ms ease, color 140ms ease; }
+  .filters button[aria-pressed="true"] { background: #304b3b; color: #fffefa; box-shadow: 0 2px 6px rgb(38 60 48 / 8%); }
+  .filters button:not([aria-pressed="true"]):hover { background: #fffefa; }
+  .recentList { border-color: #e1e5d9; background: #fffefa; box-shadow: 0 5px 20px rgb(38 60 48 / 4%); }
+  .recentList article { padding-block: 19px; border-color: #e8ebdf; transition: background 140ms ease; }
+  .recentList article:hover { background: #f5f7ee; }
+  .recentList article > span { border: 1px solid #dce4d2; border-radius: 13px; background: #e9efdf; color: #526c48; font-size: 10px; letter-spacing: .05em; }
+  .recentList h3 { color: #304535; font-size: 15px; font-weight: 650; }
+  .recentList article > button:not([aria-busy]) { border: 1px solid #dde5d4; background: #edf1e6; color: #304b3b; }
+  .recentList article > button:not(:disabled):hover { background: #e1ead7; }
+  .empty { padding: 38px 28px; border-color: #ccd9bf; background: #fffefa; }
+  .empty > p:first-child { color: #304535; font: 400 25px/1.3 Georgia, "Times New Roman", serif; letter-spacing: -.025em; }
+  .empty > p:nth-child(2) { color: #718074; }
+  .empty > a { margin-top: 20px; border-radius: 12px; padding-inline: 18px; background: #304b3b; color: #fffefa; font-size: 13px; }
+  .empty > a:hover { background: #263c30; }
+}
+
+@media (min-width: 1440px) {
+  .page .areas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .areas .areaCard { min-height: 350px; padding: 25px; }
+  .areaCard h2 { font-size: 26px; }
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .areas .areaCard, .filters button, .recentList article { transition: none; }
+  .areas .areaCard:hover, .areaAction > span { transform: none; }
+}
+.storage { display: none; }
+@media (min-width: 1024px) {
+  .storage { display: flex; align-items: center; gap: 20px; margin-top: 28px; padding: 20px 24px; border: 1px solid #dfe7db; border-radius: 22px; background: linear-gradient(110deg, #f2f6ee, #fffdf8); }
+  .storageIcon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 14px; background: #e2ebdc; color: #426247; font-size: 26px; }
+  .storage h2 { color: #304637; font-weight: 600; }
+  .storage p, .storageAmount span { font-size: 12px; color: #647164; }
+  .storage p { margin-top: 4px; }
+  .storageAmount { margin-left: auto; width: 290px; flex-shrink: 0; }
+  .storageAmount strong { display: block; color: #36593e; font-size: 22px; font-weight: 500; }
+  .storageAmount span { display: block; margin-top: 3px; }
+  .storageAmount meter { display: block; width: 100%; height: 10px; margin-top: 8px; accent-color: #67835d; }
+  .storageAmount meter::-webkit-meter-bar { background: #e3e9de; border: 0; border-radius: 8px; }
+  .storageAmount meter::-webkit-meter-optimum-value { background: #67835d; }
+  .storageAmount meter::-moz-meter-bar { background: #67835d; }
+}

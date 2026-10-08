@@ -6,9 +6,10 @@ import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { MobileResourceDirectory } from "@/components/resources/mobile-resource-directory";
 import { SpotlightCard } from "@/components/organic-premium/spotlight-card";
-import { formatStorageBytes } from "@/lib/therapeutic-library/files";
+import { formatStorageBytes, STORAGE_QUOTA_BYTES } from "@/lib/therapeutic-library/files";
 import { filterResourceMaterials, materialKind, recentMaterials } from "@/lib/resources-home";
 import type { Material } from "@/lib/types";
+import styles from "./resources-editorial.module.css";
 
 type StorageSummary = { quotaBytes: number; usedBytes: number; reservedBytes: number; requiresReconciliation?: boolean };
 type ResourceFilter = "all" | "favorites";
@@ -44,32 +45,43 @@ export default function ResourcesPage() {
     finally { favoriteFlight.current.delete(material.id); setFavoriteIds((current) => { const next = new Set(current); next.delete(material.id); return next; }); }
   };
   const used = storage ? storage.usedBytes + storage.reservedBytes : undefined;
-  return <AppShell>
+  return <AppShell mainClassName={`${styles.main} ${styles.page}`}>
     <MobileResourceDirectory areas={areas}/>
     <div className="hidden md:block">
-    <header className="max-w-3xl">
+    <header className={`${styles.header} max-w-3xl`}>
       <p className="text-xs font-bold uppercase tracking-[.2em] text-sage-600">Workspace</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Risorse</h1>
       <p className="mt-3 text-base leading-7 text-slate-600">Materiali, documenti, strumenti clinici ed esercizi per il lavoro quotidiano.</p>
     </header>
 
-    <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Aree Risorse">
-      {areas.map((area, index) => <SpotlightCard key={area.href} href={area.href} className={`group min-h-64 rounded-[1.6rem] border p-5 hover:shadow-[0_16px_38px_rgba(43,69,55,.08)] ${area.tone}`}>
-        <div className="flex items-start justify-between gap-3"><span className={`grid h-12 w-12 place-items-center rounded-2xl text-2xl ${area.iconTone}`} aria-hidden="true">{area.icon}</span>{area.upcoming && <span className="rounded-full border border-current/10 bg-white/60 px-2.5 py-1 text-[11px] font-bold">In preparazione</span>}</div>
+    <section className={`${styles.areas} mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4`} aria-label="Aree Risorse">
+      {areas.map((area, index) => <SpotlightCard key={area.href} href={area.href} className={`${styles.areaCard} group min-h-64 rounded-[1.6rem] border p-5 hover:shadow-[0_16px_38px_rgba(43,69,55,.08)] ${area.tone}`}>
+        <div className="flex items-start justify-between gap-3"><span className={`${styles.areaIcon} grid h-12 w-12 place-items-center rounded-2xl text-2xl ${area.iconTone}`} aria-hidden="true">{area.icon}</span>{area.upcoming && <span className="rounded-full border border-current/10 bg-white/60 px-2.5 py-1 text-[11px] font-bold">In preparazione</span>}</div>
         <h2 className="mt-7 text-xl font-bold leading-tight">{area.title}</h2>
         <p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{area.description}</p>
         {index === 0 && <div className="mt-4 border-t border-sage-200/70 pt-3 text-sm"><strong>{data.materials.length}</strong> {data.materials.length === 1 ? "materiale" : "materiali"}{used !== undefined && storage && !storage.requiresReconciliation ? <span className="mt-1 block text-xs text-slate-500">{formatStorageBytes(used)} di {formatStorageBytes(storage.quotaBytes)}</span> : storageUnavailable ? <span className="mt-1 block text-xs text-slate-500">Spazio utilizzato temporaneamente non disponibile.</span> : null}</div>}
-        <span className="mt-5 inline-flex min-h-11 items-center font-bold">{area.action}<span className="ml-2 transition group-hover:translate-x-1" aria-hidden="true">→</span></span>
+        <span className={`${styles.areaAction} mt-5 inline-flex min-h-11 items-center font-bold`}>{area.action}<span className="ml-2 transition group-hover:translate-x-1" aria-hidden="true">→</span></span>
       </SpotlightCard>)}
     </section>
 
-    <section className="mt-10" aria-labelledby="recent-resources-title">
+    <section className={styles.storage} aria-labelledby="library-space-title">
+      <span className={styles.storageIcon} aria-hidden="true">▱</span>
+      <div><h2 id="library-space-title">Lo spazio della tua libreria</h2><p>{connection.kind === "cloud" ? "File privati nel cloud · quota di archiviazione" : "Quota cloud standard · i file locali restano sul dispositivo"}</p></div>
+      <div className={styles.storageAmount}>
+        <strong>{formatStorageBytes(storage?.quotaBytes ?? STORAGE_QUOTA_BYTES)}</strong>
+        {connection.kind === "cloud" && storage && used !== undefined && !storage.requiresReconciliation ? <>
+          <span>{formatStorageBytes(used)} utilizzati, incluse le prenotazioni di upload</span>
+          {storage.quotaBytes > 0 && <meter min={0} max={storage.quotaBytes} value={Math.min(used, storage.quotaBytes)} aria-label="Spazio cloud utilizzato" />}
+        </> : <span>{connection.kind !== "cloud" ? "Utilizzo locale non misurato" : storageUnavailable ? "Utilizzo temporaneamente non disponibile" : storage?.requiresReconciliation ? "Utilizzo in verifica" : "Utilizzo in caricamento"}</span>}
+      </div>
+    </section>
+    <section className={`${styles.recent} mt-10`} aria-labelledby="recent-resources-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><h2 id="recent-resources-title" className="text-2xl font-bold">Risorse recenti</h2><p className="mt-1 text-sm text-slate-500">Gli ultimi materiali presenti nella tua Libreria.</p></div>
-        <div className="flex gap-2" aria-label="Filtra risorse recenti">{([['all', 'Tutti'], ['favorites', 'Preferiti']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`min-h-11 rounded-full border px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 ${filter === value ? "border-sage-600 bg-sage-700 text-white" : "border-sage-100 bg-white text-sage-700"}`}>{label}</button>)}</div>
+        <div className={`${styles.filters} flex gap-2`} aria-label="Filtra risorse recenti">{([['all', 'Tutti'], ['favorites', 'Preferiti']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`min-h-11 rounded-full border px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 ${filter === value ? "border-sage-600 bg-sage-700 text-white" : "border-sage-100 bg-white text-sage-700"}`}>{label}</button>)}</div>
       </div>
       {favoriteError && <p role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{favoriteError}</p>}
-      {recent.length ? <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-sage-100 bg-white">{recent.map((material, index) => <RecentMaterial key={material.id} material={material} last={index === recent.length - 1} busy={favoriteIds.has(material.id)} onOpen={() => void openMaterial(material, { newTab: true })} onFavorite={() => void favorite(material)} />)}</div> : <div className="mt-5 rounded-[1.5rem] border border-dashed border-sage-200 bg-white p-8 text-center"><p className="font-bold">{filter === "favorites" ? "Nessun preferito recente" : "Nessun materiale disponibile"}</p><p className="mt-2 text-sm text-slate-500">{filter === "favorites" ? "Aggiungi una stella ai materiali che vuoi ritrovare più facilmente." : "Apri la Libreria per caricare un file o aggiungere un link."}</p><Link href="/materiali" className="mt-4 inline-flex min-h-11 items-center font-bold text-sage-700">Apri libreria →</Link></div>}
+      {recent.length ? <div className={`${styles.recentList} mt-5 overflow-hidden rounded-[1.5rem] border border-sage-100 bg-white`}>{recent.map((material, index) => <RecentMaterial key={material.id} material={material} last={index === recent.length - 1} busy={favoriteIds.has(material.id)} onOpen={() => void openMaterial(material, { newTab: true })} onFavorite={() => void favorite(material)} />)}</div> : <div className={`${styles.empty} mt-5 rounded-[1.5rem] border border-dashed border-sage-200 bg-white p-8 text-center`}><p className="font-bold">{filter === "favorites" ? "Nessun preferito recente" : "Nessun materiale disponibile"}</p><p className="mt-2 text-sm text-slate-500">{filter === "favorites" ? "Aggiungi una stella ai materiali che vuoi ritrovare più facilmente." : "Apri la Libreria per caricare un file o aggiungere un link."}</p><Link href="/materiali" className="mt-4 inline-flex min-h-11 items-center font-bold text-sage-700">Apri libreria →</Link></div>}
     </section>
     </div>
   </AppShell>;

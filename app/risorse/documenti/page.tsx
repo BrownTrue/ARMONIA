@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import editorial from "@/components/resources/resource-editorial.module.css";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { HANDOUTS_V1, type ArmoniaHandout } from "@/data/resources/handouts-v1";
 
@@ -17,7 +18,7 @@ const attestations = [
 ] as const;
 
 export default function ResourceDocumentsPage() {
-  return <AppShell>
+  return <AppShell mainClassName={`${editorial.main} ${editorial.documents}`}>
     <header className="max-w-3xl">
       <Link href="/risorse" className="inline-flex min-h-11 items-center text-sm font-bold text-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500">← Torna a Risorse</Link>
       <p className="mt-5 text-xs font-bold uppercase tracking-[.2em] text-sage-600">Risorse</p>

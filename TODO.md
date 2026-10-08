@@ -2,6 +2,10 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- Risorse Editorial V1.2: collaudare desktop PVB/altri dettagli strumenti, Nuova scheda (dati, composizione, riepilogo) e Attestazione di presenza (form/anteprima); confermare anteprime, PDF, stampa, tablet e mobile invariati.
+
+- Risorse Editorial V1.1: collaudare home e quattro directory desktop, larghezze, ricerca/filtri, azioni/PDF e palette distinte; verificare indicatore quota cloud con uso noto, sconosciuto e in verifica, e nota locale senza percentuali inventate. Confermare editor, tablet e mobile invariati.
+
 - Impostazioni Editorial V1/V1.1: collaudare desktop >=1024 px (cinque aree, campi non salvati preservati cambiando sezione, errori, upload, deep link/Back e larghezza stabile); verificare titolo Calendari, card Google/feed e menu sticky durante scroll e su viewport bassi. Verificare separatamente salvataggi reali, Google/feed, password ed export. Confermare mobile e tablet 768–1023 invariati. Il QA non è stato eseguito automaticamente.
 
 - MOBILE 8: eseguire dopo pubblicazione autorizzata un breve QA HTTPS su iPhone/iPad/Android: installazione Home, apertura standalone su `/oggi`, safe area/orientamento, login e deep link, Calendar V3 reale, Web Share e fallback download/apertura per Proforma, Worksheet, Valutazioni, handout/Materiali e Data Export. Nessun dato clinico deve essere reso disponibile offline da cache applicative.

@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import Link from "next/link";
+import editorial from "@/components/resources/resource-editorial.module.css";
 import { useData } from "@/components/data-provider";
 import { Modal } from "@/components/modal";
 import { Field, Select, Textarea } from "@/components/form-controls";
@@ -66,7 +68,8 @@ export default function Materials() {
     finally{deletingRef.current.delete(m.id);setDeletingIds(current=>{const next=new Set(current);next.delete(m.id);return next})}
   };
   return (
-    <AppShell>
+    <AppShell mainClassName={`${editorial.main} ${editorial.materials}`}>
+      <Link href="/risorse" className={editorial.desktopBack}>← Torna a Risorse</Link>
       <header className="page-header mb-8">
         <div>
           <h1 className="text-3xl font-bold">Materiali</h1>
