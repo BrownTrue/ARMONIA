@@ -24,6 +24,14 @@
     background: transparent;
   }
 
+  .workspaceFullscreen > .fullscreenMain {
+    align-self: stretch;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
   .toolbar {
     position: sticky;
     top: 0;
