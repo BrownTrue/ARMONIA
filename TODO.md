@@ -2,6 +2,10 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- Percorso clinico Editorial V1: collaudare percorso attivo/vuoto e valutazioni nei sei passaggi, larghezza stabile, focus, autosave e azioni di salvataggio/completamento distinte; verificare mobile/tablet e stampa invariati.
+
+- Pazienti Organic Editorial V2: collaudare directory e dettaglio desktop, stabilità larghezza cambiando tab, Percorso vuoto/attivo, timeline, Risorse e azioni esistenti; confermare mobile e tablet invariati.
+
 - Risorse Editorial V1.2: collaudare desktop PVB/altri dettagli strumenti, Nuova scheda (dati, composizione, riepilogo) e Attestazione di presenza (form/anteprima); confermare anteprime, PDF, stampa, tablet e mobile invariati.
 
 - Risorse Editorial V1.1: collaudare home e quattro directory desktop, larghezze, ricerca/filtri, azioni/PDF e palette distinte; verificare indicatore quota cloud con uso noto, sconosciuto e in verifica, e nota locale senza percentuali inventate. Confermare editor, tablet e mobile invariati.

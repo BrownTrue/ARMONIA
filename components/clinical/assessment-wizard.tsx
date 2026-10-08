@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import editorial from "./clinical-editorial.module.css";
 import { ClinicalAssessmentPrint } from "@/components/clinical/assessment-print-dispatch";
 import { AssessmentPdfActions } from "@/components/clinical/assessment-pdf-actions";
 import { MobileAssessmentFooter, MobileAssessmentIdentity, MobileAssessmentOverview, MobileAssessmentRow, useMobileAssessmentLayout } from "@/components/clinical/mobile-assessment-layout";
@@ -222,7 +223,7 @@ export function AssessmentWizard() {
     </AppShell>;
   }
 
-  return <AppShell>
+  return <AppShell mainClassName={editorial.main}>
     {readOnly && <ClinicalAssessmentPrint patientName={fullName(patient)} assessment={draft} pathwayTitle={pathway.title} professional={data.profile} logoSrc={logoSrc} />}
     <div className="assessment-screen-only mx-auto max-w-4xl">
       <Link href={`/pazienti/${id}?tab=clinical`} className="text-sm font-bold text-sage-700">← Percorso clinico</Link>

@@ -295,3 +295,40 @@
   .patientCard:hover { transform: none; box-shadow: 0 2px 8px rgb(44 62 50 / 4%), 0 1px 1px rgb(44 62 50 / 3%); }
   .createAction:hover { transform: none; }
 }
+/* Editorial V2: local page geometry and screen-only desktop presentation. */
+@media screen and (min-width: 1024px) {
+  .detailMain [data-patient-section='clinical'] > div > div > section:first-child { padding: 24px; background: linear-gradient(115deg, #f2f5eb, #fffefa); }
+  .detailMain [data-patient-section='clinical'] > div > div > div > div > section { padding: 20px; border-radius: 20px; background: #fffefa; border-color: #dfe5d8; box-shadow: 0 6px 22px #304b3b06; }
+  .detailMain [data-patient-section='clinical'] > div > div > div > div > section h3 { font: 400 1.4rem/1.3 Georgia, 'Times New Roman', serif; color: #304b3b; }
+}
+@media screen and (min-width: 1024px) {
+  main.detailMain { width: 100%; max-width: 1464px; min-width: 0; }
+  .directory .directoryHeader { border-bottom: 1px solid #dce3d5; margin-bottom: 22px; }
+  .directory .directoryHeading h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: clamp(2.6rem, 3.6vw, 3.6rem); }
+  .directory .directoryToolbar { background: #f4f5ed; border-color: #dfe5d8; }
+  .directory .searchBox { background: #fffefa; border-color: #e4e9df; }
+  .detailMain .detailHeader { background: linear-gradient(115deg, #f3f5eb, #fffefa); border-color: #dce3d5; padding: 24px; gap: 24px; }
+  .detailMain .detailTitle { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 2.8vw, 2.7rem); font-weight: 400; line-height: 1.18; }
+  .detailMain .detailMeta { line-height: 1.7; color: #647368; }
+  .detailMain .detailAvatar { background: #e9efdf; border-color: #d2ddc6; box-shadow: inset 0 1px white, 0 5px 14px #304b3b0d; }
+  .detailMain > div[id='patient-tabpanel'] { width: 100%; min-width: 0; }
+  .detailMain > div[id='patient-tabpanel'] > div { width: 100%; min-width: 0; }
+  .detailMain [data-patient-section='overview'] > div > section,
+  .detailMain [data-patient-section='overview'] > div > details { background: #fffefa; border-color: #dfe5d8; border-radius: 22px; box-shadow: 0 6px 22px #304b3b06; }
+  .overviewCard h2, .detailMain [data-patient-section='overview'] > div > section h2 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 1.4rem; }
+  .detailMain [data-patient-section='clinical'] > div > section,
+  .detailMain [data-patient-section='clinical'] > div > div > section { background: #fffefa; border-color: #dfe5d8; border-radius: 22px; box-shadow: 0 6px 22px #304b3b06; }
+  .detailMain [data-patient-section='clinical'] > div > section { padding: 40px; text-align: left; background: linear-gradient(115deg, #f2f5eb, #fffefa); }
+  .detailMain [data-patient-section='clinical'] > div > section > div:first-child,
+  .detailMain [data-patient-section='clinical'] > div > section > p { margin-left: 0; }
+  .detailMain [data-patient-section='clinical'] > div > section h2,
+  .detailMain [data-patient-section='clinical'] > div > div > section h2 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 1.5rem; }
+  .detailMain [data-patient-section='activity'] > div > section { background: #fffefa; border-color: #dfe5d8; border-radius: 22px; }
+  .detailMain [data-patient-section='activity'] > div > div:first-child { padding: 18px; border: 1px solid #dfe5d8; border-radius: 18px; background: #f4f5ed; }
+  .detailMain [data-patient-section='activity'] input[type='search'] { background: #fffefa; border-color: #dfe5d8; }
+  .detailMain [data-patient-section='activity'] > div > section > h2 { font: 400 1.5rem/1.3 Georgia, 'Times New Roman', serif; }
+  .detailMain [data-patient-section='activity'] > div > section > div > article { background: #fffdfa; border-color: #e0e6da; }
+  .detailMain [data-patient-section='resources'] > div > div > section { background: #fffefa; border-color: #dfe5d8; border-radius: 22px; box-shadow: 0 6px 22px #304b3b06; }
+  .detailMain [data-patient-section='resources'] > div > div > section:first-of-type { background: linear-gradient(115deg, #f7f3f9, #fffefa); border-color: #e7dfeb; }
+  .detailMain [data-patient-section='resources'] > div > div > section h2 { font: 400 1.5rem/1.3 Georgia, 'Times New Roman', serif; color: #3d5142; }
+}
