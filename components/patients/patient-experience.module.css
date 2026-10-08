@@ -1,0 +1,297 @@
+.directory {
+  --patient-ink: #263a32;
+  --patient-muted: #718078;
+  --patient-line: #e1e9df;
+  --patient-surface: #fffefa;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 34px clamp(20px, 3vw, 44px) 56px;
+  color: var(--patient-ink);
+}
+
+.directoryHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 18px 0 25px;
+}
+
+.directoryHeading h1 {
+  margin: 8px 0 0;
+  font-size: clamp(2rem, 3vw, 2.65rem);
+  font-weight: 650;
+  letter-spacing: -.045em;
+  line-height: 1.08;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #718376;
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .15em;
+}
+
+.eyebrow span { padding: 0 5px; color: #b0bdb0; }
+
+.intro { margin: 9px 0 0; color: var(--patient-muted); font-size: .96rem; }
+
+.directoryHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.totalCount {
+  display: grid;
+  margin: 0;
+  color: var(--patient-muted);
+  font-size: .76rem;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.countNumber { color: #40594a; font-size: 1.2rem; font-weight: 700; }
+
+.createAction {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid #4b6c53;
+  background: linear-gradient(135deg, #58775b, #3f6048);
+  box-shadow: 0 7px 18px rgb(48 75 53 / 16%);
+  transition: transform 190ms cubic-bezier(.2,.8,.25,1.3), box-shadow 190ms ease, filter 190ms ease;
+}
+
+.createAction:hover { transform: translateY(-2px); box-shadow: 0 11px 24px rgb(48 75 53 / 23%); filter: saturate(1.08); }
+.createAction:active { transform: translateY(0) scale(.985); }
+.createAction:focus-visible { outline: 3px solid #9db49b; outline-offset: 3px; }
+
+.createIcon {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 9px;
+  background: rgb(255 255 255 / 12%);
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: transform 180ms cubic-bezier(.2,.8,.25,1.4), background 180ms ease;
+}
+
+.createAction:hover .createIcon { transform: rotate(90deg); background: rgb(255 255 255 / 20%); }
+
+.directoryToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 19px;
+  padding: 14px 16px;
+  border: 1px solid #e5ebe2;
+  border-radius: 17px;
+  background: linear-gradient(110deg, #f5f7f1, #fbfcf8 70%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 90%);
+}
+
+.searchBox {
+  display: flex;
+  min-height: 44px;
+  width: min(100%, 500px);
+  align-items: center;
+  gap: 11px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(39 57 45 / 5%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.searchBox:focus-within {
+  border-color: #91aa91;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgb(117 148 117 / 15%), 0 4px 13px rgb(39 57 45 / 7%);
+}
+
+.searchIcon { width: 19px; height: 19px; flex: none; color: #809087; }
+.searchBox input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #2a3c33; font: inherit; font-size: .9rem; }
+.searchBox input::placeholder { color: #9aa69e; }
+.searchBox input:focus-visible { outline: none; }
+
+.clearSearch {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border-radius: 8px;
+  color: #708077;
+  font-size: 1.3rem;
+}
+
+.clearSearch:hover { background: #edf2eb; }
+.clearSearch:focus-visible { outline: 2px solid #78917f; outline-offset: 1px; }
+.resultCount { margin: 0; color: #79867e; font-size: .82rem; white-space: nowrap; }
+.resultCount strong { color: #40594a; font-weight: 700; }
+
+.patientGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+
+.patientCard {
+  position: relative;
+  display: flex;
+  min-height: 205px;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 17px 18px 16px;
+  border: 1px solid #e4eae1;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #fffefa 0%, #fff 62%, #f8faf5 100%);
+  box-shadow: 0 2px 8px rgb(44 62 50 / 4%), 0 1px 1px rgb(44 62 50 / 3%);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 180ms ease, box-shadow 200ms ease, transform 200ms cubic-bezier(.2,.8,.25,1.2), background 200ms ease;
+}
+
+.patientCard::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, #90a98b, #d3dfcc 58%, transparent);
+  content: "";
+  opacity: .6;
+}
+
+.patientCard:hover {
+  transform: translateY(-3px);
+  border-color: #c7d6c4;
+  background: linear-gradient(145deg, #fffefa, #fff 56%, #f3f7ef);
+  box-shadow: 0 12px 28px rgb(44 62 50 / 10%), 0 2px 5px rgb(44 62 50 / 5%);
+}
+
+.patientCard:active { transform: translateY(-1px) scale(.995); }
+.patientCard:focus-visible { outline: 3px solid #8ba78b; outline-offset: 3px; }
+.cardTopline { display: flex; min-height: 20px; align-items: center; justify-content: space-between; }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #758078;
+  font-size: .69rem;
+  font-weight: 650;
+  letter-spacing: .015em;
+}
+
+.status > span { width: 7px; height: 7px; border-radius: 50%; background: #a5afa8; box-shadow: 0 0 0 3px rgb(165 175 168 / 12%); }
+.statusActive { color: #53765a; }
+.statusActive > span { background: #6c9a70; box-shadow: 0 0 0 3px rgb(108 154 112 / 14%); }
+.statusSuspended { color: #9a7443; }
+.statusSuspended > span { background: #c99c59; box-shadow: 0 0 0 3px rgb(201 156 89 / 14%); }
+.statusCompleted { color: #748078; }
+.cardArrow { color: #9ca89e; font-size: 1.1rem; transition: color 160ms ease, transform 180ms ease; }
+.patientCard:hover .cardArrow { color: #53765a; transform: translate(2px, -2px); }
+
+.patientIdentity { display: flex; align-items: center; gap: 12px; margin-top: 15px; }
+.patientAvatar {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  place-items: center;
+  border: 1px solid #d9e4d6;
+  border-radius: 15px;
+  background: radial-gradient(circle at 30% 20%, #fff 0, #edf3e9 70%);
+  box-shadow: inset 0 1px #fff, 0 2px 6px rgb(56 81 59 / 7%);
+  color: #496a50;
+  font-size: .83rem;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.patientNameBlock { min-width: 0; }
+.patientNameBlock h2 { overflow: hidden; margin: 0; color: #293c33; font-size: 1rem; font-weight: 680; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+.patientNameBlock p { margin: 4px 0 0; color: #849088; font-size: .74rem; }
+.referral { min-width: 0; margin-top: 14px; }
+.referral > span,.nextAppointment small { display: block; color: #929d94; font-size: .65rem; font-weight: 650; letter-spacing: .035em; }
+.referral p { overflow: hidden; margin: 3px 0 0; color: #56665c; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.nextAppointment { display: flex; align-items: center; gap: 9px; margin-top: auto; padding-top: 14px; }
+.nextAppointment strong { display: block; margin-top: 2px; color: #4c6253; font-size: .75rem; font-weight: 650; }
+.calendarGlyph { position: relative; width: 17px; height: 16px; flex: none; border: 1.4px solid #a8b7a6; border-radius: 4px; }
+.calendarGlyph::before { position: absolute; inset: 3px 0 auto; height: 1px; background: #a8b7a6; content: ""; }
+.calendarGlyph i,.calendarGlyph b { position: absolute; top: -3px; width: 2px; height: 5px; border-radius: 2px; background: #8ca18b; }
+.calendarGlyph i { left: 4px; }.calendarGlyph b { right: 4px; }
+
+.directoryEmpty {
+  display: grid;
+  min-height: 210px;
+  justify-items: center;
+  align-content: center;
+  margin-top: 12px;
+  padding: 28px;
+  border: 1px dashed #d5e0d2;
+  border-radius: 18px;
+  background: radial-gradient(ellipse at top, #f2f6ef, #fbfcf8 72%);
+  color: #56665c;
+  text-align: center;
+}
+
+.directoryEmpty h2 { margin: 10px 0 0; color: #34483c; font-size: 1.05rem; font-weight: 680; }
+.directoryEmpty p { margin: 5px 0 0; color: #7e8a81; font-size: .86rem; }
+.emptyMark { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #dce6d9; border-radius: 14px; background: #fff; color: #5d7c62; font-size: 1.4rem; box-shadow: 0 3px 10px rgb(47 75 53 / 6%); }
+.emptyAction { min-height: 42px; margin-top: 15px; padding: 0 16px; border: 1px solid #ceddca; border-radius: 11px; background: #fff; color: #496a50; font-size: .82rem; font-weight: 700; }
+.emptyAction:hover { background: #edf3ea; }.emptyAction:focus-visible { outline: 2px solid #78917f; outline-offset: 2px; }
+
+.detailHeader {
+  position: relative;
+  margin-top: 18px;
+  padding: 19px 20px;
+  border: 1px solid #e1e9df;
+  border-radius: 20px;
+  background: linear-gradient(112deg, #f7f9f4, #fffefa 72%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 90%), 0 4px 13px rgb(44 62 50 / 4%);
+}
+
+.detailAvatar {
+  border: 1px solid #d9e4d6;
+  background: radial-gradient(circle at 30% 20%, #fff 0, #eaf1e6 72%);
+  box-shadow: inset 0 1px #fff, 0 4px 12px rgb(56 81 59 / 9%);
+}
+
+.detailTitle { color: #263a32; letter-spacing: -.035em; }
+.detailMeta { color: #758279; }
+.desktopTabs { width: 100%; max-width: 800px; margin: 23px 0 0; }
+.desktopTabs > div { border: 1px solid #e1e9df; background: #eff3ed; }
+.overviewCard {
+  border: 1px solid #e3eae1;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #fffefa, #fff 66%, #fafbf8);
+  box-shadow: 0 3px 12px rgb(44 62 50 / 4%), inset 0 1px rgb(255 255 255 / 90%);
+}
+
+.overviewCard h2 { color: #30443a; letter-spacing: -.015em; }
+.overviewCard a,.overviewCard button { transition: color 150ms ease, background 150ms ease; }
+.overviewCard a:focus-visible,.overviewCard button:focus-visible { outline: 2px solid #86a184; outline-offset: 2px; }
+
+@media (max-width: 1199px) {
+  .patientGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .directory { padding-right: 22px; padding-left: 22px; }
+  .directoryHeader { align-items: start; flex-wrap: wrap; }
+  .directoryHeaderActions { width: 100%; justify-content: space-between; gap: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .createAction,.createIcon,.patientCard,.cardArrow,.searchBox,.overviewCard a,.overviewCard button { transition: none; }
+  .createAction:hover,.patientCard:hover,.patientCard:active,.createAction:active { transform: none; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .patientCard:hover { transform: none; box-shadow: 0 2px 8px rgb(44 62 50 / 4%), 0 1px 1px rgb(44 62 50 / 3%); }
+  .createAction:hover { transform: none; }
+}

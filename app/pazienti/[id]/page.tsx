@@ -9,6 +9,9 @@ import { Modal } from "@/components/modal";
 import { PatientAdministrativeDetailsCard } from "@/components/patient-administrative-details";
 import { PatientForm } from "@/components/patient-form";
 import { Field } from "@/components/form-controls";
+import { AnimatedTabs, type AnimatedTabOption } from "@/components/organic-premium/animated-tabs";
+import { PremiumAction } from "@/components/organic-premium/premium-action";
+import styles from "@/components/patients/patient-experience.module.css";
 import { PatientResourcesSection, type MobilePatientResourceSection } from "@/components/patient-resources-section";
 import { MobilePatientOverview } from "@/components/patients/mobile-patient-overview";
 import { MobilePatientActivity } from "@/components/patients/mobile-patient-activity";
@@ -25,6 +28,13 @@ import type { Appointment, Goal, Material, Session } from "@/lib/types";
 import { age, fullName, initials, uid } from "@/lib/types";
 import { focusFirstInvalidField, validateGoalForm, validateSessionForm, type FieldErrors } from "@/lib/form-validation";
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("it-IT");
+type PatientTab = "overview" | "clinical" | "activity" | "resources";
+const patientTabs: readonly AnimatedTabOption<PatientTab>[] = [
+  { id: "patient-tab-overview", value: "overview", label: "Panoramica", controls: "patient-tabpanel" },
+  { id: "patient-tab-clinical", value: "clinical", label: "Percorso", controls: "patient-tabpanel" },
+  { id: "patient-tab-activity", value: "activity", label: "Attività", controls: "patient-tabpanel" },
+  { id: "patient-tab-resources", value: "resources", label: "Risorse", controls: "patient-tabpanel" },
+];
 export default function PatientPage() {
   const { id } = useParams<{ id: string }>(),
     router = useRouter();
@@ -39,7 +49,7 @@ export default function PatientPage() {
     [patientActionsOpen, setPatientActionsOpen] = useState(false),
     [activityFilter, setActivityFilter] = useState<PatientTimelineFilter>("all"),
     [activityQuery, setActivityQuery] = useState(""),
-    [tab, setTab] = useState<"overview" | "clinical" | "activity" | "resources">("overview"),
+    [tab, setTab] = useState<PatientTab>("overview"),
     [clinicalSection, setClinicalSection] = useState<MobileClinicalSection>("clinical-overview"),
     [clinicalHistoryPathwayId, setClinicalHistoryPathwayId] = useState<string | undefined>(),
     [resourceSection, setResourceSection] = useState<MobilePatientResourceSection>("resources-overview"),
@@ -63,7 +73,7 @@ export default function PatientPage() {
     window.addEventListener("popstate", syncFromUrl);
     return () => window.removeEventListener("popstate", syncFromUrl);
   }, []);
-  const selectTab = (nextTab: "overview" | "clinical" | "activity" | "resources") => {
+  const selectTab = (nextTab: PatientTab) => {
     setTab(nextTab);
     setClinicalSection("clinical-overview");
     setClinicalHistoryPathwayId(undefined);
@@ -139,14 +149,14 @@ export default function PatientPage() {
       <Link href="/pazienti" className="hidden text-sm font-bold text-sage-700 md:inline-block">
         ← Tutti i pazienti
       </Link>
-      <header className="mt-5 hidden flex-wrap items-center justify-between gap-4 md:flex">
+      <header className={`mt-5 hidden flex-wrap items-center justify-between gap-4 md:flex ${styles.detailHeader}`}>
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sage-100 text-base font-bold text-sage-800 sm:h-14 sm:w-14 sm:text-lg">
+          <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sage-100 text-base font-bold text-sage-800 sm:h-14 sm:w-14 sm:text-lg ${styles.detailAvatar}`}>
             {initials(p)}
           </span>
           <div className="min-w-0">
-            <h1 className="break-words text-2xl font-bold sm:text-[1.75rem]">{fullName(p)}</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <h1 className={`break-words text-2xl font-bold sm:text-[1.75rem] ${styles.detailTitle}`}>{fullName(p)}</h1>
+            <p className={`mt-0.5 text-sm text-slate-500 ${styles.detailMeta}`}>
               {age(p.birthDate) ? `${age(p.birthDate)} anni · ` : ""}
               {p.status === "active"
                 ? "Attivo"
@@ -158,9 +168,9 @@ export default function PatientPage() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          <Link href={"/sedute/nuova?p=" + p.id} className="btn btn-primary col-span-2 w-full sm:order-first sm:w-auto">
+          <PremiumAction href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary col-span-2 w-full sm:order-first sm:w-auto">
             Registra seduta
-          </Link>
+          </PremiumAction>
           <button onClick={() => setEdit(true)} className="btn btn-quiet w-full px-3 text-sm sm:w-auto">
             Modifica paziente
           </button>
@@ -174,12 +184,14 @@ export default function PatientPage() {
         </div>
         <div className="mt-4 flex items-center gap-2"><Link href={`/sedute/nuova?p=${p.id}`} className="btn btn-primary min-h-11 flex-1">Registra seduta</Link><button type="button" aria-label="Altre azioni paziente" onClick={() => setPatientActionsOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sage-100 bg-white text-lg font-bold text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400">•••</button></div>
       </section>}
-      <nav aria-label="Sezioni paziente" className={`sticky top-[calc(3.65rem+env(safe-area-inset-top))] z-20 gap-1 overflow-x-auto border-y border-slate-200 bg-[#f7f7f2]/95 px-3 py-1 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:static md:mt-7 md:flex md:gap-3 md:overflow-visible md:border-x-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none ${mobileDrillDown ? "hidden" : "flex"}`}>
-        {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} aria-current={tab === value ? "page" : undefined} onClick={() => selectTab(value)} className={`min-h-11 shrink-0 rounded-full border px-3.5 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 md:min-w-max md:flex-1 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-5 md:py-2.5 md:text-sm ${tab === value ? "border-sage-300 bg-sage-100 text-sage-800 md:border-sage-600 md:bg-transparent" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>{label}</button>)}
+      <nav aria-label="Sezioni paziente" className={`sticky top-[calc(3.65rem+env(safe-area-inset-top))] z-20 gap-1 overflow-x-auto border-y border-slate-200 bg-[#f7f7f2]/95 px-3 py-1 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden ${mobileDrillDown ? "hidden" : "flex"}`}>
+        {([['overview','Panoramica'],['clinical','Percorso'],['activity','Attività'],['resources','Risorse']] as const).map(([value,label]) => <button key={value} id={`patient-mobile-tab-${value}`} type="button" aria-current={tab === value ? "page" : undefined} aria-controls="patient-tabpanel" onClick={() => selectTab(value)} className={`min-h-11 shrink-0 rounded-full border px-3.5 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-400 focus-visible:ring-offset-2 ${tab === value ? "border-sage-300 bg-sage-100 text-sage-800" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}>{label}</button>)}
       </nav>
+      {!mobileDrillDown && <div className={`hidden md:block ${styles.desktopTabs}`}><AnimatedTabs label="Sezioni paziente" options={patientTabs} value={tab} onChange={selectTab} /></div>}
+      <div id="patient-tabpanel" role={mobileDrillDown ? undefined : "tabpanel"} aria-labelledby={mobileDrillDown ? undefined : mobileLayout ? `patient-mobile-tab-${tab}` : `patient-tab-${tab}`} tabIndex={mobileDrillDown ? undefined : 0}>
       {tab === "overview" && (mobileLayout ? <MobilePatientOverview patient={p} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} recentActivity={recentActivity} futureAppointments={futureAppointments} economySummary={economySummary} onOpenGoals={openGoals} onNewGoal={() => { setNewGoalPathwayId(undefined); setGoalEdit("new"); }} onEditGoal={setGoalEdit} onDeleteGoal={setDeleteGoalTarget} onOpenActivity={() => selectTab("activity")}/> : <div className="mt-5 hidden gap-4 md:grid lg:grid-cols-12">
-        <div className="lg:col-span-12"><PatientStatusPanel patientId={p.id} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} onOpenGoals={openGoals} /></div>
-        <section id="patient-goals" className="card scroll-mt-5 p-4 sm:p-5 lg:col-span-7">
+        <div className="lg:col-span-12"><PatientStatusPanel className={styles.overviewCard} patientId={p.id} overview={overview} hasHistoricalPathways={data.clinicalPathways.some((pathway) => pathway.patientId === p.id && pathway.status === "closed")} onOpenGoals={openGoals} /></div>
+        <section id="patient-goals" className={`card scroll-mt-5 p-4 sm:p-5 lg:col-span-7 ${styles.overviewCard}`}>
           <div className="flex items-center justify-between gap-3">
             <div><h2 className="font-bold">Obiettivi</h2><p className="mt-1 text-sm text-slate-500">Focus attivi e gestione degli obiettivi del paziente.</p></div>
             <button onClick={() => { setNewGoalPathwayId(undefined); setGoalEdit("new"); }} className="text-sm font-bold text-sage-700">+ Nuovo obiettivo</button>
@@ -209,10 +221,10 @@ export default function PatientPage() {
           )}
         </section>
         <section className="card p-4 sm:p-5 lg:col-span-5"><div className="flex items-center justify-between gap-3"><h2 className="font-bold">Attività recenti</h2><button onClick={() => selectTab("activity")} className="text-sm font-bold text-sage-700">Vedi tutte</button></div>{recentActivity.length ? <div className="mt-2 divide-y divide-slate-100 sm:mt-3">{recentActivity.map((item) => <div key={item.id} className="flex gap-2.5 py-2.5 first:pt-0 sm:gap-3 sm:py-3"><span aria-hidden="true" className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.type === "session" ? "bg-sky-300" : item.assessment.status === "draft" ? "bg-amber-300" : "bg-violet-300"}`} /><div className="min-w-0"><p className="text-[11px] font-bold text-slate-400 sm:text-xs">{formatDate(item.occurredOn)}</p><p className="text-sm font-bold sm:mt-0.5">{item.type === "session" ? "Seduta" : clinicalAssessmentTypeLabel(item.assessment)}</p>{item.subtitle && <p className="line-clamp-1 text-sm text-slate-600 sm:mt-0.5">{item.subtitle}</p>}</div></div>)}</div> : <p className="mt-3 text-sm text-slate-500">Nessuna attività registrata.</p>}</section>
-        <section className="card p-4 sm:p-5 lg:col-span-12"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">Prossimi appuntamenti</h2><p className="mt-1 text-sm text-slate-500">I prossimi impegni già pianificati.</p></div><Link href="/calendario" className="text-sm font-bold text-sage-700">Apri calendario</Link></div>{futureAppointments.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{futureAppointments.slice(0, 3).map((appointment) => <FutureAppointmentRow key={appointment.id} appointment={appointment} />)}</div> : <p className="mt-3 text-sm text-slate-500">Nessun appuntamento futuro.</p>}</section>
+        <section className={`card p-4 sm:p-5 lg:col-span-12 ${styles.overviewCard}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">Prossimi appuntamenti</h2><p className="mt-1 text-sm text-slate-500">I prossimi impegni già pianificati.</p></div><Link href="/calendario" className="text-sm font-bold text-sage-700">Apri calendario</Link></div>{futureAppointments.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{futureAppointments.slice(0, 3).map((appointment) => <FutureAppointmentRow key={appointment.id} appointment={appointment} />)}</div> : <p className="mt-3 text-sm text-slate-500">Nessun appuntamento futuro.</p>}</section>
         <section className="card p-4 sm:p-5 lg:col-span-12" aria-labelledby="patient-economy-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="patient-economy-title" className="font-bold">Situazione economica</h2><p className="mt-1 text-sm text-slate-500">Sintesi dei pagamenti registrati per il paziente.</p></div><Link href={`/economia?patient=${p.id}`} className="text-sm font-bold text-sage-700">Apri in Economia</Link></div><div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-sm"><PatientEconomyDatum label="Da incassare" value={new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(economySummary.outstandingCents/100)}/><PatientEconomyDatum label="Credito disponibile" value={new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(economySummary.availableCreditCents/100)}/><PatientEconomyDatum label="Prestazioni da saldare" value={String(economySummary.unpaidSessions)}/></div></section>
-        <PatientAdministrativeDetailsCard patient={p} />
-        <details className="card p-4 sm:p-5 lg:col-span-12"><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
+        <PatientAdministrativeDetailsCard className={styles.overviewCard} patient={p} />
+        <details className={`card p-4 sm:p-5 lg:col-span-12 ${styles.overviewCard}`}><summary className="cursor-pointer font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-300">Dati del paziente</summary><div className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><PatientDatum label="Motivo dell’invio" value={p.referralReason}/><PatientDatum label="Contatto" value={p.contact}/><PatientDatum label="Genitore / tutore" value={p.guardian}/><PatientDatum label="Scuola" value={p.school}/><PatientDatum label="Classe" value={p.schoolClass}/><PatientDatum label="Note" value={p.notes}/></div></details>
       </div>)}
       {tab === "clinical" && <div className={`${clinicalDrillDown ? "pb-6 pt-3" : "px-4 pb-6 pt-5"} md:px-0 md:pb-0 md:pt-5`}><PatientClinicalPathway patientId={p.id} goals={goals} presentation={mobileLayout ? "mobile" : "desktop"} mobileSection={clinicalSection} mobileHistoryPathwayId={clinicalHistoryPathwayId} onMobileSectionChange={navigateClinicalSection} onNewGoal={(pathwayId) => { setNewGoalPathwayId(pathwayId); setGoalEdit("new"); }} onEditGoal={setGoalEdit} onDeleteGoal={setDeleteGoalTarget} onOpenActivity={() => selectTab("activity")} /></div>}
       {tab === "activity" && (mobileLayout ? <MobilePatientActivity patientId={p.id} items={visibleMobileActivity} filter={activityFilter} query={activityQuery} onFilterChange={setActivityFilter} onQueryChange={setActivityQuery} onOpenSession={setDetail} onDeleteSession={setDeleteSessionTarget}/> : <div className="hidden space-y-4 px-4 pb-6 pt-4 md:block md:space-y-5 md:px-0 md:pb-0 md:pt-5">
@@ -234,6 +246,7 @@ export default function PatientPage() {
         </section>
       </div>)}
       {tab === "resources" && <div className={`${resourceDrillDown ? "pb-6 pt-3" : "px-4 pb-6"} md:px-0 md:pb-0 md:pt-0`}><PatientResourcesSection patientId={p.id} presentation={mobileLayout ? "mobile" : "desktop"} mobileSection={resourceSection} mobileResourceId={resourceId} onMobileSectionChange={navigateResourceSection} /></div>}
+      </div>
       {patientActionsOpen && <Modal title="Azioni paziente" onClose={() => setPatientActionsOpen(false)}><div className="divide-y divide-slate-100"><button type="button" onClick={() => { setPatientActionsOpen(false); setEdit(true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-slate-800">Modifica paziente</button><button type="button" onClick={() => { setPatientActionsOpen(false); setDeletePatientOpen(true); }} className="flex min-h-14 w-full items-center text-left text-sm font-bold text-red-600">Elimina paziente</button></div></Modal>}
       {edit && (
         <Modal title="Modifica paziente" onClose={() => setEdit(false)}>
@@ -384,9 +397,9 @@ function compactTimelineText(value: string) {
   return trimmed && !/^(?:-{1,3}|n\/?a|non indicato)$/i.test(trimmed) ? trimmed : undefined;
 }
 
-function PatientStatusPanel({ patientId, overview, hasHistoricalPathways, onOpenGoals }: { patientId: string; overview: PatientOverview; hasHistoricalPathways: boolean; onOpenGoals: () => void }) {
+function PatientStatusPanel({ patientId, overview, hasHistoricalPathways, onOpenGoals, className = "" }: { patientId: string; overview: PatientOverview; hasHistoricalPathways: boolean; onOpenGoals: () => void; className?: string }) {
   const assessment = overview.latestAssessment;
-  return <section aria-labelledby="patient-status-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+  return <section aria-labelledby="patient-status-title" className={`rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 ${className}`}>
     <div><p className="text-[10px] font-bold tracking-wide text-sage-700 sm:text-xs">PANORAMICA CLINICA</p><h2 id="patient-status-title" className="mt-0.5 text-lg font-bold">Dove siamo adesso?</h2></div>
     <dl className="mt-3 grid gap-x-8 gap-y-3 sm:mt-4 sm:grid-cols-2 sm:gap-y-4 lg:grid-cols-4">
       <StatusDatum label="Percorso"><p className="text-sm">{overview.activePathway ? <><span className="font-bold">{overview.activePathway.title || "Percorso clinico"}</span><span className="text-slate-500"> · dal {formatDate(overview.activePathway.startedOn)}</span></> : <span className="text-slate-500">{hasHistoricalPathways ? "Nessun percorso attivo" : "Percorso clinico non ancora creato"}</span>}</p></StatusDatum>

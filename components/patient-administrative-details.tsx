@@ -23,13 +23,13 @@ export const blankPatientAdministrativeDetails = (patientId: string): PatientAdm
   updatedAt: timestamp(),
 });
 
-export function PatientAdministrativeDetailsCard({ patient }: { patient: Patient }) {
+export function PatientAdministrativeDetailsCard({ patient, className = "" }: { patient: Patient; className?: string }) {
   const { data, savePatientAdministrativeDetails, deletePatientAdministrativeDetails } = useData();
   const details = detailsByPatientId(data.patientAdministrativeDetails, patient.id);
   const [open, setOpen] = useState(false);
   const summary = details ? administrativeDetailsSummary(patient, details) : [];
   return <>
-    <section className="card p-4 sm:p-5 lg:col-span-12" aria-labelledby="patient-administrative-title">
+    <section className={`card p-4 sm:p-5 lg:col-span-12 ${className}`} aria-labelledby="patient-administrative-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id="patient-administrative-title" className="font-bold">Dati amministrativi</h2>

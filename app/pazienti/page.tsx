@@ -9,6 +9,10 @@ import { MobilePatientDirectory } from "@/components/patients/mobile-patient-dir
 import { PatientForm } from "@/components/patient-form";
 import { filterPatients } from "@/lib/patient-directory";
 import { age, fullName, initials } from "@/lib/types";
+import styles from "@/components/patients/patient-experience.module.css";
+
+const statusLabel = (status: string) => status === "active" ? "Attivo" : status === "suspended" ? "Sospeso" : "Concluso";
+const dateLabel = (value?: string) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" }) : "Nessun appuntamento";
 
 export default function Patients() {
   const { data, ready } = useData();
@@ -19,12 +23,42 @@ export default function Patients() {
   return <AppShell>
     <MobilePatientDirectory patients={list} totalPatients={data.patients.length} ready={ready} query={query} onQueryChange={setQuery} onCreate={() => setCreating(true)}/>
 
-    <div className="hidden md:block">
-      <header className="page-header mb-8"><div><h1 className="text-3xl font-bold">Pazienti</h1><p className="mt-2 text-slate-500">Le persone che segui, tutte in un posto.</p></div><button onClick={() => setCreating(true)} className="btn btn-primary w-full sm:w-auto">+ Nuovo paziente</button></header>
-      <input aria-label="Cerca paziente" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cerca per nome…" className="mb-6 w-full rounded-xl border border-sage-100 bg-white px-4 py-3 outline-none focus:border-sage-500"/>
-      {!ready ? <p>Caricamento…</p> : list.length === 0 ? <div className="card p-10 text-center text-slate-500">Nessun paziente trovato.</div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{list.map((patient) => <Link href={`/pazienti/${patient.id}`} className="card p-5 transition hover:-translate-y-0.5" key={patient.id}><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-sage-100 font-bold">{initials(patient)}</span><div className="min-w-0"><h2 className="truncate font-bold">{fullName(patient)}</h2><p className="text-sm text-slate-500">{age(patient.birthDate) || "—"} anni · {patient.status === "active" ? "Attivo" : patient.status === "suspended" ? "Sospeso" : "Concluso"}</p></div></div><p className="mt-5 break-words text-sm font-medium text-sage-700">{patient.referralReason || "Motivo invio non indicato"}</p><p className="mt-2 text-sm text-slate-500">{data.appointments.filter((appointment) => appointment.patientId === patient.id).sort((left, right) => (left.date + left.time).localeCompare(right.date + right.time))[0]?.date || "Nessun appuntamento"}</p></Link>)}</div>}
+    <div className={`hidden md:block ${styles.directory}`}>
+      <header className={styles.directoryHeader}>
+        <div className={styles.directoryHeading}>
+          <p className={styles.eyebrow}>ARMONIA <span aria-hidden="true">/</span> SPAZIO DI CURA</p>
+          <h1>Pazienti</h1>
+          <p className={styles.intro}>Le persone che segui, tutte in un posto.</p>
+        </div>
+        <div className={styles.directoryHeaderActions}>
+          <p className={styles.totalCount}><span className={styles.countNumber}>{data.patients.length}</span><span>{data.patients.length === 1 ? "persona seguita" : "persone seguite"}</span></p>
+          <button type="button" onClick={() => setCreating(true)} className={`btn btn-primary ${styles.createAction}`}><span>Nuovo paziente</span><span className={styles.createIcon} aria-hidden="true">+</span></button>
+        </div>
+      </header>
+      <section className={styles.directoryToolbar} aria-label="Ricerca pazienti">
+        <label className={styles.searchBox}>
+          <span className="sr-only">Cerca paziente</span>
+          <SearchIcon className={styles.searchIcon}/>
+          <input aria-label="Cerca paziente" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cerca per nome…" />
+          {query && <button type="button" aria-label="Cancella ricerca" onClick={() => setQuery("")} className={styles.clearSearch}>×</button>}
+        </label>
+        <p className={styles.resultCount} role="status"><strong>{list.length}</strong> {list.length === 1 ? "risultato" : "risultati"}</p>
+      </section>
+      {!ready ? <p className={styles.directoryEmpty}>Caricamento…</p> : list.length === 0 ? <section className={styles.directoryEmpty} aria-live="polite"><span className={styles.emptyMark} aria-hidden="true">{query ? "⌕" : "+"}</span><h2>{query ? "Nessun paziente trovato." : "Nessun paziente ancora."}</h2><p>{query ? "Prova a modificare la ricerca." : "Aggiungi la prima persona alla tua directory."}</p>{!query && <button type="button" onClick={() => setCreating(true)} className={styles.emptyAction}>Nuovo paziente</button>}</section> : <div className={styles.patientGrid} aria-label="Elenco pazienti">{list.map((patient) => {
+        const nextAppointment = data.appointments.filter((appointment) => appointment.patientId === patient.id).sort((left, right) => (left.date + left.time).localeCompare(right.date + right.time))[0];
+        return <Link href={`/pazienti/${patient.id}`} className={styles.patientCard} key={patient.id} aria-label={`Apri ${fullName(patient)}`}>
+          <div className={styles.cardTopline}><span className={`${styles.status} ${patient.status === "active" ? styles.statusActive : patient.status === "suspended" ? styles.statusSuspended : styles.statusCompleted}`}><span aria-hidden="true"/>{statusLabel(patient.status)}</span><span className={styles.cardArrow} aria-hidden="true">↗</span></div>
+          <div className={styles.patientIdentity}><span aria-hidden="true" className={styles.patientAvatar}>{initials(patient)}</span><div className={styles.patientNameBlock}><h2>{fullName(patient)}</h2><p>{age(patient.birthDate) || "—"} anni <span aria-hidden="true">·</span> {statusLabel(patient.status)}</p></div></div>
+          <div className={styles.referral}><span>Motivo dell’invio</span><p>{patient.referralReason || "Non indicato"}</p></div>
+          <div className={styles.nextAppointment}><span className={styles.calendarGlyph} aria-hidden="true"><i/><b/></span><span><small>Data appuntamento</small><strong>{dateLabel(nextAppointment?.date)}</strong></span></div>
+        </Link>;
+      })}</div>}
     </div>
 
     {creating && <Modal title="Nuovo paziente" onClose={() => setCreating(false)}><PatientForm onDone={() => setCreating(false)}/></Modal>}
   </AppShell>;
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="10.75" cy="10.75" r="6.25"/><path d="m15.5 15.5 4 4"/></svg>;
 }
