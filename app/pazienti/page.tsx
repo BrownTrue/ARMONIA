@@ -20,7 +20,7 @@ export default function Patients() {
   const [query, setQuery] = useState("");
   const list = filterPatients(data.patients, query);
 
-  return <AppShell>
+  return <AppShell desktopWide>
     <MobilePatientDirectory patients={list} totalPatients={data.patients.length} ready={ready} query={query} onQueryChange={setQuery} onCreate={() => setCreating(true)}/>
 
     <div className={`hidden md:block ${styles.directory}`}>

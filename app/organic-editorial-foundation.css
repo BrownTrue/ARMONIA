@@ -1,0 +1,20 @@
+/* Opt-in desktop shell foundation. No global element or mobile styles. */
+.organic-editorial-shell {
+  --editorial-forest: #304b3b;
+  --editorial-forest-deep: #263c30;
+  --editorial-forest-shadow: #203529;
+  --editorial-sage: #c7d6bd;
+  --editorial-sage-soft: #e8eee5;
+  --editorial-paper: #fffefa;
+  --editorial-canvas: #f4f3ed;
+  --editorial-ink: #26392e;
+  --editorial-muted: #718074;
+  --editorial-line: #e6e8df;
+  --editorial-shadow: 0 12px 32px rgba(38, 60, 48, .08);
+}
+
+.organic-editorial-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -.035em;
+}

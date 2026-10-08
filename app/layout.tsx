@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./organic-editorial-foundation.css";
 import type { Metadata, Viewport } from "next";
 import {DataProvider} from "@/components/data-provider";
 import {AuthGate} from "@/components/auth-gate";
