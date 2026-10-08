@@ -14,6 +14,7 @@ export function AnchoredActionMenu({ label, actions }: { label: string; actions:
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const focusedThisOpening = useRef(false);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -24,7 +25,6 @@ export function AnchoredActionMenu({ label, actions }: { label: string; actions:
       setPosition(anchoredMenuPosition(anchor, menu, { width: window.innerWidth, height: window.innerHeight }));
     };
     updatePosition();
-    itemRefs.current[0]?.focus();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     return () => {
@@ -32,6 +32,19 @@ export function AnchoredActionMenu({ label, actions }: { label: string; actions:
       window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      focusedThisOpening.current = false;
+      setPosition(null);
+      return;
+    }
+    // Position has been committed: the portal is now visible, before paint.
+    // Do not steal focus again when scrolling or resizing repositions the menu.
+    if (!position || focusedThisOpening.current) return;
+    itemRefs.current[0]?.focus();
+    focusedThisOpening.current = true;
+  }, [open, position]);
 
   useEffect(() => {
     if (!open) return;

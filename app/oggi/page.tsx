@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { MobileToday } from "@/components/today/mobile-today";
+import { TabletToday } from "@/components/today/tablet-today";
 import { PremiumAction } from "@/components/organic-premium/premium-action";
 import type { Appointment, AppointmentLocation, Patient } from "@/lib/types";
 import { fullName, initials, today } from "@/lib/types";
@@ -21,9 +22,10 @@ export default function Today() {
     ? `${overdue.length} ${overdue.length === 1 ? "appuntamento" : "appuntamenti"} da registrare e ${pending.length - overdue.length} ancora in programma.`
     : `${pending.length} ${pending.length === 1 ? "appuntamento" : "appuntamenti"} ancora in programma.`;
 
-  return <AppShell desktopWide>
+  return <AppShell desktopWideAtLarge>
     <MobileToday data={data} ready={ready} dashboard={dashboard} dateLabel={dateLabel}/>
-    <div className="hidden md:contents">
+    <TabletToday data={data} ready={ready} dashboard={dashboard} dateLabel={dateLabel}/>
+    <div className="hidden lg:contents">
       <div className={styles.page}>
         <div className={styles.container}>
           <section className={styles.hero} aria-labelledby="today-editorial-title">

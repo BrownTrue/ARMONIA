@@ -2,6 +2,8 @@
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
+- Post-audit: P2 focus menu Economia e breakpoint Oggi corretti localmente. Collaudare prima apertura Enter/Space, frecce/Escape e Oggi a 768/1023/1024 px. P3 logout Dock resta separato: verificare doppio clic e failure prima di eventuali modifiche.
+
 - Calendar Editorial V1: collaudare desktop toolbar/sidebar, Giorno/Settimana/Mese, contrasto eventi brevi e preview, allineamento header/griglia e gesture; confermare fullscreen, tablet e mobile invariati. Nessun QA browser automatico eseguito.
 
 - Percorso clinico Editorial V1: collaudare percorso attivo/vuoto e valutazioni nei sei passaggi, larghezza stabile, focus, autosave e azioni di salvataggio/completamento distinte; verificare mobile/tablet e stampa invariati.

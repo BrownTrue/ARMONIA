@@ -2,6 +2,8 @@
 
 Fotografia ricavata dal repository all’8 ottobre 2026.
 
+Correzioni post-audit pre-merge: il menu azioni Economia focalizza la prima voce soltanto dopo il commit del posizionamento visibile e una sola volta per apertura, senza rubare focus su scroll/resize. Oggi mantiene MobileToday sotto 768 px, ripristina il markup precedente su tablet 768–1023 e mostra Editorial solo da 1024 px; dati derivati e navigazione restano condivisi. Logout verificato staticamente ma non modificato: prevenzione doppio clic e feedback failure restano una verifica P3 separata.
+
 Calendar Organic Editorial V1 in collaudo locale: override CSS solo desktop >=1024 px per toolbar avorio, titoli temporali serif, sidebar salvia, selezione mini-calendario verde bosco, intestazioni e orari più leggibili. Eventi mantengono colori delle prestazioni e ricevono soltanto contrasto/ombra interna raffinati. Nessuna modifica a coordinate, gradienti temporali, gutter, colonne, slot, hitbox, scroll, gesture, preview, handler o fullscreen. Tablet/mobile e form/dialog invariati. Verifica visuale e geometrica dinamica demandata all'utente.
 
 Percorso clinico Organic Editorial V1: cornice CSS desktop comune agli editor V1/V2, massimo 1364 px inclusi padding (1300 px utili), header serif e navigazione dei passaggi coordinata; superfici form avorio e azioni inferiori separate dall'area distruttiva. Percorso attivo e card Valutazioni/Obiettivi coordinati con Pazienti V2. Modifiche solo presentazionali >=1024 px, senza alterare autosave FIFO, validazione, bozze locali, persistenza, stati clinici, contenuti, PDF o componenti mobile/tablet. Collaudo manuale ancora richiesto.
