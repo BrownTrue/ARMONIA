@@ -1,4 +1,5 @@
-.dock{--dock-width:72px;position:sticky;top:0;z-index:40;display:none;height:100vh;height:100dvh;min-height:0;width:var(--dock-width);flex:0 0 var(--dock-width);flex-direction:column;align-items:center;gap:9px;overflow:visible;padding:12px 10px 10px;color:#66756c}
+.dock{--dock-width:72px;position:fixed;inset:0 auto 0 0;z-index:40;display:none;height:100vh;height:100dvh;min-height:0;width:var(--dock-width);flex:0 0 var(--dock-width);flex-direction:column;align-items:center;gap:9px;overflow:visible;padding:12px 10px 10px;color:#66756c}
+.dockSpacer{--dock-width:72px;display:none;width:var(--dock-width);min-width:var(--dock-width);flex:0 0 var(--dock-width)}
 .dock:before{position:absolute;inset:0 auto 0 0;z-index:0;width:var(--dock-width);pointer-events:none;border-right:1px solid #e3e9e1;background:linear-gradient(180deg,#fbfcf8 0%,#f4f6f0 100%);content:"";box-shadow:3px 0 18px rgba(42,60,46,.035)}
 .brand{position:relative;z-index:1;display:flex;min-height:44px;width:100%;flex:0 0 44px;align-items:center;justify-content:center;border-radius:14px;color:#3f5944;text-decoration:none}
 .brand img{width:29px;height:34px;object-fit:contain;flex:0 0 auto}
@@ -26,7 +27,7 @@
 .accountMenu button:disabled{color:#9ba49d;cursor:not-allowed}
 .localHint{display:block;padding:3px 9px 7px}
 
-@media(min-width:768px){.dock{display:flex}}
-@media(max-width:1023px){.dock{--dock-width:64px;gap:6px;padding:9px 6px 8px}.brand{min-height:40px;flex-basis:40px}.brand img{width:27px;height:31px}.navLink,.accountButton{width:45px;min-height:43px;flex-basis:43px;border-radius:13px}.navLink:hover,.accountButton:hover{transform:scale(1.025)}.primaryNavigation{gap:3px}}
+@media(min-width:768px){.dock,.dockSpacer{display:flex}}
+@media(max-width:1023px){.dock{--dock-width:64px;gap:6px;padding:9px 6px 8px}.dockSpacer{--dock-width:64px}.brand{min-height:40px;flex-basis:40px}.brand img{width:27px;height:31px}.navLink,.accountButton{width:45px;min-height:43px;flex-basis:43px;border-radius:13px}.navLink:hover,.accountButton:hover{transform:scale(1.025)}.primaryNavigation{gap:3px}}
 @media(max-height:620px){.dock{gap:3px;padding-top:6px;padding-bottom:6px}.brand{min-height:34px;flex-basis:34px}.brand img{height:28px}.navLink,.accountButton{min-height:38px;flex-basis:38px}.bottomArea{gap:2px;padding-top:4px}}
 @media(prefers-reduced-motion:reduce){.navLink,.accountButton,.tooltip{transition:none;animation:none}.navLink:hover,.accountButton:hover{transform:none}.accountMenu{animation:none}}

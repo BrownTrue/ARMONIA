@@ -35,7 +35,8 @@ export function DesktopShellChrome({ pathname, profile, localMode, onLogout }: {
     }
   };
 
-  return <aside className={styles.dock} aria-label="Navigazione ARMONIA" onKeyDown={handleKeyDown}>
+  return <>
+  <aside className={styles.dock} aria-label="Navigazione ARMONIA" onKeyDown={handleKeyDown}>
     <Link href="/oggi" className={styles.brand} aria-label="ARMONIA, vai a Oggi">
       <Image src="/branding/logo-mark.svg" alt="" width={31} height={36} priority />
     </Link>
@@ -59,7 +60,9 @@ export function DesktopShellChrome({ pathname, profile, localMode, onLogout }: {
         </button>
       </div>
     </div>
-  </aside>;
+  </aside>
+  <div className={styles.dockSpacer} aria-hidden="true" />
+  </>;
 }
 
 function DockNavigationLink({ href, label, active, icon }: { href: string; label: string; active: boolean; icon: NavigationIconName }) {

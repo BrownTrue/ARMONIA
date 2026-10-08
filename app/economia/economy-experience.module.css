@@ -1,0 +1,258 @@
+.economyPage {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .mobileTabs {
+    display: none;
+  }
+
+  .economyPage {
+    --economy-ink: #26372d;
+    --economy-sage: #47745a;
+    --economy-line: #e5ebe5;
+    --economy-surface: #fff;
+  }
+
+  .header {
+    position: relative;
+    align-items: center;
+    padding: 1.4rem 1.6rem;
+    border: 1px solid #e3ebe3;
+    border-radius: 1.5rem;
+    background: linear-gradient(115deg, #f5f8f3 0%, #fff 67%, #f8faf7 100%);
+    box-shadow: 0 12px 32px rgb(39 64 46 / 5%);
+  }
+
+  .header::after {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    border-radius: 1.5rem 0 0 1.5rem;
+    background: #72927a;
+    content: "";
+  }
+
+  .eyebrow {
+    color: #52745b;
+    letter-spacing: .18em;
+  }
+
+  .title {
+    color: var(--economy-ink);
+    letter-spacing: -.035em;
+  }
+
+  .description {
+    color: #66746a;
+  }
+
+  .actions {
+    gap: .65rem;
+  }
+
+  .secondaryAction,
+  .primaryAction {
+    min-height: 2.8rem;
+    border-radius: 999px;
+    font-weight: 700;
+    transition: transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+  }
+
+  .secondaryAction {
+    border: 1px solid #dce6dc;
+    background: rgb(255 255 255 / 86%);
+    color: #405b47;
+    box-shadow: 0 2px 6px rgb(39 64 46 / 4%);
+  }
+
+  .primaryAction {
+    border: 1px solid #3f6d4e;
+    background: linear-gradient(135deg, #527e5c, #3e6a4b);
+    color: white;
+    box-shadow: 0 7px 16px rgb(57 99 68 / 19%);
+  }
+
+  .secondaryAction:hover,
+  .primaryAction:hover {
+    transform: translateY(-2px);
+  }
+
+  .secondaryAction:hover {
+    border-color: #b9cdbb;
+    background: #f9fbf8;
+    box-shadow: 0 8px 18px rgb(39 64 46 / 9%);
+  }
+
+  .primaryAction:hover {
+    background: linear-gradient(135deg, #5b8965, #345d42);
+    box-shadow: 0 11px 24px rgb(57 99 68 / 26%);
+  }
+
+  .secondaryAction:active,
+  .primaryAction:active {
+    transform: translateY(0) scale(.985);
+  }
+
+  .secondaryAction:focus-visible,
+  .primaryAction:focus-visible {
+    outline: 3px solid #8fb396;
+    outline-offset: 3px;
+  }
+
+  .metrics {
+    gap: .9rem;
+  }
+
+  .metric {
+    position: relative;
+    min-height: 8.3rem;
+    overflow: hidden;
+    border: 1px solid #e4ebe4;
+    border-radius: 1.25rem;
+    background: linear-gradient(145deg, #fff 0%, #fbfcfa 100%);
+    box-shadow: 0 5px 16px rgb(39 64 46 / 4%);
+  }
+
+  .metric::before {
+    position: absolute;
+    inset: 1.1rem auto 1.1rem 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #85a58a;
+    content: "";
+  }
+
+  .metric:nth-child(2)::before {
+    background: #c79558;
+  }
+
+  .metric:nth-child(3)::before {
+    background: #a7b6a2;
+  }
+
+  .metric > p:first-child {
+    color: #66746a;
+    font-weight: 600;
+  }
+
+  .metric > p:nth-child(2) {
+    color: #26372d;
+    letter-spacing: -.045em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .desktopTabs {
+    margin-top: 1.45rem;
+    padding: .35rem;
+    border: 1px solid #e3eae2;
+    border-radius: 1.15rem;
+    background: #f7f9f6;
+    box-shadow: inset 0 1px 2px rgb(39 64 46 / 3%);
+  }
+
+  .animatedTabs {
+    color: #637166;
+  }
+
+  .serviceTable {
+    border: 1px solid var(--economy-line);
+    border-radius: 1.2rem;
+    background: var(--economy-surface);
+    box-shadow: 0 6px 20px rgb(39 64 46 / 4%);
+  }
+
+  .serviceTable :global(thead) {
+    background: #f5f8f4;
+    color: #617064;
+  }
+
+  .serviceTable :global(th) {
+    font-weight: 700;
+    letter-spacing: .075em;
+  }
+
+  .serviceTable :global(tbody tr) {
+    transition: background-color 140ms ease;
+  }
+
+  .serviceTable :global(tbody tr:hover) {
+    background: #f8faf7;
+  }
+
+  .serviceTable :global(tbody tr:not(:last-child)) {
+    border-color: #edf1ec;
+  }
+
+  .paymentCard {
+    border: 1px solid #e3eae2;
+    border-radius: 1.2rem;
+    background: linear-gradient(145deg, #fff, #fbfcfa);
+    box-shadow: 0 5px 15px rgb(39 64 46 / 4%);
+  }
+
+  .paymentCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgb(39 64 46 / 9%);
+  }
+
+  .filterCard {
+    border: 1px solid #e3eae2;
+    border-radius: 1.15rem;
+    background: #fbfcfa;
+    box-shadow: 0 4px 13px rgb(39 64 46 / 3%);
+  }
+
+  .filterCard :global(label) {
+    color: #56675a;
+    font-weight: 650;
+  }
+
+  .filterCard :global(input),
+  .filterCard :global(select) {
+    border-color: #dce5db;
+    border-radius: .8rem;
+    color: #314337;
+    box-shadow: inset 0 1px 2px rgb(39 64 46 / 3%);
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+
+  .filterCard :global(input:focus),
+  .filterCard :global(select:focus) {
+    border-color: #7e9d82;
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(126 157 130 / 18%);
+  }
+
+  .documents :global(section[aria-labelledby="economic-documents-title"]) > :global(div:first-child) {
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border: 1px solid #e3eae2;
+    border-radius: 1.15rem;
+    background: linear-gradient(110deg, #f7faf6, #fff);
+  }
+
+  .documents :global(button.card) {
+    border: 1px solid #e3eae2;
+    border-radius: 1.1rem;
+    background: linear-gradient(145deg, #fff, #fbfcfa);
+    box-shadow: 0 5px 15px rgb(39 64 46 / 4%);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  }
+
+  .documents :global(button.card:hover) {
+    transform: translateY(-2px);
+    border-color: #b9cdbb;
+    box-shadow: 0 12px 24px rgb(39 64 46 / 9%);
+  }
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: reduce) {
+  .secondaryAction,
+  .primaryAction,
+  .serviceTable :global(tbody tr),
+  .paymentCard,
+  .documents :global(button.card) {
+    transition-duration: .01ms;
+  }
+}
