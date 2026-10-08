@@ -1,12 +1,12 @@
-# Armonia Design Lab V1
+# Armonia Design Lab V1–V3
 
-Route sperimentale, abilitata solo con `NODE_ENV=development`. Per provarla in modalità indipendente dai dati cloud:
+Route sperimentale, abilitata solo con `NODE_ENV=development`. Le demo V1, Experience V2 e Product Experience V3 restano isolate dall'interfaccia reale e usano contenuti dimostrativi. Per provarla in modalità indipendente dai dati cloud:
 
 ```sh
 NEXT_PUBLIC_DATA_MODE=local npm run dev
 ```
 
-Aprire `http://localhost:3000/design-lab`. Il contenuto è dimostrativo e non usa dati di pazienti. Il cursore personalizzato è confinato alla sola area “Un cursore con intenzione”; non viene nascosto su touch o al di fuori di quella superficie.
+Aprire `http://localhost:3000/design-lab`. Product Experience V3 permette di confrontare i concept Oggi Workspace/Editorial e di esplorare Statistiche e Impostazioni. I suoi dati sono fittizi e non usa DataProvider, Supabase o flussi di salvataggio. Il contenuto delle demo non usa dati reali di pazienti. Il cursore personalizzato V1 è confinato alla sola area “Un cursore con intenzione”; non viene nascosto su touch o al di fuori di quella superficie.
 
 ## Provenienza e licenze consultate
 

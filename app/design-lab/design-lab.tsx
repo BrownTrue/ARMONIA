@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import styles from "./design-lab.module.css";
 import ExperienceView from "./experience";
+import ProductExperienceV3 from "./product-experience-v3";
 
 type Theme = "organic" | "editorial" | "playful";
 type CursorDemo = "dot" | "elastic" | "magnetic" | "context";
@@ -183,7 +184,7 @@ export default function DesignLab() {
   const [speed, setSpeed] = useState(1);
   const [motionOn, setMotionOn] = useState(true);
   const [activeSection, setActiveSection] = useState("cursori");
-  const [view, setView] = useState<"experience" | "v1">("experience");
+  const [view, setView] = useState<"experience" | "v1" | "v3">("v3");
   const effectiveMotion = motionOn && !reducedMotion;
   const durations = [90, 160, 180, 190, 200, 220, 230, 240, 250, 260, 330, 350, 420];
   const rootStyle = {
@@ -208,8 +209,8 @@ export default function DesignLab() {
   };
   return <main className={`${styles.lab} ${styles[`theme_${theme}`]}`} data-theme={theme} data-motion={effectiveMotion ? "on" : "off"} style={rootStyle}>
     <div className={styles.noise} aria-hidden="true" />
-    <header className={styles.topbar}><a className={styles.brand} href="#top" aria-label="Design lab, inizio pagina"><span className={styles.brandMark}><Icon name="leaf" size={20} /></span><span>ARMONIA <i>/</i> DESIGN LAB</span></a><div className={styles.topbarMeta}><div className={styles.labViews} role="group" aria-label="Vista del Design Lab"><button type="button" aria-pressed={view === "experience"} onClick={() => setView("experience")}>ARMONIA Experience</button><button type="button" aria-pressed={view === "v1"} onClick={() => setView("v1")}>Esperimenti V1</button></div><span className={styles.localBadge}><i /> LAB LOCALE</span><span className={styles.topVersion}>V2.0 <b>·</b> INTERACTION LAB</span></div></header>
-    {view === "experience" ? <ExperienceView theme={theme} speed={speed} motionOn={effectiveMotion} onThemeChange={setTheme} /> : <div className={styles.layout} id="top">
+    <header className={styles.topbar}><a className={styles.brand} href="#top" aria-label="Design lab, inizio pagina"><span className={styles.brandMark}><Icon name="leaf" size={20} /></span><span>ARMONIA <i>/</i> DESIGN LAB</span></a><div className={styles.topbarMeta}><div className={styles.labViews} role="group" aria-label="Vista del Design Lab"><button type="button" aria-pressed={view === "v3"} onClick={() => setView("v3")}>Product Experience V3</button><button type="button" aria-pressed={view === "experience"} onClick={() => setView("experience")}>Experience V2</button><button type="button" aria-pressed={view === "v1"} onClick={() => setView("v1")}>Esperimenti V1</button></div><span className={styles.localBadge}><i /> LAB LOCALE</span><span className={styles.topVersion}>V3.0 <b>·</b> PRODUCT EXPERIENCE</span></div></header>
+    {view === "v3" ? <ProductExperienceV3 theme={theme} motionOn={effectiveMotion} onThemeChange={setTheme} /> : view === "experience" ? <ExperienceView theme={theme} speed={speed} motionOn={effectiveMotion} onThemeChange={setTheme} /> : <div className={styles.layout} id="top">
       <aside className={styles.controlRail}>
         <div className={styles.railIntro}><span className={styles.eyebrow}>CAMPO DI PROVA <span>01—04</span></span><h1>Materia<br />in <em>movimento.</em></h1><p>Piccole interazioni, osservate da vicino. Scegli una direzione e lasciala attraversare il playground.</p></div>
         <div className={styles.controlGroup}><div className={styles.controlHeading}><span>01</span><h2>Direzione visiva</h2></div><div className={styles.themeOptions} role="group" aria-label="Direzione visiva">{themes.map((item) => <button key={item.id} aria-pressed={theme === item.id} className={`${styles.themeOption} ${theme === item.id ? styles.themeOptionActive : ""}`} onClick={() => setTheme(item.id)}><span className={styles.themeSwatches}>{item.swatches.map((color) => <i key={color} style={{ backgroundColor: color }} />)}</span><span><strong>{item.name}</strong><small>{item.note}</small></span><span className={styles.radioMark} /></button>)}</div></div>

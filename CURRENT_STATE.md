@@ -1,6 +1,8 @@
 # Stato corrente di Armonia
 
-Fotografia ricavata dal repository al 7 ottobre 2026.
+Fotografia ricavata dal repository all’8 ottobre 2026.
+
+Il Design Lab locale aggiunge Product Experience V3 accanto alle demo V1 e Experience V2: permette di confrontare due layout distinti per Oggi e di esplorare concept di Statistiche e Impostazioni con dati sintetici. La route resta solo development; i mock non usano DataProvider, Supabase o persistenza e non modificano le superfici reali.
 
 MOBILE 8 finalizza il cutover del Calendario: `/calendario` monta Calendar V3 in modalità reale come unico ingresso di prodotto; `/calendar-v3-lab` resta una route di sviluppo non indicizzata con fixture e real-mode esplicito. Desktop conserva Giorno, Settimana e Mese, sidebar, cataloghi, gesture, ricorrenze e azioni cliniche; mobile conserva Giorno, Agenda e Mese con filtri e impostazioni dedicate. Tutti i link applicativi continuano a usare `/calendario`.
 
