@@ -9,7 +9,7 @@ import { useData } from "./data-provider";
 
 export type MobileHeaderDetail = { variant: "detail"; title: string; backHref: string; backLabel?: string; onBack?: () => void };
 
-export function AppShell({ children, mobileHeader, mobileFullScreen = false, desktopFullScreen = false, desktopWide = false }: { children: React.ReactNode; mobileHeader?: MobileHeaderDetail; mobileFullScreen?: boolean; desktopFullScreen?: boolean; desktopWide?: boolean }) {
+export function AppShell({ children, mobileHeader, mobileFullScreen = false, desktopFullScreen = false, desktopWide = false, desktopWideAtLarge = false, mainClassName = "" }: { children: React.ReactNode; mobileHeader?: MobileHeaderDetail; mobileFullScreen?: boolean; desktopFullScreen?: boolean; desktopWide?: boolean; desktopWideAtLarge?: boolean; mainClassName?: string }) {
   const pathname = usePathname(), router = useRouter();
   const { data, connection, signOut } = useData();
   const profileName = `${data.profile.firstName} ${data.profile.lastName}`.trim() || "Profilo Armonia";
@@ -26,7 +26,7 @@ export function AppShell({ children, mobileHeader, mobileFullScreen = false, des
           <span className={`${editorialStyles.workspaceLabel} organic-editorial-title`}>{editorialSection}</span>
         </div>
       </header>}
-      <main className={`mx-auto min-w-0 max-w-6xl flex-1 pb-[max(2.5rem,env(safe-area-inset-bottom))] md:px-8 md:pb-10 md:pt-10 ${mobileFullScreen ? "px-0 pt-0" : "px-4 pt-6 sm:px-8"} ${desktopFullScreen ? `md:h-dvh md:min-h-0 md:max-w-none md:overflow-hidden md:px-0 md:pb-0 md:pt-0 ${editorialStyles.fullscreenMain}` : ""} ${desktopWide ? editorialStyles.wideMain : ""}`}>{children}</main>
+      <main className={`mx-auto min-w-0 max-w-6xl flex-1 pb-[max(2.5rem,env(safe-area-inset-bottom))] md:px-8 md:pb-10 md:pt-10 ${mobileFullScreen ? "px-0 pt-0" : "px-4 pt-6 sm:px-8"} ${desktopFullScreen ? `md:h-dvh md:min-h-0 md:max-w-none md:overflow-hidden md:px-0 md:pb-0 md:pt-0 ${editorialStyles.fullscreenMain}` : ""} ${desktopWide ? editorialStyles.wideMain : ""} ${desktopWideAtLarge ? editorialStyles.wideMainAtLarge : ""} ${mainClassName}`}>{children}</main>
     </div>
   </div>;
 }

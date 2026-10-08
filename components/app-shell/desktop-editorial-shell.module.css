@@ -9,6 +9,13 @@
 }
 
 @media screen and (min-width: 1024px) {
+  .wideMainAtLarge {
+    max-width: none;
+    margin-inline: 0;
+  }
+}
+
+@media screen and (min-width: 1024px) {
   .workspace {
     display: flex;
     min-width: 0;
