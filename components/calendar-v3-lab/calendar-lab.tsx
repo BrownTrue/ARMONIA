@@ -6,6 +6,7 @@ import styles from "./calendar-v3-lab.module.css";
 import { AppShell } from "@/components/app-shell";
 import { useData } from "@/components/data-provider";
 import { MobileCalendar } from "./mobile-calendar";
+import { MobileCalendarDialogHost } from "./mobile-dialog-host";
 import { MobileCalendarFilters, MobileCalendarSettings } from "./mobile-calendar-tools";
 import { AppointmentDrawer } from "./appointment-drawer";
 import { AppointmentDetailPanel } from "./appointment-detail-panel";
@@ -1570,6 +1571,7 @@ export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v
             </div>}
           </section>
         </div>
+        <MobileCalendarDialogHost>
         {realMode && panelMode === "appointment-detail" && realAppointment && selectedAppointmentActions ? <AppointmentDetailPanel
           appointment={realAppointment}
           patient={data.patients.find((patient) => patient.id === realAppointment.patientId)}
@@ -1626,6 +1628,7 @@ export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v
           onConfirm={() => { void confirmAppointmentCancellation(); }}
           onCancel={closeCancelDialog}
         /> : null}
+        </MobileCalendarDialogHost>
         {contextMenu && (contextMenu.kind === "empty" || contextEvent) ? <ContextMenu
           anchorPoint={contextMenu.anchorPoint}
           origin={contextMenu.origin}

@@ -1,5 +1,7 @@
 # Attività note
 
+- Fix interazioni Calendario mobile approvato localmente: smoke browser delle tre viste e registrazione retroattiva locale superati, desktop invariato. Resta verifica su Safari iPhone reale; il rilascio del solo fix funzionale è autorizzato dopo build e controlli finali.
+
 - Sicurezza V1 / 034: applicazione manuale e verifica SQL concluse dall'utente (PostgreSQL 17.6, 9/9 PASS). NON rieseguire 034. Integrare il codice di `fix/owner-fk-isolation` in main dopo autorizzazione; prima di adottare Supabase CLI riconciliare la cronologia delle migration manuali, senza rieseguirne il DDL.
 
 - Affidabilità V1: commit `686997f`, test e collaudo browser locale superati; incluso nel branch `fix/owner-fk-isolation`. Il collaudo cloud reale di salvataggi e caricamento/retry resta da completare prima dell'integrazione in produzione. Non ancora pubblicato.
