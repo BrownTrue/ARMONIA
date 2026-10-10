@@ -1,0 +1,34 @@
+# Owner FK isolation — migration 034
+
+Implemented on `fix/owner-fk-isolation` from Reliability V1 (`686997f`). **Already applied manually in the Supabase SQL Editor. Do not run 034 again.** The user confirmed PostgreSQL 17.6, four validated composite FKs, four legacy FKs removed, 9/9 SQL checks passed and no inconsistencies in the examined records. These live results were supplied by the user, not independently queried by the agent. Application code awaits integration into main; Reliability V1 real-cloud UX testing remains pending.
+
+## Migration history and integration
+
+The repository uses sequential filenames (`001` through `034`) and manual SQL Editor application. There is no tracked `supabase/config.toml`, CLI dependency/script or migration-history reconciliation automation. A manual SQL Editor execution does not itself establish a matching CLI history entry. `034` is a repository sequence identifier, not the usual CLI-generated timestamp; compatibility and the exact parsed version must be checked against the CLI version chosen later, not assumed.
+
+No database operation is needed for the application release: retain the SQL file as the record of the already applied change. Do not run `db push` to deploy these application fixes. Before any future CLI adoption, an authorized operator should inspect the remote migration history and local file parsing (`migration list` with the selected CLI). Reconcile all previously applied manual migrations, not just 034. If filenames need timestamp normalization, first establish an explicit mapping for the entire legacy history; do not rename only 034 or invent an applied version. Only after confirming the exact recognized version and missing history entry, use an explicitly authorized `migration repair <confirmed-version> --status applied` to record the existing schema change without executing its DDL. If already recorded, no repair is needed. No list/repair/push or remote connection was performed for this closure.
+
+Both application fixes are on this branch. Integrate from a clean separate main worktree, verifying main is still an ancestor; a fast-forward incorporates Reliability V1 and Security V1 without importing the experimental landing. If main has advanced, review that integration separately rather than forcing/resetting it. Complete the already pending Reliability cloud check before production release. Push/deploy require explicit authorization; SQL 034 must not be reapplied.
+
+## Historical preflight/application procedure — not to repeat on the verified database
+
+1. Run `docs/sql/034_owner_fk_isolation_preflight.sql` in the authorized SQL Editor with full cross-account visibility. No names or clinical payloads are selected.
+2. Require PostgreSQL >=15; zero invalid nulls, missing parents, ownership mismatches and session/appointment patient mismatches. Review any bridge inconsistencies separately; do not repair or delete automatically.
+3. Confirm `patients_user_id_id_key` is validated UNIQUE `(user_id,id)` and the four old constraint names match 001. Confirm `sessions_user_patient_id_key` (020) and `sessions_user_appointment_idx` (033) exist and are valid. Inspect incoming FKs and the 033 triggers.
+4. Confirm `appointments_user_patient_id_key`, the four new FK names and `goals_user_patient_idx` do not already exist. If equivalent live constraints/indexes already exist under other names, review/adapt the migration first; do not silently hide schema drift with IF NOT EXISTS.
+5. The optional local enforcement fixture is `supabase/tests/034_owner_fk_isolation.sql`. It refuses existing application tables and database names outside `armonia_owner_fk_test*`. Run only against a new disposable LOCAL PostgreSQL >=15 database: `psql -X -v ON_ERROR_STOP=1 -d armonia_owner_fk_test -f supabase/tests/034_owner_fk_isolation.sql`. It applies the actual migration to a minimal fixture, tests valid/invalid relations and deletion behavior, then rolls test data back. It does not reproduce RLS, economic restrictions or the 033 triggers. No server/database is installed or created by the script.
+6. After explicit authorization, in a brief write-maintenance window rerun preflight and execute the ENTIRE `supabase/migrations/034_owner_fk_isolation.sql` in one SQL Editor submission. Never execute fragments separately. The transaction validates all new FKs before dropping old ones; incompatibility/name conflict/lock timeout aborts everything. If the connection remains in an aborted transaction, issue `ROLLBACK` before proceeding. No data repair is included.
+7. Repeat constraint/index and aggregate queries: the four new FKs must be `convalidated=true`, the four old FKs absent, all incompatibility counts zero. Confirm the triple FK shows `MATCH SIMPLE`, `ON UPDATE NO ACTION`, `ON DELETE SET NULL (appointment_id)`.
+8. In an authorized synthetic environment verify both accounts, normal CRUD, an unlinked/retroactive session, cancelled appointments, single/series edits, appointment deletion retaining sessions, and patient deletion both without economic dependencies and with existing RESTRICT protections. Do not delete real patient data to test.
+
+## Application compatibility
+
+DataProvider rejects any incoming appointment batch that would disagree with a linked session's patient before writes/state/Google sync, in local and cloud modes. A raced database FK rejection is translated to the same safe message. Drawer and recurrence scope display it. Only the final eligible recurrence plan is checked: existing registered/cancelled exclusions remain unchanged for following/entire scope. Other edits (time, duration, notes, cancellation) remain allowed by this check.
+
+The three patient links retain CASCADE. Appointment deletion clears only `appointment_id`; owner, patient and session history remain. Existing payment/document RESTRICT constraints and catalog guards are not changed. Changing a linked appointment's patient is intentionally rejected rather than cascading a patient change into a historical session.
+
+## Limits and rollback
+
+Creating the UNIQUE and indexes and validating FKs takes locks/scans; the 5-second lock timeout limits waiting, not scan duration. Schedule proportionately to live row counts. Before COMMIT normal ROLLBACK restores all schema changes. After COMMIT an explicitly reviewed reverse migration could re-add/validate the old FKs before removing the composite ones, but would reopen the security gap. Keep the new UNIQUE/index unless there is a reason to remove them and no new dependency exists. Schema rollback never restores later deleted data.
+
+No live configuration or data is verified by repository tests. Static DDL tests do not establish PostgreSQL enforcement. The SQL fixture was not run during implementation because no appropriate local PostgreSQL installation was available.

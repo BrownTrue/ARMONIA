@@ -1,4 +1,5 @@
 import type { Appointment, Session } from "../types.ts";
+import { AppointmentPatientIntegrityError } from "../appointment-patient-integrity.ts";
 import { addCalendarDays } from "./date-time.ts";
 import type { CalendarV3RealGesture } from "./real-appointment-gesture.ts";
 
@@ -204,12 +205,14 @@ export function calendarV3RecurrencePlanSummary(plan: CalendarV3RecurrencePlan):
 export async function executeCalendarV3RecurrencePlan(
   plan: CalendarV3RecurrencePlan,
   save: (appointments: Appointment[]) => Promise<void>,
-): Promise<{ ok: true; count: number } | { ok: false }> {
+): Promise<{ ok: true; count: number } | { ok: false; patientError?: string }> {
   if (!plan.appointments.length) return { ok: false };
   try {
     await save(plan.appointments);
     return { ok: true, count: plan.appointments.length };
-  } catch {
-    return { ok: false };
+  } catch (cause) {
+    return cause instanceof AppointmentPatientIntegrityError
+      ? { ok: false, patientError: cause.message }
+      : { ok: false };
   }
 }

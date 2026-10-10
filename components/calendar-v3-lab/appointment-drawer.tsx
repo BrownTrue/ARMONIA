@@ -25,6 +25,7 @@ import {
 import { selectableAppointmentLocations, selectableAppointmentServices } from "@/lib/calendar-v2";
 import type { AppointmentLocation, AppointmentService, Patient } from "@/lib/types";
 import { fullName } from "@/lib/types";
+import { AppointmentPatientIntegrityError } from "@/lib/appointment-patient-integrity";
 import type { FieldErrors } from "@/lib/form-validation";
 import {
   availableCalendarV3RealAppointmentActions,
@@ -130,8 +131,8 @@ export function AppointmentDrawer({ initialDraft, event, returnFocus, onClose, o
     setSaveError("");
     try {
       await onSave(draft);
-    } catch {
-      setSaveError("Non è stato possibile salvare l’appuntamento. Controlla la connessione e riprova.");
+    } catch (cause) {
+      setSaveError(cause instanceof AppointmentPatientIntegrityError ? cause.message : "Non è stato possibile salvare l’appuntamento. Controlla la connessione e riprova.");
     } finally {
       savingRef.current = false;
       setSaving(false);

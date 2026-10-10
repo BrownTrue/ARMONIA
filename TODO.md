@@ -1,6 +1,8 @@
 # Attività note
 
-- Affidabilità V1: collaudare manualmente cloud in ambiente autorizzato, senza dati reali nuovi: errore/retry di caricamento iniziale, archivio realmente vuoto, nuovo/modifica Patient e Goal con failure/retry, feedback dei form e assenza di modifiche fantasma. Verificare onboarding, refresh, logout e locale invariati. Fix isolato su `fix/provider-reliability`, ancora non committato/pubblicato.
+- Sicurezza V1 / 034: applicazione manuale e verifica SQL concluse dall'utente (PostgreSQL 17.6, 9/9 PASS). NON rieseguire 034. Integrare il codice di `fix/owner-fk-isolation` in main dopo autorizzazione; prima di adottare Supabase CLI riconciliare la cronologia delle migration manuali, senza rieseguirne il DDL.
+
+- Affidabilità V1: commit `686997f`, test e collaudo browser locale superati; incluso nel branch `fix/owner-fk-isolation`. Il collaudo cloud reale di salvataggi e caricamento/retry resta da completare prima dell'integrazione in produzione. Non ancora pubblicato.
 
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 

@@ -1042,7 +1042,7 @@ export function CalendarLab({ dataMode = "fixture", canonicalHref = "/calendar-v
     try {
       const result = await executeCalendarV3RecurrencePlan(plan, saveRealAppointments);
       if (!result.ok) {
-        setRecurrenceError("Non è stato possibile aggiornare la serie. Nessuna modifica è stata applicata nell’interfaccia.");
+        setRecurrenceError(result.patientError ?? "Non è stato possibile aggiornare la serie. Nessuna modifica è stata applicata nell’interfaccia.");
         return;
       }
       const source = recurrenceRequest.source;
