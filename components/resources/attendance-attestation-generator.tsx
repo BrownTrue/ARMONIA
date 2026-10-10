@@ -96,7 +96,9 @@ export function AttendanceAttestationGenerator() {
     const model = validModel();
     if (!model || !selectedPatient) return;
     const [{ pdf }, { attendanceAttestationPdfDocument }] = await Promise.all([import("@react-pdf/renderer"), import("@/components/resources/attendance-attestation-pdf")]);
-    const blob = await pdf(attendanceAttestationPdfDocument(model)).toBlob();
+    const { resolveAttendancePdfLogo } = await import("@/lib/professional-documents/attendance-pdf-logo");
+    const pdfLogo = await resolveAttendancePdfLogo(model.logoSrc);
+    const blob = await pdf(attendanceAttestationPdfDocument({ ...model, logoSrc: pdfLogo })).toBlob();
     setPreview(model);
     return blob;
   };
