@@ -1,5 +1,7 @@
 # Attività note
 
+- Affidabilità V1: collaudare manualmente cloud in ambiente autorizzato, senza dati reali nuovi: errore/retry di caricamento iniziale, archivio realmente vuoto, nuovo/modifica Patient e Goal con failure/retry, feedback dei form e assenza di modifiche fantasma. Verificare onboarding, refresh, logout e locale invariati. Fix isolato su `fix/provider-reliability`, ancora non committato/pubblicato.
+
 Questo elenco contiene solo attività risultanti dallo stato attuale del repository o già esplicitamente previste per Armonia.
 
 - Post-audit: P2 focus menu Economia e breakpoint Oggi corretti localmente. Collaudare prima apertura Enter/Space, frecce/Escape e Oggi a 768/1023/1024 px. P3 logout Dock resta separato: verificare doppio clic e failure prima di eventuali modifiche.

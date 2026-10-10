@@ -1,5 +1,7 @@
 # Stato corrente di Armonia
 
+Affidabilità V1 è preparata nel worktree `fix/provider-reliability`, da `main` a `44c20ba`, senza landing sperimentale. Patient e Goal aggiornano lo stato condiviso soltanto dopo conferma cloud; un fallimento lascia il dato precedente e consente correzione/retry sullo stesso ID. Il caricamento iniziale distingue loading/ready/error: in caso di failure il workspace non viene montato, non avvengono redirect onboarding da un profilo vuoto e compare “Dati non disponibili” con retry dedicato. Letture concorrenti dello stesso account sono condivise; risposte superate o successive al logout vengono ignorate. Refresh di un archivio già completo mantiene la schermata e lo snapshot precedente in caso di errore; modalità locale preservata. Nessuna migration, API o modifica ai domini clinici/economici/Calendar. QA cloud reale non eseguito.
+
 Fotografia ricavata dal repository all’8 ottobre 2026.
 
 Correzioni post-audit pre-merge: il menu azioni Economia focalizza la prima voce soltanto dopo il commit del posizionamento visibile e una sola volta per apertura, senza rubare focus su scroll/resize. Oggi mantiene MobileToday sotto 768 px, ripristina il markup precedente su tablet 768–1023 e mostra Editorial solo da 1024 px; dati derivati e navigazione restano condivisi. Logout verificato staticamente ma non modificato: prevenzione doppio clic e feedback failure restano una verifica P3 separata.
